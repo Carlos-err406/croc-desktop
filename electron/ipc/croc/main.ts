@@ -100,7 +100,7 @@ export const onStatPaths = (paths: string[]) =>
     return out;
   });
 
-export const onSend = (paths: string[], providedId?: string, relay?: string) =>
+export const onSend = (paths: string[], providedId?: string, relay?: string, zip?: boolean) =>
   $try<CrocSendResult>(async () => {
     if (!Array.isArray(paths) || paths.length === 0) {
       throw new Error('No files selected.');
@@ -124,8 +124,8 @@ export const onSend = (paths: string[], providedId?: string, relay?: string) =>
     });
 
     try {
-      log(`send ${paths.length} path(s), code ${code}`);
-      await send.start(paths, { code, relay: relay || undefined });
+      log(`send ${paths.length} path(s), code ${code}${zip ? ' (zip)' : ''}`);
+      await send.start(paths, { code, relay: relay || undefined, zip });
     } catch (err) {
       transfers.delete(transferId);
       throw err;
@@ -219,8 +219,8 @@ export const crocRegister: IPCRegisterFunction = (ipcMain) => {
   ipcMain.handle(CROC_PICK_FOLDER, () => onPickFolder());
   ipcMain.handle(CROC_DEFAULT_DIR, () => onDefaultDir());
   ipcMain.handle(CROC_STAT_PATHS, (_e, paths: string[]) => onStatPaths(paths));
-  ipcMain.handle(CROC_SEND, (_e, paths: string[], transferId?: string, relay?: string) =>
-    onSend(paths, transferId, relay)
+  ipcMain.handle(CROC_SEND, (_e, paths: string[], transferId?: string, relay?: string, zip?: boolean) =>
+    onSend(paths, transferId, relay, zip)
   );
   ipcMain.handle(
     CROC_RECEIVE,

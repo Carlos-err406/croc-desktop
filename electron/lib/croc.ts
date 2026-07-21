@@ -233,14 +233,21 @@ interface CrocProcess {
 export interface CrocSendOptions {
   code: string;
   relay?: string;
+  zip?: boolean; // `send --zip`: bundle a folder into one transfer (croc auto-extracts on receive)
 }
 
-/** `croc [--relay X] send <files...>` with the code via CROC_SECRET. */
+/** `croc [--relay X] send [--zip] <files...>` with the code via CROC_SECRET. */
 export class CrocSend extends CrocProcess {
   async start(paths: string[], opts: CrocSendOptions): Promise<void> {
     const args: string[] = [];
     if (opts.relay) args.push('--relay', opts.relay);
-    args.push('send', ...paths);
+    args.push('send');
+    // `--zip` collapses a folder's per-file protocol overhead into a single
+    // transfer (~6× faster for many files); croc auto-extracts it on the other
+    // end. It only affects folders — a no-op for loose files — so it's safe to
+    // always pass when enabled.
+    if (opts.zip) args.push('--zip');
+    args.push(...paths);
     await this.launch(args, { CROC_SECRET: opts.code });
   }
 }

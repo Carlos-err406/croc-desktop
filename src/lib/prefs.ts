@@ -7,6 +7,7 @@ export interface Prefs {
   relay: RelayMode;
   relayCustom: string;
   downloadDir: string; // '' → use the app default (~/Downloads/Croc)
+  zipFolders: boolean; // bundle folders into one transfer (much faster for many files)
 }
 
 const KEY = 'croc.prefs';
@@ -16,6 +17,7 @@ const DEFAULTS: Prefs = {
   relay: 'default',
   relayCustom: '',
   downloadDir: '',
+  zipFolders: true,
 };
 
 /** The relay address to pass to croc, or undefined for croc's default relay. */

@@ -28,8 +28,8 @@ export const crocInvokerFactory = (ipcRenderer: Electron.IpcRenderer) => ({
   [CROC_DEFAULT_DIR]: (() => ipcRenderer.invoke(CROC_DEFAULT_DIR)) as typeof onDefaultDir,
   [CROC_STAT_PATHS]: ((paths: string[]) =>
     ipcRenderer.invoke(CROC_STAT_PATHS, paths)) as typeof onStatPaths,
-  [CROC_SEND]: ((paths: string[], transferId?: string, relay?: string) =>
-    ipcRenderer.invoke(CROC_SEND, paths, transferId, relay)) as typeof onSend,
+  [CROC_SEND]: ((paths: string[], transferId?: string, relay?: string, zip?: boolean) =>
+    ipcRenderer.invoke(CROC_SEND, paths, transferId, relay, zip)) as typeof onSend,
   [CROC_RECEIVE]: ((code: string, opts?: { out?: string; relay?: string }, transferId?: string) =>
     ipcRenderer.invoke(CROC_RECEIVE, code, opts, transferId)) as typeof onReceive,
   [CROC_CANCEL]: ((transferId: string) =>

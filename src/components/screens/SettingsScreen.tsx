@@ -143,6 +143,9 @@ export function SettingsScreen() {
           <Row title="Reveal in folder when done" sub="Open the file location after a transfer completes">
             <Toggle on={prefs.revealOnDone} onClick={() => update({ revealOnDone: !prefs.revealOnDone })} />
           </Row>
+          <Row title="Bundle folders into one transfer" sub="Much faster for folders with many files — the other side still receives the extracted folder">
+            <Toggle on={prefs.zipFolders} onClick={() => update({ zipFolders: !prefs.zipFolders })} />
+          </Row>
         </Card>
 
         <Card title="Network">
@@ -184,7 +187,7 @@ export function SettingsScreen() {
           <CrocBadge size={40} mark={30} />
           <div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>
-              Croc Desktop <span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>v0.1</span>
+              Croc Desktop <span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>v{__APP_VERSION__}</span>
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 1 }}>
               Using the croc binary from your PATH
