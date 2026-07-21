@@ -44,6 +44,7 @@ export type CrocEvent =
   | { transferId: string; type: 'peer' }
   | { transferId: string; type: 'file-info'; info: CrocFileInfo }
   | { transferId: string; type: 'progress'; progress: CrocProgress }
+  | { transferId: string; type: 'text'; text: string }
   | { transferId: string; type: 'done' }
   | { transferId: string; type: 'error'; message: string }
   | { transferId: string; type: 'exit'; code: number };

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Download, Folder, QrCode, X } from 'lucide-react';
+import { Check, Copy, Download, Folder, MessageSquareText, QrCode, X } from 'lucide-react';
 import type { UseReceive } from '@/lib/useReceive';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
@@ -86,7 +86,18 @@ function TimelineStep({ step }: { step: Step }) {
 }
 
 export function ReceiveScreen({ recv }: { recv: UseReceive }) {
-  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out } = recv;
+  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text } = recv;
+  const [copied, setCopied] = useState(false);
+  const copyText = async () => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
   // Overall progress = average per-file percent across the total file count
   // (each file is one bar going 0→100, so this reaches 100% exactly once).
   const overall =
@@ -131,14 +142,18 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ padding: '26px 32px 0' }}>
         <div style={{ fontFamily: HEADING, fontSize: 26, fontWeight: 600, letterSpacing: '.01em' }}>
-          {status === 'done' ? 'Received' : 'Receive files'}
+          {isText ? (status === 'done' ? 'Received text' : 'Receiving text') : status === 'done' ? 'Received' : 'Receive files'}
         </div>
         <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 3 }}>
-          {status === 'done'
-            ? `Saved to ${abbrevHome(savedDir)}`
-            : status === 'receiving'
-              ? 'Downloading securely from your peer.'
-              : 'Get files someone is sending you.'}
+          {isText
+            ? status === 'done'
+              ? 'A text message from your peer.'
+              : 'Receiving a text message from your peer.'
+            : status === 'done'
+              ? `Saved to ${abbrevHome(savedDir)}`
+              : status === 'receiving'
+                ? 'Downloading securely from your peer.'
+                : 'Get files someone is sending you.'}
         </div>
       </div>
 
@@ -184,8 +199,50 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
         </div>
       )}
 
+      {/* TEXT MESSAGE: `croc send --text` — show the body with a copy button */}
+      {isText && status !== 'idle' && status !== 'error' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '20px 32px 28px', minHeight: 0 }}>
+          {text == null ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, border: '1px solid var(--border)', borderRadius: 16 }} className="croc-hero-gradient">
+              <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', animation: 'crocspin .8s linear infinite' }} />
+              <div style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Receiving text message…</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 16, background: 'var(--card)', padding: '18px 20px', overflowY: 'auto', minHeight: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: 12 }}>
+                  <MessageSquareText size={15} /> TEXT MESSAGE
+                </div>
+                <pre
+                  style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 14,
+                    lineHeight: 1.65,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    userSelect: 'text',
+                    color: 'var(--foreground)',
+                  }}
+                >
+                  {text}
+                </pre>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button className="flex-1" onClick={copyText}>
+                  {copied ? <Check /> : <Copy />} {copied ? 'Copied!' : 'Copy text'}
+                </Button>
+                <Button variant="outline" className="flex-1" onClick={recv.reset}>
+                  Receive another
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ACTIVE: connecting / receiving / done — two-column, gradient hero */}
-      {(status === 'connecting' || status === 'receiving' || status === 'done') && (
+      {!isText && (status === 'connecting' || status === 'receiving' || status === 'done') && (
         <div style={{ flex: 1, display: 'flex', gap: 20, padding: '20px 32px 28px', minHeight: 0 }}>
           {/* LEFT: green gradient hero */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'var(--card)', minWidth: 0 }}>

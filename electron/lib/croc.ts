@@ -56,6 +56,7 @@ export interface CrocFileInfo {
   name: string;
   totalHuman: string;
   count?: number; // set when croc reports "N files" (a batch), else a single file
+  isText?: boolean; // true when croc is transferring a `--text` message, not files
 }
 
 type CrocEvents = {
@@ -64,6 +65,7 @@ type CrocEvents = {
   peer: []; // the other side connected
   'file-info': [info: CrocFileInfo];
   progress: [progress: CrocProgress];
+  text: [text: string]; // full body of a `croc send --text` message (receive side)
   done: [];
   error: [payload: { message: string }];
   exit: [payload: { code: number }];
@@ -81,6 +83,9 @@ abstract class CrocProcess extends EventEmitter {
   private lineBuf = '';
   private logCount = 0;
   private totalLines = 0;
+  private textMode = false; // croc is transferring a `--text` message
+  private textStarted = false; // past the peer line — lines are now the message body
+  private textLines: string[] = [];
 
   private static readonly MAX_LOG_EMITS = 1000;
   private static readonly MAX_TOTAL_LINES = 100_000;
@@ -123,6 +128,9 @@ abstract class CrocProcess extends EventEmitter {
         this.handleLine(this.lineBuf);
         this.lineBuf = '';
       }
+      if (this.textMode && !this.finished) {
+        this.emit('text', this.textLines.join('\n').trim());
+      }
       if (!this.finished) {
         this.finished = true;
         if (exitCode === 0) this.emit('done');
@@ -158,8 +166,27 @@ abstract class CrocProcess extends EventEmitter {
       this.emit('log', line);
     }
 
+    // Text transfer (`croc send --text`): croc prints "Receiving text message
+    // (N)", then the peer line, then the message body on the next line(s).
+    if (this.textMode && this.textStarted) {
+      this.textLines.push(line);
+      return;
+    }
+    const textInfo = line.match(/(?:Sending|Receiving)\s+text message\s*\(([^)]+)\)/i);
+    if (textInfo) {
+      this.textMode = true;
+      this.emit('file-info', { name: 'Text message', totalHuman: textInfo[1].trim(), isText: true });
+      return;
+    }
+
     // The other side connected: "Sending (->ip)" / "Receiving (<-ip)".
-    if (/(?:Sending|Receiving)\s*\((?:->|<-)/.test(line)) this.emit('peer');
+    if (/(?:Sending|Receiving)\s*\((?:->|<-)/.test(line)) {
+      this.emit('peer');
+      if (this.textMode) {
+        this.textStarted = true; // every line after this is the message body
+        return;
+      }
+    }
 
     // What's being transferred: "Sending 'f' (293 kB)" / "Receiving 3 files (1.2 MB)".
     const info = line.match(

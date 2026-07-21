@@ -169,6 +169,7 @@ export const onReceive = (code: string, opts?: { out?: string; relay?: string },
     recv.on('peer', () => emit({ transferId, type: 'peer' }));
     recv.on('file-info', (info) => emit({ transferId, type: 'file-info', info }));
     recv.on('progress', (progress) => emit({ transferId, type: 'progress', progress }));
+    recv.on('text', (text) => emit({ transferId, type: 'text', text }));
     recv.on('done', () => emit({ transferId, type: 'done' }));
     recv.on('error', ({ message }) => emit({ transferId, type: 'error', message }));
     recv.on('exit', ({ code: exitCode }) => {

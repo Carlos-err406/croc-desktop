@@ -19,6 +19,8 @@ export interface ReceiveState {
   totalFiles: number; // total count croc reported ("N files"), or 1
   currentFile: string;
   progress: CrocProgress | null;
+  isText: boolean; // sender used `croc send --text` — receiving a message, not files
+  text: string | null; // the received text body
   error: string | null;
   out: string;
   logLines: string[];
@@ -32,6 +34,8 @@ const INITIAL: ReceiveState = {
   totalFiles: 1,
   currentFile: '',
   progress: null,
+  isText: false,
+  text: null,
   error: null,
   out: '',
   logLines: [],
@@ -46,6 +50,10 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
     case 'peer':
       return v; // informational; "receiving" is driven by real byte progress
     case 'file-info': {
+      // A text message (`croc send --text`) — not files. Switch to text mode.
+      if (e.info.isText) {
+        return { ...v, isText: true, fileInfo: e.info };
+      }
       // A batch ("N files") only tells us the count — not per-file names.
       if (e.info.count && e.info.count > 1) {
         return { ...v, fileInfo: e.info, totalFiles: e.info.count };
@@ -84,6 +92,8 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
         totalFiles,
       };
     }
+    case 'text':
+      return { ...v, isText: true, text: e.text };
     case 'done':
       return {
         ...v,
