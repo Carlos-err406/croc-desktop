@@ -24,11 +24,14 @@ export function AppShell() {
       }}
     >
       <Sidebar screen={screen} onNavigate={setScreen} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {screen === 'send' && <SendScreen send={send} onViewHistory={() => setScreen('history')} />}
-        {screen === 'receive' && <ReceiveScreen recv={recv} />}
-        {screen === 'history' && <HistoryScreen />}
-        {screen === 'settings' && <SettingsScreen />}
+      <div className="croc-canvas" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Keyed so the screen re-plays its entrance on each navigation. */}
+        <div key={screen} className="croc-screen" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {screen === 'send' && <SendScreen send={send} onViewHistory={() => setScreen('history')} />}
+          {screen === 'receive' && <ReceiveScreen recv={recv} />}
+          {screen === 'history' && <HistoryScreen />}
+          {screen === 'settings' && <SettingsScreen />}
+        </div>
       </div>
     </div>
   );

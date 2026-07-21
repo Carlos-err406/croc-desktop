@@ -227,3 +227,119 @@
 .croc-file-x:hover {
   color: var(--destructive) !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   POLISH — atmosphere, depth & orchestrated motion.
+   Restrained for a desktop tool: one entrance moment, tactile hovers, and
+   a faint brand glow + grain so surfaces read as elevated, not floating.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* The working canvas behind the screens: a soft brand glow drifting from the
+   sidebar edge, plus a barely-there film grain for tactility. Solid cards
+   sit on top and quietly pop against it. */
+.croc-canvas {
+  position: relative;
+  background:
+    radial-gradient(115% 80% at 8% -6%, color-mix(in oklch, var(--brand) 8%, transparent), transparent 52%),
+    radial-gradient(90% 70% at 108% 106%, color-mix(in oklch, var(--brand) 5%, transparent), transparent 50%),
+    var(--background);
+}
+.dark .croc-canvas {
+  background:
+    radial-gradient(115% 80% at 8% -6%, color-mix(in oklch, var(--brand) 17%, transparent), transparent 52%),
+    radial-gradient(90% 70% at 108% 106%, color-mix(in oklch, var(--brand) 12%, transparent), transparent 50%),
+    var(--background);
+}
+.croc-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark .croc-canvas::before {
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+}
+.croc-canvas > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Entrance: the active screen rises in — replays on nav change (keyed). */
+@keyframes croc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.croc-screen {
+  animation: croc-rise 0.4s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+}
+/* One-time staggered reveal of the sidebar nav on first paint. */
+.croc-nav {
+  animation: croc-rise 0.45s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+}
+
+/* Sidebar depth: lift it off the glowing canvas with a whisper of shadow. */
+nav {
+  box-shadow: 7px 0 28px -22px rgba(0, 0, 0, 0.35);
+}
+
+/* Nav item refinements: an active "you are here" accent bar + an icon that
+   leans into the pointer on hover. */
+.croc-nav {
+  position: relative;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.croc-nav svg {
+  transition: transform 0.16s cubic-bezier(0.22, 0.68, 0.28, 1);
+}
+.croc-nav:hover svg {
+  transform: translateX(2px);
+}
+.croc-nav[data-active='true']::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  height: 17px;
+  width: 3px;
+  border-radius: 3px;
+  transform: translateY(-50%);
+  background: var(--brand);
+}
+.croc-nav:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 45%, transparent);
+}
+
+/* Buttons: a soft tactile lift on hover (press-down already handled by the
+   component's active:translate-y-px). */
+[data-slot='button']:not(:disabled):hover {
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.28);
+}
+
+/* Branded selection + scrollbar-on-hover — small consistent touches. */
+::selection {
+  background: color-mix(in oklch, var(--brand) 26%, transparent);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--brand) 45%, var(--border));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .croc-screen,
+  .croc-nav,
+  .croc-nav svg {
+    animation: none !important;
+    transition: none !important;
+  }
+}
