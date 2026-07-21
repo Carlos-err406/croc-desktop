@@ -24,9 +24,10 @@ export function AppShell() {
       }}
     >
       <Sidebar screen={screen} onNavigate={setScreen} />
-      <div className="croc-canvas" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Keyed so the screen re-plays its entrance on each navigation. */}
-        <div key={screen} className="croc-screen" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="croc-canvas" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+        {/* Keyed so the screen re-plays its entrance on each navigation.
+            minHeight:0 lets inner overflow:auto regions (e.g. Settings) scroll. */}
+        <div key={screen} className="croc-screen" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
           {screen === 'send' && <SendScreen send={send} onViewHistory={() => setScreen('history')} />}
           {screen === 'receive' && <ReceiveScreen recv={recv} />}
           {screen === 'history' && <HistoryScreen />}
