@@ -203,7 +203,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
       {isText && status !== 'idle' && status !== 'error' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '20px 32px 28px', minHeight: 0 }}>
           {text == null ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, border: '1px solid var(--border)', borderRadius: 16 }} className="croc-hero-gradient">
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, border: '1px solid var(--border)', borderRadius: 16 }}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', animation: 'crocspin .8s linear infinite' }} />
               <div style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Receiving text message…</div>
             </div>
@@ -244,9 +244,9 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
       {/* ACTIVE: connecting / receiving / done — two-column, gradient hero */}
       {!isText && (status === 'connecting' || status === 'receiving' || status === 'done') && (
         <div style={{ flex: 1, display: 'flex', gap: 20, padding: '20px 32px 28px', minHeight: 0 }}>
-          {/* LEFT: green gradient hero */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'var(--card)', minWidth: 0 }}>
-            <div className="croc-hero-gradient" style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, minWidth: 0 }}>
+          {/* LEFT — transparent so it blends into the layout brand wash */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'transparent', minWidth: 0 }}>
+            <div style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, minWidth: 0 }}>
               {status === 'connecting' ? (
                 <>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', animation: 'crocspin .8s linear infinite' }} />

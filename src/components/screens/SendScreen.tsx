@@ -216,7 +216,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               justifyContent: 'center',
               border: `2px dashed ${dragging ? 'var(--brand)' : 'var(--border)'}`,
               borderRadius: 18,
-              background: 'linear-gradient(160deg,var(--brand-surface),transparent 55%)',
+              background: 'transparent',
               cursor: 'pointer',
               textAlign: 'center',
               outline: 'none',
@@ -300,8 +300,8 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       {/* active: two-column */}
       {active && (
         <div style={{ flex: 1, display: 'flex', gap: 20, padding: '20px 32px 28px', minHeight: 0 }}>
-          {/* LEFT */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'var(--card)', minWidth: 0 }}>
+          {/* LEFT — transparent so it blends into the layout brand wash */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'transparent', minWidth: 0 }}>
             {status === 'waiting' && result && (
               <>
                 <div style={{ background: 'linear-gradient(150deg,var(--brand),var(--brand-deep))', padding: '22px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
@@ -331,7 +331,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             )}
 
             {status === 'transferring' && (
-              <div className="croc-hero-gradient" style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, minWidth: 0 }}>
+              <div style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, minWidth: 0 }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontFamily: HEADING, fontSize: 68, fontWeight: 600, lineHeight: 1, color: 'var(--brand-deep)' }}>{percent}%</div>
                   <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 8 }}>
