@@ -1,10 +1,20 @@
 import type { CrocProgress, CrocFileInfo } from '@electron/lib/croc';
 
 export const CROC_PICK_PATHS = 'croc:pick-paths';
+export const CROC_STAT_PATHS = 'croc:stat-paths';
 export const CROC_SEND = 'croc:send';
 export const CROC_CANCEL = 'croc:cancel';
 export const CROC_SHOW_ITEM = 'croc:show-item';
 export const CROC_EVENT = 'croc:event'; // main -> renderer progress stream
+
+export interface StatEntry {
+  path: string;
+  name: string;
+  size: number; // bytes (0 for folders)
+  sizeHuman: string;
+  type: string; // short extension badge, e.g. PDF / ZIP / DIR
+  isDir: boolean;
+}
 
 export interface ReceiveCommand {
   code: string;

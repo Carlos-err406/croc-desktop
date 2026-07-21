@@ -5,13 +5,17 @@ import {
   CROC_PICK_PATHS,
   CROC_SEND,
   CROC_SHOW_ITEM,
+  CROC_STAT_PATHS,
   type CrocEvent,
 } from './channels';
-import type { onCancel, onPickPaths, onSend, onShowItem } from './main';
+import type { onCancel, onPickPaths, onSend, onShowItem, onStatPaths } from './main';
 
 export const crocInvokerFactory = (ipcRenderer: Electron.IpcRenderer) => ({
   [CROC_PICK_PATHS]: (() => ipcRenderer.invoke(CROC_PICK_PATHS)) as typeof onPickPaths,
-  [CROC_SEND]: ((paths: string[]) => ipcRenderer.invoke(CROC_SEND, paths)) as typeof onSend,
+  [CROC_STAT_PATHS]: ((paths: string[]) =>
+    ipcRenderer.invoke(CROC_STAT_PATHS, paths)) as typeof onStatPaths,
+  [CROC_SEND]: ((paths: string[], transferId?: string) =>
+    ipcRenderer.invoke(CROC_SEND, paths, transferId)) as typeof onSend,
   [CROC_CANCEL]: ((transferId: string) =>
     ipcRenderer.invoke(CROC_CANCEL, transferId)) as typeof onCancel,
   [CROC_SHOW_ITEM]: ((targetPath: string) =>

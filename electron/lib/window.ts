@@ -6,12 +6,12 @@ const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
 export function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 520,
-    height: 700,
-    minWidth: 440,
-    minHeight: 600,
+    width: 1120,
+    height: 720,
+    minWidth: 940,
+    minHeight: 640,
     title: 'Croc Desktop',
-    backgroundColor: '#09090b',
+    backgroundColor: '#ffffff',
     show: false,
     webPreferences: {
       preload: getPreloadPath(),

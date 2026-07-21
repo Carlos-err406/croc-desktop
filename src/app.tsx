@@ -1,5 +1,5 @@
-import { SendApp } from '@/components/app/SendApp';
+import { AppShell } from '@/components/AppShell';
 
 export default function App() {
-  return <SendApp />;
+  return <AppShell />;
 }

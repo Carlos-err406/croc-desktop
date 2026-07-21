@@ -1,5 +1,7 @@
 import { BrowserWindow, dialog, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import QRCode from 'qrcode';
 import $try from '@utils/try';
 import { CrocSend, generateCode } from '../../lib';
@@ -10,10 +12,30 @@ import {
   CROC_PICK_PATHS,
   CROC_SEND,
   CROC_SHOW_ITEM,
+  CROC_STAT_PATHS,
   type CrocEvent,
   type CrocSendResult,
+  type StatEntry,
 } from './channels';
 import { log } from './utils';
+
+function humanBytes(n: number): string {
+  if (n < 1000) return `${n} B`;
+  const units = ['kB', 'MB', 'GB', 'TB'];
+  let v = n / 1000;
+  let i = 0;
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i += 1;
+  }
+  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
+}
+
+function badgeType(name: string, isDir: boolean): string {
+  if (isDir) return 'DIR';
+  const ext = path.extname(name).replace('.', '').toUpperCase();
+  return ext ? ext.slice(0, 4) : 'FILE';
+}
 
 // Active transfers, keyed by transferId.
 const transfers = new Map<string, CrocSend>();
@@ -35,13 +57,35 @@ export const onPickPaths = () =>
     return result.canceled ? [] : result.filePaths;
   });
 
-export const onSend = (paths: string[]) =>
+export const onStatPaths = (paths: string[]) =>
+  $try<StatEntry[]>(async () => {
+    const out: StatEntry[] = [];
+    for (const p of paths) {
+      try {
+        const st = fs.statSync(p);
+        const isDir = st.isDirectory();
+        out.push({
+          path: p,
+          name: path.basename(p),
+          size: isDir ? 0 : st.size,
+          sizeHuman: isDir ? 'Folder' : humanBytes(st.size),
+          type: badgeType(path.basename(p), isDir),
+          isDir,
+        });
+      } catch {
+        out.push({ path: p, name: path.basename(p), size: 0, sizeHuman: '', type: 'FILE', isDir: false });
+      }
+    }
+    return out;
+  });
+
+export const onSend = (paths: string[], providedId?: string) =>
   $try<CrocSendResult>(async () => {
     if (!Array.isArray(paths) || paths.length === 0) {
       throw new Error('No files selected.');
     }
 
-    const transferId = randomUUID();
+    const transferId = providedId || randomUUID();
     const code = generateCode();
     const send = new CrocSend();
     transfers.set(transferId, send);
@@ -107,7 +151,8 @@ export const onShowItem = (targetPath: string) =>
 
 export const crocRegister: IPCRegisterFunction = (ipcMain) => {
   ipcMain.handle(CROC_PICK_PATHS, () => onPickPaths());
-  ipcMain.handle(CROC_SEND, (_e, paths: string[]) => onSend(paths));
+  ipcMain.handle(CROC_STAT_PATHS, (_e, paths: string[]) => onStatPaths(paths));
+  ipcMain.handle(CROC_SEND, (_e, paths: string[], transferId?: string) => onSend(paths, transferId));
   ipcMain.handle(CROC_CANCEL, (_e, transferId: string) => onCancel(transferId));
   ipcMain.handle(CROC_SHOW_ITEM, (_e, targetPath: string) => onShowItem(targetPath));
 };

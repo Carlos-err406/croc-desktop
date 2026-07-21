@@ -20,6 +20,8 @@
     "postinstall": "electron-builder install-app-deps && node scripts/fix-node-pty-perms.mjs"
   },
   "dependencies": {
+    "@fontsource/oswald": "^5.3.0",
+    "@fontsource/poppins": "^5.3.0",
     "@radix-ui/react-progress": "^1.1.2",
     "@radix-ui/react-slot": "^1.2.3",
     "@tailwindcss/vite": "^4.1.13",

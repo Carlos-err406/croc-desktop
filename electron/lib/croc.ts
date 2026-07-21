@@ -193,21 +193,22 @@ export class CrocSend extends EventEmitter {
       this.emit('file-info', { name, totalHuman: info[3] });
     }
 
-    // Progress bar line: has a percent and, usually, "(x/y unit, speed/s)".
-    // croc shares the unit across transferred/total, e.g. "(41/41 B, 62 kB/s)".
-    const pct = line.match(/(\d{1,3})%/);
-    if (pct) {
-      const percent = Math.min(100, parseInt(pct[1], 10));
-      const stats = line.match(
-        /\(\s*([\d.]+(?:\s*[kKmMgGtT]?i?[bB])?)\s*\/\s*([\d.]+\s*[kKmMgGtT]?i?[bB])(?:,\s*([\d.]+\s*[kKmMgGtT]?i?[bB]\/s))?/
-      );
+    // A genuine progress line MUST carry transfer stats "(x/y unit[, speed])"
+    // — croc shares the unit, e.g. "(41/41 B, 62 kB/s)". Requiring the stats
+    // means a stray "%" (or a connection/announce line) is never mistaken for
+    // real transfer progress.
+    const stats = line.match(
+      /\(\s*([\d.]+(?:\s*[kKmMgGtT]?i?[bB])?)\s*\/\s*([\d.]+\s*[kKmMgGtT]?i?[bB])(?:,\s*([\d.]+\s*[kKmMgGtT]?i?[bB]\/s))?/
+    );
+    if (stats) {
+      const pctM = line.match(/(\d{1,3})%/);
       const eta = line.match(/\[([\dhms:]+)\s*:\s*([\dhms:]+)\]/);
       this.sawProgress = true;
       this.emit('progress', {
-        percent,
-        transferredHuman: stats ? stats[1] : null,
-        totalHuman: stats ? stats[2] : null,
-        speedHuman: stats ? stats[3] : null,
+        percent: pctM ? Math.min(100, parseInt(pctM[1], 10)) : 0,
+        transferredHuman: stats[1],
+        totalHuman: stats[2],
+        speedHuman: stats[3] ?? null,
         etaHuman: eta ? eta[2] : null,
       });
       return;
