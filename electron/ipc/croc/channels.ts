@@ -8,7 +8,12 @@ export const CROC_SEND = 'croc:send';
 export const CROC_RECEIVE = 'croc:receive';
 export const CROC_CANCEL = 'croc:cancel';
 export const CROC_SHOW_ITEM = 'croc:show-item';
+export const CROC_SHARE = 'croc:share';
 export const CROC_EVENT = 'croc:event'; // main -> renderer progress stream
+
+export interface ShareResult {
+  shown: boolean; // true if the OS share UI opened (macOS); false where unsupported
+}
 
 export interface CrocReceiveResult {
   transferId: string;

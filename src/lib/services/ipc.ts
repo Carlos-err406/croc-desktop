@@ -5,6 +5,7 @@ import {
   CROC_PICK_PATHS,
   CROC_RECEIVE,
   CROC_SEND,
+  CROC_SHARE,
   CROC_SHOW_ITEM,
   CROC_STAT_PATHS,
 } from '@electron/ipc/croc/channels';
@@ -20,6 +21,7 @@ export const croc = {
   receive: ipc[CROC_RECEIVE],
   cancel: ipc[CROC_CANCEL],
   showItem: ipc[CROC_SHOW_ITEM],
+  share: ipc[CROC_SHARE],
   onEvent: ipc.onCrocEvent,
   pathForFile: ipc.pathForFile,
 };

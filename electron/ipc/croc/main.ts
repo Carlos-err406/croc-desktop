@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, shell } from 'electron';
+import { app, BrowserWindow, dialog, ShareMenu, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,11 +14,13 @@ import {
   CROC_PICK_PATHS,
   CROC_RECEIVE,
   CROC_SEND,
+  CROC_SHARE,
   CROC_SHOW_ITEM,
   CROC_STAT_PATHS,
   type CrocEvent,
   type CrocReceiveResult,
   type CrocSendResult,
+  type ShareResult,
   type StatEntry,
 } from './channels';
 import { log } from './utils';
@@ -203,6 +205,38 @@ export const onShowItem = (targetPath: string) =>
     return true;
   });
 
+/**
+ * Open the OS-native share UI for a transfer. Shares the QR image (a PNG the
+ * renderer composed with the code printed on it, written to a temp file) plus
+ * the passphrase as plain text. Most targets (Mail, Messages, AirDrop, Notes)
+ * show both; chat apps that prefer text (Telegram) send the passphrase and drop
+ * the image. On macOS the `ShareMenu` class pops the system share services
+ * directly (top-level, no "Share ▸" submenu). Elsewhere it's unsupported, so we
+ * report `shown:false` and the renderer falls back to copying the code.
+ */
+export const onShare = (payload: { image?: string; text?: string }) =>
+  $try<ShareResult>(async () => {
+    if (process.platform !== 'darwin') return { shown: false };
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    if (!win) return { shown: false };
+
+    const filePaths: string[] = [];
+    const m = payload.image ? /^data:image\/png;base64,(.+)$/.exec(payload.image) : null;
+    if (m) {
+      try {
+        const qrPath = path.join(app.getPath('temp'), 'croc-share-qr.png');
+        fs.writeFileSync(qrPath, Buffer.from(m[1], 'base64'));
+        filePaths.push(qrPath);
+      } catch {
+        /* QR is a nicety — the text still carries the passphrase */
+      }
+    }
+    if (!filePaths.length && !payload.text) return { shown: false };
+
+    new ShareMenu({ filePaths, texts: payload.text ? [payload.text] : [] }).popup({ window: win });
+    return { shown: true };
+  });
+
 export const onPickFolder = () =>
   $try<string>(async () => {
     const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
@@ -230,4 +264,5 @@ export const crocRegister: IPCRegisterFunction = (ipcMain) => {
   );
   ipcMain.handle(CROC_CANCEL, (_e, transferId: string) => onCancel(transferId));
   ipcMain.handle(CROC_SHOW_ITEM, (_e, targetPath: string) => onShowItem(targetPath));
+  ipcMain.handle(CROC_SHARE, (_e, payload: { image?: string; text?: string }) => onShare(payload));
 };

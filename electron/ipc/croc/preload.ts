@@ -7,6 +7,7 @@ import {
   CROC_PICK_PATHS,
   CROC_RECEIVE,
   CROC_SEND,
+  CROC_SHARE,
   CROC_SHOW_ITEM,
   CROC_STAT_PATHS,
   type CrocEvent,
@@ -18,6 +19,7 @@ import type {
   onPickPaths,
   onReceive,
   onSend,
+  onShare,
   onShowItem,
   onStatPaths,
 } from './main';
@@ -36,6 +38,8 @@ export const crocInvokerFactory = (ipcRenderer: Electron.IpcRenderer) => ({
     ipcRenderer.invoke(CROC_CANCEL, transferId)) as typeof onCancel,
   [CROC_SHOW_ITEM]: ((targetPath: string) =>
     ipcRenderer.invoke(CROC_SHOW_ITEM, targetPath)) as typeof onShowItem,
+  [CROC_SHARE]: ((payload: { image?: string; text?: string }) =>
+    ipcRenderer.invoke(CROC_SHARE, payload)) as typeof onShare,
 
   // Subscribe to the main->renderer progress stream. Returns an unsubscribe fn.
   onCrocEvent: (handler: (event: CrocEvent) => void): (() => void) => {
