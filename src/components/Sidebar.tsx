@@ -80,6 +80,23 @@ export function Sidebar({
           <Settings size={18} />
           Settings
         </button>
+        <div
+          title={`Built ${new Date(__BUILD_TIME__).toLocaleString()}`}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            padding: '2px 12px 0',
+            fontSize: 10,
+            color: 'var(--muted-foreground)',
+          }}
+        >
+          <span style={{ fontWeight: 500 }}>v{__APP_VERSION__}</span>
+          <span>
+            build{' '}
+            {new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
       </div>
     </nav>
   );

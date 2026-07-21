@@ -6,10 +6,22 @@ export interface Prefs {
   revealOnDone: boolean;
   relay: RelayMode;
   relayCustom: string;
+  downloadDir: string; // '' → use the app default (~/Downloads/Croc)
 }
 
 const KEY = 'croc.prefs';
-const DEFAULTS: Prefs = { theme: 'light', revealOnDone: true, relay: 'default', relayCustom: '' };
+const DEFAULTS: Prefs = {
+  theme: 'light',
+  revealOnDone: true,
+  relay: 'default',
+  relayCustom: '',
+  downloadDir: '',
+};
+
+/** The relay address to pass to croc, or undefined for croc's default relay. */
+export function relayArg(p: Prefs = read()): string | undefined {
+  return p.relay === 'custom' && p.relayCustom.trim() ? p.relayCustom.trim() : undefined;
+}
 
 function read(): Prefs {
   try {

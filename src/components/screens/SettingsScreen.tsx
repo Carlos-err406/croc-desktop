@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { getPrefs, setPrefs, setTheme, type Prefs, type RelayMode, type Theme } from '@/lib/prefs';
+import { abbrevHome } from '@/lib/paths';
+import { croc } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusChip } from '@/components/ui/status-chip';
@@ -98,7 +100,18 @@ function RelayChoice({ active, onClick, children }: { active: boolean; onClick: 
 
 export function SettingsScreen() {
   const [prefs, setLocal] = useState<Prefs>(() => getPrefs());
+  const [defaultDir, setDefaultDir] = useState('');
   const update = (patch: Partial<Prefs>) => setLocal(setPrefs(patch));
+
+  useEffect(() => {
+    if (!prefs.downloadDir) croc.defaultDir().then(([, d]) => d && setDefaultDir(d));
+  }, [prefs.downloadDir]);
+
+  const chooseFolder = async () => {
+    const [, dir] = await croc.pickFolder();
+    if (dir) update({ downloadDir: dir });
+  };
+  const downloadLabel = abbrevHome(prefs.downloadDir || defaultDir || '~/Downloads/Croc');
   const chooseTheme = (t: Theme) => {
     setTheme(t);
     setLocal((p) => ({ ...p, theme: t }));
@@ -117,11 +130,14 @@ export function SettingsScreen() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 32px 32px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         <Card title="General">
           <Row title="Download folder" sub="Where received files are saved">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--secondary)', borderRadius: 8, padding: '7px 11px' }}>
-                ~/Downloads/Croc
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <span
+                title={prefs.downloadDir || defaultDir}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--secondary)', borderRadius: 8, padding: '7px 11px', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                {downloadLabel}
               </span>
-              <Button variant="outline" size="sm">Choose…</Button>
+              <Button variant="outline" size="sm" onClick={chooseFolder}>Choose…</Button>
             </div>
           </Row>
           <Row title="Reveal in folder when done" sub="Open the file location after a transfer completes">

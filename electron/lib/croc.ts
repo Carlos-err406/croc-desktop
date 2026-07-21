@@ -42,27 +42,26 @@ export function findCrocBinary(): string | null {
 }
 
 export interface CrocProgress {
-  percent: number;
+  percent: number; // per-file percent (croc reports one bar per file)
   transferredHuman?: string | null;
   totalHuman?: string | null;
   speedHuman?: string | null;
   etaHuman?: string | null;
+  file?: string | null; // filename this progress line is for
+  index?: number | null; // N in the trailing "N/M" (files completed so far)
+  count?: number | null; // M in the trailing "N/M" (total files)
 }
 
 export interface CrocFileInfo {
   name: string;
   totalHuman: string;
+  count?: number; // set when croc reports "N files" (a batch), else a single file
 }
 
-export interface CrocSendOptions {
-  code: string;
-  relay?: string;
-}
-
-type CrocSendEvents = {
+type CrocEvents = {
   log: [line: string];
-  waiting: [];
-  peer: [];
+  waiting: []; // send: code live / receive: connecting
+  peer: []; // the other side connected
   'file-info': [info: CrocFileInfo];
   progress: [progress: CrocProgress];
   done: [];
@@ -70,70 +69,54 @@ type CrocSendEvents = {
   exit: [payload: { code: number }];
 };
 
-// Merge typed event signatures onto the EventEmitter base.
-export declare interface CrocSend {
-  on<K extends keyof CrocSendEvents>(event: K, listener: (...args: CrocSendEvents[K]) => void): this;
-  emit<K extends keyof CrocSendEvents>(event: K, ...args: CrocSendEvents[K]): boolean;
-}
-
 /**
- * A single croc `send` transfer, spawned through a pseudo-terminal so croc
- * emits its (TTY-gated) progress bar, which we parse into typed events.
+ * Shared plumbing for a croc child process spawned through a pseudo-terminal
+ * (croc's progress is TTY-gated). Parses stdout into typed events. Subclasses
+ * only build the argv + env for `send` vs `receive`.
  */
-export class CrocSend extends EventEmitter {
-  private proc: IPty | null = null;
+abstract class CrocProcess extends EventEmitter {
+  protected proc: IPty | null = null;
   private sawProgress = false;
   private finished = false;
   private lineBuf = '';
   private logCount = 0;
   private totalLines = 0;
 
-  // The UI only keeps the tail of the log; cap emissions so a chatty (or
-  // misbehaving) process can't flood IPC.
   private static readonly MAX_LOG_EMITS = 1000;
-  // Absolute backstop against a runaway output loop (never hit by a real transfer).
   private static readonly MAX_TOTAL_LINES = 100_000;
 
-  async start(paths: string[], opts: CrocSendOptions): Promise<void> {
+  protected async launch(args: string[], extraEnv: Record<string, string>): Promise<void> {
     const bin = findCrocBinary();
     if (!bin) {
       throw new Error(
         'croc binary not found. Install croc (e.g. `brew install croc`) or set CROC_BIN.'
       );
     }
-
     let pty: typeof import('node-pty');
     try {
       pty = await import('node-pty');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `node-pty failed to load. Run \`npm run postinstall\` to build it for Electron. (${msg})`
-      );
+      throw new Error(`node-pty failed to load. Run \`npm run postinstall\`. (${msg})`);
     }
 
-    // croc v10 refuses a code as a CLI arg (`--code`); it must come via the
-    // CROC_SECRET env var. Global flags like --relay must precede the subcommand.
-    const args: string[] = [];
-    if (opts.relay) args.push('--relay', opts.relay);
-    args.push('send', ...paths);
-
-    // Ensure common install dirs are on PATH for the spawned process.
     const extraPath = ['/opt/homebrew/bin', '/usr/local/bin'].join(path.delimiter);
     const env = {
       ...process.env,
       PATH: `${process.env.PATH || ''}${path.delimiter}${extraPath}`,
-      CROC_SECRET: opts.code,
+      ...extraEnv,
     };
 
     this.proc = pty.spawn(bin, args, {
       name: 'xterm-256color',
-      cols: 120,
+      // croc truncates the filename in its progress bar to fit the terminal
+      // width and appends a literal "..."; a very wide PTY gives it room to
+      // print full filenames (verified: ~8 chars at 80 cols, full at ≥1000).
+      cols: 1000,
       rows: 30,
       cwd: os.homedir(),
       env,
     });
-
     this.proc.onData((data) => this.ingest(data));
     this.proc.onExit(({ exitCode }) => {
       if (this.lineBuf) {
@@ -151,8 +134,6 @@ export class CrocSend extends EventEmitter {
 
   private ingest(data: string): void {
     if (this.finished) return;
-    // croc redraws its progress bar with carriage returns; treat both \r and \n
-    // as line boundaries so each bar redraw is a fresh parseable line.
     this.lineBuf += data;
     const parts = this.lineBuf.split(/\r\n|\r|\n/);
     this.lineBuf = parts.pop() ?? '';
@@ -161,10 +142,8 @@ export class CrocSend extends EventEmitter {
 
   private handleLine(raw: string): void {
     if (this.finished) return;
-
-    // Runaway backstop: kill and error out rather than allocate without bound.
     this.totalLines += 1;
-    if (this.totalLines > CrocSend.MAX_TOTAL_LINES) {
+    if (this.totalLines > CrocProcess.MAX_TOTAL_LINES) {
       this.finished = true;
       this.emit('error', { message: 'Aborted: unexpected runaway output from croc.' });
       this.cancel();
@@ -174,35 +153,44 @@ export class CrocSend extends EventEmitter {
     const line = raw.replace(ANSI, '').trim();
     if (!line) return;
 
-    if (this.logCount < CrocSend.MAX_LOG_EMITS) {
+    if (this.logCount < CrocProcess.MAX_LOG_EMITS) {
       this.logCount += 1;
       this.emit('log', line);
     }
 
-    // A receiver connected: croc prints "Sending (->1.2.3.4:9009)".
-    if (/Sending\s*\(->/.test(line)) this.emit('peer');
+    // The other side connected: "Sending (->ip)" / "Receiving (<-ip)".
+    if (/(?:Sending|Receiving)\s*\((?:->|<-)/.test(line)) this.emit('peer');
 
-    // What we're sending: "Sending 'file.txt' (293 kB)" / "Sending 3 files (1.2 MB)".
-    // (croc emits a transient "Sending 0 files (...)" first — ignore that.)
+    // What's being transferred: "Sending 'f' (293 kB)" / "Receiving 3 files (1.2 MB)".
     const info = line.match(
-      /^Sending\s+(?:(\d+)\s+files?|'?(.+?)'?)\s+\(([\d.]+\s*[kKmMgGtT]?i?[bB])\)/
+      /^(?:Sending|Receiving)\s+(?:(\d+)\s+files?|'?(.+?)'?)\s+\(([\d.]+\s*[kKmMgGtT]?i?[bB])\)/
     );
-    if (info && !/\(->/.test(line) && info[1] !== '0') {
+    if (info && !/\((?:->|<-)/.test(line) && info[1] !== '0') {
       const count = info[1];
       const name = count ? `${count} files` : info[2];
-      this.emit('file-info', { name, totalHuman: info[3] });
+      this.emit('file-info', {
+        name,
+        totalHuman: info[3],
+        count: count ? parseInt(count, 10) : undefined,
+      });
     }
 
-    // A genuine progress line MUST carry transfer stats "(x/y unit[, speed])"
-    // — croc shares the unit, e.g. "(41/41 B, 62 kB/s)". Requiring the stats
-    // means a stray "%" (or a connection/announce line) is never mistaken for
-    // real transfer progress.
+    // A genuine progress line MUST carry transfer stats "(x/y unit[, speed])",
+    // so a stray "%" or an announce line is never mistaken for progress.
     const stats = line.match(
       /\(\s*([\d.]+(?:\s*[kKmMgGtT]?i?[bB])?)\s*\/\s*([\d.]+\s*[kKmMgGtT]?i?[bB])(?:,\s*([\d.]+\s*[kKmMgGtT]?i?[bB]\/s))?/
     );
     if (stats) {
       const pctM = line.match(/(\d{1,3})%/);
       const eta = line.match(/\[([\dhms:]+)\s*:\s*([\dhms:]+)\]/);
+      // Filename prefix (croc prints "name  57% |…"), and a trailing "N/M" file counter.
+      const fileM = line.match(/^(.+?)\s+\d{1,3}%/);
+      const nm = line.match(/(\d+)\s*\/\s*(\d+)\s*$/);
+      // croc pads/truncates the progress description to the PTY width and
+      // appends a literal "..." (three ASCII dots). Strip that trailing marker
+      // (and its padding) so it isn't shown, isn't mistaken for a missing file
+      // extension (→ "FILE" badge), and doesn't collide with our own ellipsis.
+      const file = fileM ? fileM[1].trim().replace(/\s*(?:\.{3,}|…)\s*$/, '').trimEnd() || null : null;
       this.sawProgress = true;
       this.emit('progress', {
         percent: pctM ? Math.min(100, parseInt(pctM[1], 10)) : 0,
@@ -210,12 +198,17 @@ export class CrocSend extends EventEmitter {
         totalHuman: stats[2],
         speedHuman: stats[3] ?? null,
         etaHuman: eta ? eta[2] : null,
+        file,
+        index: nm ? parseInt(nm[1], 10) : null,
+        count: nm ? parseInt(nm[2], 10) : null,
       });
       return;
     }
 
-    // Before any progress and before a peer connects, we're waiting on the relay.
-    if (!this.sawProgress && /(sending|code is|on the other computer)/i.test(line)) {
+    if (
+      !this.sawProgress &&
+      /(code is|on the other computer|sending|connecting|securing channel)/i.test(line)
+    ) {
       this.emit('waiting');
     }
   }
@@ -228,5 +221,43 @@ export class CrocSend extends EventEmitter {
         /* already gone */
       }
     }
+  }
+}
+
+// Typed event signatures merged onto the base (and inherited by subclasses).
+interface CrocProcess {
+  emit<K extends keyof CrocEvents>(event: K, ...args: CrocEvents[K]): boolean;
+  on<K extends keyof CrocEvents>(event: K, listener: (...args: CrocEvents[K]) => void): this;
+}
+
+export interface CrocSendOptions {
+  code: string;
+  relay?: string;
+}
+
+/** `croc [--relay X] send <files...>` with the code via CROC_SECRET. */
+export class CrocSend extends CrocProcess {
+  async start(paths: string[], opts: CrocSendOptions): Promise<void> {
+    const args: string[] = [];
+    if (opts.relay) args.push('--relay', opts.relay);
+    args.push('send', ...paths);
+    await this.launch(args, { CROC_SECRET: opts.code });
+  }
+}
+
+export interface CrocReceiveOptions {
+  code: string;
+  out: string;
+  relay?: string;
+}
+
+/** `croc [--relay X] --out DIR --yes --overwrite` with the code via CROC_SECRET. */
+export class CrocReceive extends CrocProcess {
+  async start(opts: CrocReceiveOptions): Promise<void> {
+    const args: string[] = [];
+    if (opts.relay) args.push('--relay', opts.relay);
+    if (opts.out) args.push('--out', opts.out);
+    args.push('--yes', '--overwrite');
+    await this.launch(args, { CROC_SECRET: opts.code });
   }
 }

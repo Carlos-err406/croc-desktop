@@ -1,11 +1,19 @@
 import type { CrocProgress, CrocFileInfo } from '@electron/lib/croc';
 
 export const CROC_PICK_PATHS = 'croc:pick-paths';
+export const CROC_PICK_FOLDER = 'croc:pick-folder';
+export const CROC_DEFAULT_DIR = 'croc:default-dir';
 export const CROC_STAT_PATHS = 'croc:stat-paths';
 export const CROC_SEND = 'croc:send';
+export const CROC_RECEIVE = 'croc:receive';
 export const CROC_CANCEL = 'croc:cancel';
 export const CROC_SHOW_ITEM = 'croc:show-item';
 export const CROC_EVENT = 'croc:event'; // main -> renderer progress stream
+
+export interface CrocReceiveResult {
+  transferId: string;
+  out: string;
+}
 
 export interface StatEntry {
   path: string;

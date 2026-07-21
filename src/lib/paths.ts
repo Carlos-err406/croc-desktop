@@ -8,3 +8,9 @@ export function pathsFromFileList(list: FileList): string[] {
 }
 
 export const basename = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() || p;
+
+/** Abbreviate a home-relative path to ~/… for display. */
+export function abbrevHome(p: string): string {
+  const m = p.match(/^(\/Users\/[^/]+|\/home\/[^/]+)(\/.*)?$/);
+  return m ? `~${m[2] ?? ''}` : p;
+}

@@ -331,21 +331,22 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             )}
 
             {status === 'transferring' && (
-              <div style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22 }}>
+              <div className="croc-hero-gradient" style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, minWidth: 0 }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontFamily: HEADING, fontSize: 68, fontWeight: 600, lineHeight: 1, color: 'var(--brand-deep)' }}>
-                    {percent}%
-                  </div>
+                  <div style={{ fontFamily: HEADING, fontSize: 68, fontWeight: 600, lineHeight: 1, color: 'var(--brand-deep)' }}>{percent}%</div>
                   <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 8 }}>
                     {progress?.speedHuman ? `${progress.speedHuman}${progress.etaHuman ? ` · ETA ${progress.etaHuman}` : ''}` : 'Transferring…'}
                   </div>
                 </div>
-                <div style={{ width: '100%', height: 12, borderRadius: 999, background: 'var(--secondary)', overflow: 'hidden' }}>
+                <div style={{ width: '100%', maxWidth: 420, height: 12, borderRadius: 999, background: 'var(--secondary)', overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(90deg,var(--brand),var(--brand-deep))', width: `${percent}%`, transition: 'width .2s ease' }} />
                 </div>
                 {inFlight && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, width: '100%', minWidth: 0 }}>
-                    <PingDot />
+                    <span style={{ position: 'relative', display: 'flex', width: 9, height: 9, flexShrink: 0 }}>
+                      <span style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: 'var(--brand)', opacity: 0.5, animation: 'crocping 1.4s ease-out infinite' }} />
+                      <span style={{ position: 'relative', width: 9, height: 9, borderRadius: '50%', background: 'var(--brand)' }} />
+                    </span>
                     <span style={{ flexShrink: 0 }}>Sending</span>
                     <MiddleTruncate
                       text={send.fileInfo?.name ?? entries[0]?.name ?? ''}
@@ -380,7 +381,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           </div>
 
           {/* RIGHT */}
-          <div style={{ width: 286, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, minHeight: 0 }}>
+          <div style={{ width: 332, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, minHeight: 0 }}>
             <div style={{ border: '1px solid var(--border)', borderRadius: 14, padding: 18, background: 'var(--card)' }}>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Connection</div>
               {buildSteps(status).map((s, i) => (
@@ -428,15 +429,6 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
         </div>
       )}
     </div>
-  );
-}
-
-function PingDot() {
-  return (
-    <span style={{ position: 'relative', display: 'flex', width: 9, height: 9, flexShrink: 0 }}>
-      <span style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: 'var(--brand)', opacity: 0.5, animation: 'crocping 1.4s ease-out infinite' }} />
-      <span style={{ position: 'relative', width: 9, height: 9, borderRadius: '50%', background: 'var(--brand)' }} />
-    </span>
   );
 }
 

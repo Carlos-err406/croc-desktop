@@ -1,23 +1,44 @@
-import { BrowserWindow, dialog, shell } from 'electron';
+import { app, BrowserWindow, dialog, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import $try from '@utils/try';
-import { CrocSend, generateCode } from '../../lib';
+import { CrocReceive, CrocSend, generateCode } from '../../lib';
 import { IPCRegisterFunction } from '../types';
 import {
   CROC_CANCEL,
+  CROC_DEFAULT_DIR,
   CROC_EVENT,
+  CROC_PICK_FOLDER,
   CROC_PICK_PATHS,
+  CROC_RECEIVE,
   CROC_SEND,
   CROC_SHOW_ITEM,
   CROC_STAT_PATHS,
   type CrocEvent,
+  type CrocReceiveResult,
   type CrocSendResult,
   type StatEntry,
 } from './channels';
 import { log } from './utils';
+
+/** Default download folder: ~/Downloads/Croc (created if missing). */
+function defaultDownloadDir(): string {
+  let base: string;
+  try {
+    base = app.getPath('downloads');
+  } catch {
+    base = path.join(process.env.HOME || process.cwd(), 'Downloads');
+  }
+  const dir = path.join(base, 'Croc');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    /* ignore */
+  }
+  return dir;
+}
 
 function humanBytes(n: number): string {
   if (n < 1000) return `${n} B`;
@@ -38,7 +59,7 @@ function badgeType(name: string, isDir: boolean): string {
 }
 
 // Active transfers, keyed by transferId.
-const transfers = new Map<string, CrocSend>();
+const transfers = new Map<string, CrocSend | CrocReceive>();
 
 // Stream an event to whichever window is currently open (robust to the window
 // being recreated on macOS `activate`).
@@ -79,7 +100,7 @@ export const onStatPaths = (paths: string[]) =>
     return out;
   });
 
-export const onSend = (paths: string[], providedId?: string) =>
+export const onSend = (paths: string[], providedId?: string, relay?: string) =>
   $try<CrocSendResult>(async () => {
     if (!Array.isArray(paths) || paths.length === 0) {
       throw new Error('No files selected.');
@@ -104,7 +125,7 @@ export const onSend = (paths: string[], providedId?: string) =>
 
     try {
       log(`send ${paths.length} path(s), code ${code}`);
-      await send.start(paths, { code });
+      await send.start(paths, { code, relay: relay || undefined });
     } catch (err) {
       transfers.delete(transferId);
       throw err;
@@ -133,12 +154,44 @@ export const onSend = (paths: string[], providedId?: string) =>
     };
   });
 
+export const onReceive = (code: string, opts?: { out?: string; relay?: string }, providedId?: string) =>
+  $try<CrocReceiveResult>(async () => {
+    const trimmed = (code || '').trim();
+    if (!trimmed) throw new Error('Enter a transfer code.');
+
+    const transferId = providedId || randomUUID();
+    const out = opts?.out || defaultDownloadDir();
+    const recv = new CrocReceive();
+    transfers.set(transferId, recv);
+
+    recv.on('log', (line) => emit({ transferId, type: 'log', line }));
+    recv.on('waiting', () => emit({ transferId, type: 'waiting' }));
+    recv.on('peer', () => emit({ transferId, type: 'peer' }));
+    recv.on('file-info', (info) => emit({ transferId, type: 'file-info', info }));
+    recv.on('progress', (progress) => emit({ transferId, type: 'progress', progress }));
+    recv.on('done', () => emit({ transferId, type: 'done' }));
+    recv.on('error', ({ message }) => emit({ transferId, type: 'error', message }));
+    recv.on('exit', ({ code: exitCode }) => {
+      emit({ transferId, type: 'exit', code: exitCode });
+      transfers.delete(transferId);
+    });
+
+    try {
+      log(`receive into ${out}`);
+      await recv.start({ code: trimmed, out, relay: opts?.relay || undefined });
+    } catch (err) {
+      transfers.delete(transferId);
+      throw err;
+    }
+    return { transferId, out };
+  });
+
 export const onCancel = (transferId: string) =>
   $try(async () => {
-    const send = transfers.get(transferId);
-    if (send) {
+    const t = transfers.get(transferId);
+    if (t) {
       log(`cancel ${transferId}`);
-      send.cancel();
+      t.cancel();
     }
     return true;
   });
@@ -149,10 +202,31 @@ export const onShowItem = (targetPath: string) =>
     return true;
   });
 
+export const onPickFolder = () =>
+  $try<string>(async () => {
+    const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const result = await dialog.showOpenDialog(parent, {
+      title: 'Choose a download folder',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    return result.canceled || !result.filePaths[0] ? '' : result.filePaths[0];
+  });
+
+export const onDefaultDir = () => $try<string>(async () => defaultDownloadDir());
+
 export const crocRegister: IPCRegisterFunction = (ipcMain) => {
   ipcMain.handle(CROC_PICK_PATHS, () => onPickPaths());
+  ipcMain.handle(CROC_PICK_FOLDER, () => onPickFolder());
+  ipcMain.handle(CROC_DEFAULT_DIR, () => onDefaultDir());
   ipcMain.handle(CROC_STAT_PATHS, (_e, paths: string[]) => onStatPaths(paths));
-  ipcMain.handle(CROC_SEND, (_e, paths: string[], transferId?: string) => onSend(paths, transferId));
+  ipcMain.handle(CROC_SEND, (_e, paths: string[], transferId?: string, relay?: string) =>
+    onSend(paths, transferId, relay)
+  );
+  ipcMain.handle(
+    CROC_RECEIVE,
+    (_e, code: string, opts?: { out?: string; relay?: string }, transferId?: string) =>
+      onReceive(code, opts, transferId)
+  );
   ipcMain.handle(CROC_CANCEL, (_e, transferId: string) => onCancel(transferId));
   ipcMain.handle(CROC_SHOW_ITEM, (_e, targetPath: string) => onShowItem(targetPath));
 };

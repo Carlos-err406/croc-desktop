@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CrocFileInfo, CrocProgress } from '@electron/lib/croc';
 import { croc, type CrocEvent, type CrocSendResult, type StatEntry } from '@/lib/services/ipc';
+import { relayArg } from '@/lib/prefs';
 
 export type SendStatus =
   | 'idle'
@@ -118,7 +119,7 @@ export function useSend(): UseSend {
     idRef.current = id;
     setState((v) => ({ ...v, status: 'starting', result: null, progress: null, error: null }));
 
-    const [err, result] = await croc.send(paths, id);
+    const [err, result] = await croc.send(paths, id, relayArg());
     if (idRef.current !== id) return; // superseded or reset while starting
     if (err || !result) {
       setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to start croc.' }));
