@@ -156,7 +156,7 @@ export function SettingsScreen() {
         </Card>
 
         <div className="flex items-center gap-3.5 rounded-[14px] border border-border bg-card px-5 py-4">
-          <CrocBadge size={40} mark={30} />
+          <CrocBadge size={40} />
           <div>
             <div className="text-sm font-semibold">
               Croc Desktop <span className="font-normal text-muted-foreground">v{__APP_VERSION__}</span>

@@ -9,7 +9,7 @@ import { copyText } from '@/lib/clipboard';
 import { Button } from '@/components/ui/button';
 import { StatusChip, type ChipStatus } from '@/components/ui/status-chip';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
-import { CrocMark } from '@/components/CrocLogo';
+import { CrocBadge } from '@/components/CrocLogo';
 
 const TITLE: Record<string, string> = {
   idle: 'Send files',
@@ -255,9 +255,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               dragging ? 'border-brand' : 'border-border'
             }`}
           >
-            <div className="flex h-[76px] w-[76px] items-center justify-center rounded-[22px] bg-white shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]">
-              <CrocMark width={52} height={34} fill="var(--brand-deep)" dot="#fff" />
-            </div>
+            <CrocBadge size={76} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
             <div className="mt-[22px] font-heading text-2xl font-semibold">Drop files or a folder to send</div>
             <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
               Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to the
