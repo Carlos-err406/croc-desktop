@@ -10,11 +10,18 @@ import {
   CROC_SHARE,
   CROC_SHOW_ITEM,
   CROC_STAT_PATHS,
+  CROC_HISTORY_LIST,
+  CROC_HISTORY_ADD,
+  CROC_HISTORY_CLEAR,
   type CrocEvent,
+  type HistoryDraft,
 } from './channels';
 import type {
   onCancel,
   onDefaultDir,
+  onHistoryAdd,
+  onHistoryClear,
+  onHistoryList,
   onPickFolder,
   onPickPaths,
   onReceive,
@@ -40,6 +47,10 @@ export const crocInvokerFactory = (ipcRenderer: Electron.IpcRenderer) => ({
     ipcRenderer.invoke(CROC_SHOW_ITEM, targetPath)) as typeof onShowItem,
   [CROC_SHARE]: ((payload: { image?: string; text?: string }) =>
     ipcRenderer.invoke(CROC_SHARE, payload)) as typeof onShare,
+  [CROC_HISTORY_LIST]: (() => ipcRenderer.invoke(CROC_HISTORY_LIST)) as typeof onHistoryList,
+  [CROC_HISTORY_ADD]: ((draft: HistoryDraft) =>
+    ipcRenderer.invoke(CROC_HISTORY_ADD, draft)) as typeof onHistoryAdd,
+  [CROC_HISTORY_CLEAR]: (() => ipcRenderer.invoke(CROC_HISTORY_CLEAR)) as typeof onHistoryClear,
 
   // Subscribe to the main->renderer progress stream. Returns an unsubscribe fn.
   onCrocEvent: (handler: (event: CrocEvent) => void): (() => void) => {

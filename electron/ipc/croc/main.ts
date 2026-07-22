@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import $try from '@utils/try';
-import { CrocReceive, CrocSend, generateCode } from '../../lib';
+import { CrocReceive, CrocSend, generateCode, addHistory, clearHistory, listHistory } from '../../lib';
 import { IPCRegisterFunction } from '../types';
 import {
   CROC_CANCEL,
@@ -17,9 +17,14 @@ import {
   CROC_SHARE,
   CROC_SHOW_ITEM,
   CROC_STAT_PATHS,
+  CROC_HISTORY_LIST,
+  CROC_HISTORY_ADD,
+  CROC_HISTORY_CLEAR,
   type CrocEvent,
   type CrocReceiveResult,
   type CrocSendResult,
+  type HistoryDraft,
+  type HistoryEntry,
   type ShareResult,
   type StatEntry,
 } from './channels';
@@ -249,6 +254,10 @@ export const onPickFolder = () =>
 
 export const onDefaultDir = () => $try<string>(async () => defaultDownloadDir());
 
+export const onHistoryList = () => $try<HistoryEntry[]>(async () => listHistory());
+export const onHistoryAdd = (draft: HistoryDraft) => $try<HistoryEntry[]>(async () => addHistory(draft));
+export const onHistoryClear = () => $try<HistoryEntry[]>(async () => clearHistory());
+
 export const crocRegister: IPCRegisterFunction = (ipcMain) => {
   ipcMain.handle(CROC_PICK_PATHS, () => onPickPaths());
   ipcMain.handle(CROC_PICK_FOLDER, () => onPickFolder());
@@ -265,4 +274,7 @@ export const crocRegister: IPCRegisterFunction = (ipcMain) => {
   ipcMain.handle(CROC_CANCEL, (_e, transferId: string) => onCancel(transferId));
   ipcMain.handle(CROC_SHOW_ITEM, (_e, targetPath: string) => onShowItem(targetPath));
   ipcMain.handle(CROC_SHARE, (_e, payload: { image?: string; text?: string }) => onShare(payload));
+  ipcMain.handle(CROC_HISTORY_LIST, () => onHistoryList());
+  ipcMain.handle(CROC_HISTORY_ADD, (_e, draft: HistoryDraft) => onHistoryAdd(draft));
+  ipcMain.handle(CROC_HISTORY_CLEAR, () => onHistoryClear());
 };

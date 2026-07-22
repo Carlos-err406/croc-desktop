@@ -32,6 +32,18 @@ const INITIAL: SendState = {
   logLines: [],
 };
 
+function humanBytes(n: number): string {
+  if (n < 1000) return `${n} B`;
+  const u = ['kB', 'MB', 'GB', 'TB'];
+  let v = n / 1000;
+  let i = 0;
+  while (v >= 1000 && i < u.length - 1) {
+    v /= 1000;
+    i += 1;
+  }
+  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${u[i]}`;
+}
+
 function reduce(v: SendState, e: CrocEvent): SendState {
   switch (e.type) {
     case 'log':
@@ -72,6 +84,7 @@ export interface UseSend extends SendState {
 export function useSend(): UseSend {
   const [state, setState] = useState<SendState>(INITIAL);
   const idRef = useRef<string | null>(null);
+  const recordedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const unsub = croc.onEvent((e: CrocEvent) => {
@@ -83,6 +96,23 @@ export function useSend(): UseSend {
     });
     return unsub;
   }, []);
+
+  // Record a completed send in the local history, once per transfer.
+  useEffect(() => {
+    if (state.status !== 'done') return;
+    const id = idRef.current;
+    if (!id || recordedRef.current === id) return;
+    recordedRef.current = id;
+    const totalBytes = state.entries.reduce((a, e) => a + e.size, 0);
+    croc.historyAdd({
+      kind: 'send',
+      names: state.entries.map((e) => e.name),
+      count: state.entries.length,
+      sizeHuman: totalBytes > 0 ? humanBytes(totalBytes) : undefined,
+      code: state.result?.code,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
 
   async function stage(paths: string[]) {
     if (!paths.length) return;

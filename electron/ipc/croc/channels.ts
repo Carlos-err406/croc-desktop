@@ -9,11 +9,30 @@ export const CROC_RECEIVE = 'croc:receive';
 export const CROC_CANCEL = 'croc:cancel';
 export const CROC_SHOW_ITEM = 'croc:show-item';
 export const CROC_SHARE = 'croc:share';
+export const CROC_HISTORY_LIST = 'croc:history-list';
+export const CROC_HISTORY_ADD = 'croc:history-add';
+export const CROC_HISTORY_CLEAR = 'croc:history-clear';
 export const CROC_EVENT = 'croc:event'; // main -> renderer progress stream
 
 export interface ShareResult {
   shown: boolean; // true if the OS share UI opened (macOS); false where unsupported
 }
+
+/** One completed transfer, persisted locally (newest first). */
+export interface HistoryEntry {
+  id: string;
+  kind: 'send' | 'receive';
+  at: number; // epoch ms
+  names: string[]; // file names (["Text message"] for a text transfer)
+  count: number; // number of files
+  sizeHuman?: string; // total size, when known
+  code?: string; // transfer code (sends)
+  out?: string; // destination folder (receives)
+  isText?: boolean; // a `croc send --text` message
+}
+
+/** What the renderer records on completion; id + timestamp are added in main. */
+export type HistoryDraft = Omit<HistoryEntry, 'id' | 'at'>;
 
 export interface CrocReceiveResult {
   transferId: string;

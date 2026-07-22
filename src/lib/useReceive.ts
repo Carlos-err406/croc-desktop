@@ -124,6 +124,7 @@ export function useReceive(): UseReceive {
   const [state, setState] = useState<ReceiveState>(INITIAL);
   const idRef = useRef<string | null>(null);
   const outRef = useRef('');
+  const recordedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const unsub = croc.onEvent((e: CrocEvent) => {
@@ -136,6 +137,23 @@ export function useReceive(): UseReceive {
     });
     return unsub;
   }, []);
+
+  // Record a completed receive in the local history, once per transfer.
+  useEffect(() => {
+    if (state.status !== 'done') return;
+    const id = idRef.current;
+    if (!id || recordedRef.current === id) return;
+    recordedRef.current = id;
+    croc.historyAdd({
+      kind: 'receive',
+      names: state.isText ? ['Text message'] : state.perFile.map((f) => f.name),
+      count: state.isText ? 1 : Math.max(state.perFile.length, state.totalFiles > 1 ? state.totalFiles : 1),
+      sizeHuman: state.progress?.totalHuman ?? undefined,
+      out: state.out || undefined,
+      isText: state.isText || undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
 
   function setCode(code: string) {
     setState((v) => ({ ...v, code }));
