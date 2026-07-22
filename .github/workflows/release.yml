@@ -44,6 +44,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # electron-builder only packages what already exists; build the renderer
+      # (dist/) and Electron main (dist-electron/main.js) first.
+      - name: Build renderer + main
+        run: npm run typecheck && npx vite build
+
       # On a tag push: publish to the draft GitHub Release.
       # On manual dispatch: build only (artifacts uploaded below for testing).
       - name: Build & package
