@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Cross-platform desktop app for the croc secure file transfer tool (Electron + Vite + React + TS + TailwindCSS + Shadcn/ui)",
   "author": {
-    "name": "Carlos Daniel Vilaseca Illnait"
+    "name": "Carlos Daniel Vilaseca Illnait",
+    "email": "carlosvilaseca406@gmail.com"
   },
   "main": "dist-electron/main.js",
   "scripts": {
