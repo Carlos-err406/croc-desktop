@@ -5,3 +5,4 @@ dist-release
 *.local
 .DS_Store
 .eslintcache
+.worktrees
