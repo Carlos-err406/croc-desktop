@@ -49,7 +49,12 @@ as **workflow artifacts** but do not publish a GitHub Release.
     (`APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`) for notarization;
     then drop the `CSC_IDENTITY_AUTO_DISCOVERY: false` override.
   - Windows: `CSC_LINK` + `CSC_KEY_PASSWORD` (code-signing cert).
-- **App icon.** Builds ship the default Electron icon. Drop a 1024×1024
-  `build/icon.png` (electron-builder derives `.icns`/`.ico`) to brand them.
 - **Lint in CI.** `npm run lint` has no ESLint config yet, so it isn't wired
   into CI. Add a config and a `lint` step when ready.
+
+## App icon
+
+`build/icon.png` (1024×1024, the croc mark) is the source icon. electron-builder
+auto-derives `.icns` (macOS) and `.ico` (Windows) from it at build time and uses
+the PNG directly on Linux — no per-platform config needed. Replace that one file
+to rebrand.
