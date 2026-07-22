@@ -12,11 +12,14 @@ Builds are produced by GitHub Actions. There is no local release step.
   Apple-Silicon runner cross-builds x64 too — electron-builder rebuilds
   `node-pty` per arch):
 
-  | Runner         | Platform | Arch(s)     | Artifacts           |
-  | -------------- | -------- | ----------- | ------------------- |
-  | macos-14       | mac      | arm64 + x64 | `.dmg`, `.zip`      |
-  | windows-latest | win      | x64         | `.exe` (NSIS)       |
-  | ubuntu-latest  | linux    | x64         | `.AppImage`, `.deb` |
+  | Runner         | Platform | Arch(s)   | Artifacts           |
+  | -------------- | -------- | --------- | ------------------- |
+  | macos-14       | mac      | universal | `.dmg`, `.zip`      |
+  | windows-latest | win      | x64       | `.exe` (NSIS)       |
+  | ubuntu-latest  | linux    | x64       | `.AppImage`, `.deb` |
+
+  The macOS build is a **universal** binary (Apple Silicon + Intel in one),
+  so users never pick the wrong architecture and never hit Rosetta.
 
 ## Cutting a release
 

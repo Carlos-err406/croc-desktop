@@ -28,19 +28,20 @@
     "**/node_modules/node-pty/**"
   ],
   "mac": {
+    // Universal: one binary that runs natively on both Apple Silicon and Intel
+    // (no Rosetta, no wrong-arch downloads). electron-builder lipo-merges the
+    // native node-pty across arches.
     "target": [
       {
         "target": "dmg",
         "arch": [
-          "x64",
-          "arm64"
+          "universal"
         ]
       },
       {
         "target": "zip",
         "arch": [
-          "x64",
-          "arm64"
+          "universal"
         ]
       }
     ],
