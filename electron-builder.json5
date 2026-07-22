@@ -74,5 +74,30 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "runAfterFinish": true
+  },
+  // Branded install window: green-gradient background (build/background.tiff)
+  // with a drag arrow. Icons sit at the window's vertical center so their
+  // placement is independent of the Finder coordinate origin.
+  "dmg": {
+    "title": "${productName} ${version}",
+    "background": "build/background.tiff",
+    "iconSize": 120,
+    "window": {
+      "width": 600,
+      "height": 420
+    },
+    "contents": [
+      {
+        "x": 170,
+        "y": 210,
+        "type": "file"
+      },
+      {
+        "x": 430,
+        "y": 210,
+        "type": "link",
+        "path": "/Applications"
+      }
+    ]
   }
 }
