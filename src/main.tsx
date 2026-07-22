@@ -2,13 +2,22 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './app';
 
-import '@fontsource/poppins/400.css';
-import '@fontsource/poppins/500.css';
-import '@fontsource/poppins/600.css';
-import '@fontsource/poppins/700.css';
-import '@fontsource/oswald/500.css';
-import '@fontsource/oswald/600.css';
-import '@fontsource/oswald/700.css';
+// Latin + latin-ext only (covers English + Western-European accented filenames);
+// the full CSS also pulls in cyrillic/greek/vietnamese subsets we don't need.
+import '@fontsource/poppins/latin-400.css';
+import '@fontsource/poppins/latin-ext-400.css';
+import '@fontsource/poppins/latin-500.css';
+import '@fontsource/poppins/latin-ext-500.css';
+import '@fontsource/poppins/latin-600.css';
+import '@fontsource/poppins/latin-ext-600.css';
+import '@fontsource/poppins/latin-700.css';
+import '@fontsource/poppins/latin-ext-700.css';
+import '@fontsource/oswald/latin-500.css';
+import '@fontsource/oswald/latin-ext-500.css';
+import '@fontsource/oswald/latin-600.css';
+import '@fontsource/oswald/latin-ext-600.css';
+import '@fontsource/oswald/latin-700.css';
+import '@fontsource/oswald/latin-ext-700.css';
 import './styles.css';
 
 import { applyTheme, getTheme } from '@/lib/prefs';

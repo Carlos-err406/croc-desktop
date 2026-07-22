@@ -13,10 +13,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // stale window is immediately obvious in the UI.
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
 
-// Native / runtime deps that must not be bundled into the main or preload
-// output — they are resolved from node_modules at runtime (and rebuilt for
-// Electron's ABI via `electron-builder install-app-deps`).
-const externals = ['node-pty', 'qrcode', /\.node$/];
+// Native deps that must not be bundled into the main or preload output — they
+// are resolved from node_modules at runtime (and rebuilt for Electron's ABI via
+// `electron-builder install-app-deps`). qrcode is pure JS, so it's bundled
+// instead (keeps its yargs CLI tree out of the shipped app).
+const externals = ['node-pty', /\.node$/];
 
 const aliases = {
   '@': resolve(__dirname, './src'),
