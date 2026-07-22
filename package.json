@@ -10,6 +10,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
     "build": "tsc && vite build && electron-builder --config electron-builder.json5 --publish=never",
     "build:mac": "tsc && vite build && electron-builder --config electron-builder.json5 --mac --publish=never",
     "build:win": "tsc && vite build && electron-builder --config electron-builder.json5 --win --publish=never",

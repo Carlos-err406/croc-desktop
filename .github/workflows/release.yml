@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # e.g. v0.1.0 — must match the version in package.json
+  workflow_dispatch: {} # manual runs build + upload artifacts, but do NOT publish
+
+permissions:
+  contents: write # needed to create/upload the draft GitHub Release
+
+jobs:
+  build:
+    name: ${{ matrix.platform }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # node-pty is a native module, so each OS/arch builds on its own
+          # native runner — no cross-compilation. macOS arm64 and x64 are split
+          # across the Apple-Silicon (macos-14) and Intel (macos-13) runners.
+          - os: macos-14
+            platform: mac
+            arch: arm64
+          - os: macos-13
+            platform: mac
+            arch: x64
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # On a tag push: publish to the draft GitHub Release.
+      # On manual dispatch: build only (artifacts uploaded below for testing).
+      - name: Build & package
+        run: >-
+          npx electron-builder
+          --config electron-builder.json5
+          --${{ matrix.platform }} --${{ matrix.arch }}
+          ${{ github.event_name == 'push' && '--publish always' || '--publish never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Unsigned builds: don't let electron-builder try to auto-discover a
+          # signing identity (would fail on the macOS runners).
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload installers as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: croc-desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          if-no-files-found: ignore
+          path: |
+            dist-release/*.dmg
+            dist-release/*.zip
+            dist-release/*.exe
+            dist-release/*.AppImage
+            dist-release/*.deb

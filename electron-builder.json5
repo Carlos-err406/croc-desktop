@@ -9,6 +9,16 @@
     "output": "dist-release",
     "buildResources": "build"
   },
+  // CI publishes to a DRAFT GitHub Release (per-tag); review + publish manually.
+  // Local `npm run build` passes --publish=never, which overrides this.
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "Carlos-err406",
+      "repo": "croc-desktop",
+      "releaseType": "draft"
+    }
+  ],
   "files": [
     "dist",
     "dist-electron"
