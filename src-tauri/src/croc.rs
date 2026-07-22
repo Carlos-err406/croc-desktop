@@ -55,12 +55,6 @@ pub struct CrocReceiveResult {
     pub out: String,
 }
 
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ShareResult {
-    pub shown: bool,
-}
-
 // ── binary resolution + humanization ──────────────────────────────────────
 fn croc_exe() -> &'static str {
     if cfg!(windows) {

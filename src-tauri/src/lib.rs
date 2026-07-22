@@ -31,7 +31,6 @@ pub fn run() {
             commands::croc_receive,
             commands::croc_cancel,
             commands::croc_show_item,
-            commands::croc_share,
             commands::croc_history_list,
             commands::croc_history_add,
             commands::croc_history_clear,

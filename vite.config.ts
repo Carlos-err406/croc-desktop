@@ -14,8 +14,6 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
 
 const aliases = {
   '@': resolve(__dirname, './src'),
-  '@electron': resolve(__dirname, './electron'),
-  '@utils': resolve(__dirname, './utils'),
 };
 
 // Frontend-only Vite config for Tauri. The backend is Rust (src-tauri/), so the

@@ -1,5 +1,5 @@
 //! Tauri commands — the Rust port of electron/ipc/croc/main.ts.
-use crate::croc::{self, CrocReceiveResult, CrocSendResult, ReceiveCommand, ShareResult, StatEntry};
+use crate::croc::{self, CrocReceiveResult, CrocSendResult, ReceiveCommand, StatEntry};
 use crate::history::{self, HistoryDraft, HistoryEntry};
 use crate::codephrase;
 use std::path::PathBuf;
@@ -149,13 +149,6 @@ pub fn croc_show_item(app: AppHandle, path: String) {
     if !path.is_empty() {
         let _ = app.opener().reveal_item_in_dir(path);
     }
-}
-
-// TODO(phase 4): macOS NSSharingServicePicker via tauri-plugin-sharekit / objc2.
-// Unsupported for now → renderer falls back to copying the code.
-#[tauri::command]
-pub fn croc_share(_image: Option<String>, _text: Option<String>) -> ShareResult {
-    ShareResult { shown: false }
 }
 
 #[tauri::command]

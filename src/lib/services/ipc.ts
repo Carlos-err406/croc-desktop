@@ -6,9 +6,8 @@ import type {
   CrocSendResult,
   HistoryDraft,
   HistoryEntry,
-  ShareResult,
   StatEntry,
-} from '@electron/ipc/croc/channels';
+} from '@/lib/ipc-types';
 
 // Preserve the Go-style [err, result] tuple the renderer already destructures
 // (previously produced by the Electron `$try` wrapper), so useSend/useReceive
@@ -42,8 +41,6 @@ export const croc = {
     }),
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
-  share: (payload: { image?: string; text?: string }) =>
-    call<ShareResult>('croc_share', { image: payload.image, text: payload.text }),
   historyList: () => call<HistoryEntry[]>('croc_history_list'),
   historyAdd: (draft: HistoryDraft) => call<HistoryEntry[]>('croc_history_add', { draft }),
   historyClear: () => call<HistoryEntry[]>('croc_history_clear'),
@@ -69,4 +66,4 @@ export type {
   StatEntry,
   HistoryEntry,
   HistoryDraft,
-} from '@electron/ipc/croc/channels';
+} from '@/lib/ipc-types';

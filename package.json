@@ -3,12 +3,11 @@
   "private": true,
   "version": "0.1.2",
   "type": "module",
-  "description": "Cross-platform desktop app for the croc secure file transfer tool (Electron + Vite + React + TS + TailwindCSS + Shadcn/ui)",
+  "description": "Cross-platform desktop app for the croc secure file transfer tool (Tauri + Vite + React + TS + TailwindCSS + Shadcn/ui)",
   "author": {
     "name": "Carlos Daniel Vilaseca Illnait",
     "email": "carlosvilaseca406@gmail.com"
   },
-  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "tauri dev",
     "dev:vite": "vite",
@@ -21,8 +20,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@choochmeque/tauri-plugin-sharekit-api": "^0.3.1",
-    "node-pty": "^1.0.0"
+    "@choochmeque/tauri-plugin-sharekit-api": "^0.3.1"
   },
   "devDependencies": {
     "@fontsource/oswald": "^5.3.0",
@@ -33,7 +31,6 @@
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^22.10.0",
-    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
@@ -41,14 +38,10 @@
     "@vitejs/plugin-react": "^4.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "electron": "^30.0.1",
-    "electron-builder": "^24.13.3",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "lucide-react": "^0.476.0",
-    "patch-package": "^8.0.1",
     "prettier": "^3.6.2",
-    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "shadcn": "^3.3.1",
@@ -56,8 +49,6 @@
     "tailwindcss": "^4.1.13",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5.2.2",
-    "vite": "^5.1.6",
-    "vite-plugin-electron": "^0.28.6",
-    "vite-plugin-electron-renderer": "^0.14.5"
+    "vite": "^5.1.6"
   }
 }
