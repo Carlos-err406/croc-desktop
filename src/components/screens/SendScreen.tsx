@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { Camera, Check, Copy, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
 import type { StatEntry } from '@/lib/services/ipc';
 import type { UseSend } from '@/lib/useSend';
 import { croc } from '@/lib/services/ipc';
-import { pathsFromFileList } from '@/lib/paths';
 import { typeColor } from '@/lib/badge';
 import { copyText } from '@/lib/clipboard';
 import { Button } from '@/components/ui/button';
@@ -135,7 +135,36 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const { status, entries, result, progress, error } = send;
   const [dragging, setDragging] = useState(false);
   const [sharedCopied, setSharedCopied] = useState(false);
-  const depth = useRef(0);
+
+  // Tauri delivers native file drops (with real filesystem paths, incl. folders)
+  // at the window level — HTML5 DnD in a webview yields no paths. Subscribe while
+  // the Send screen is mounted; a ref gives the handler the latest status so a
+  // drop only stages when we're idle/staging (never mid-transfer).
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const p = event.payload;
+        const idle = statusRef.current === 'idle' || statusRef.current === 'starting';
+        if (p.type === 'enter' || p.type === 'over') {
+          if (idle) setDragging(true);
+        } else if (p.type === 'leave') {
+          setDragging(false);
+        } else if (p.type === 'drop') {
+          setDragging(false);
+          if ((idle || statusRef.current === 'staging') && p.paths.length) {
+            send.stage(p.paths);
+          }
+        }
+      })
+      .then((f) => {
+        unlisten = f;
+      });
+    return () => unlisten?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Share the QR image (code printed on it) AND the passphrase as plain text,
   // so the code is copyable text everywhere. Trade-off: chat apps like Telegram
@@ -198,14 +227,6 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
     const [, paths] = await croc.pickPaths();
     if (paths && paths.length) send.stage(paths);
   }
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    depth.current = 0;
-    setDragging(false);
-    const paths = pathsFromFileList(e.dataTransfer.files);
-    if (paths.length) send.stage(paths);
-  }
-
   // per-file progress (sequential, weighted by size) — mirrors the design
   const transferred = total * (percent / 100);
   let acc = 0;
@@ -240,17 +261,6 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             tabIndex={0}
             onClick={browse}
             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && browse()}
-            onDragOver={(e) => e.preventDefault()}
-            onDragEnter={(e) => {
-              e.preventDefault();
-              depth.current += 1;
-              setDragging(true);
-            }}
-            onDragLeave={() => {
-              depth.current -= 1;
-              if (depth.current <= 0) setDragging(false);
-            }}
-            onDrop={onDrop}
             className={`flex flex-1 cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed bg-transparent text-center outline-none transition-colors duration-150 ${
               dragging ? 'border-brand' : 'border-border'
             }`}
