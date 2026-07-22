@@ -3,30 +3,31 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # e.g. v0.1.0 — must match the version in package.json
-  workflow_dispatch: {} # manual runs build + upload artifacts, but do NOT publish
+      - 'v*' # e.g. v0.2.0 — must match the version in tauri.conf.json / package.json
+  workflow_dispatch: {} # manual runs build only (validate packaging; no publish)
 
 permissions:
-  contents: write # needed to create/upload the draft GitHub Release
+  contents: write # create/upload the draft GitHub Release
 
 jobs:
-  build:
-    name: ${{ matrix.platform }} (${{ matrix.arch }})
+  release:
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # One job per OS; each builds every arch its electron-builder target
-          # lists. The macOS (Apple-Silicon) runner cross-builds x64 too —
-          # electron-builder rebuilds node-pty per-arch — so no Intel runner is
-          # needed.
+          # macOS builds a universal binary (Intel + Apple Silicon in one).
           - os: macos-14
-            platform: mac
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: '--target universal-apple-darwin'
+          # 22.04 for broader glibc compatibility of the AppImage.
+          - os: ubuntu-22.04
+            rust-targets: ''
+            args: ''
           - os: windows-latest
-            platform: win
-          - os: ubuntu-latest
-            platform: linux
+            rust-targets: ''
+            args: ''
 
     steps:
       - uses: actions/checkout@v5
@@ -36,26 +37,35 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Tauri system deps (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Install dependencies
         run: npm ci
 
-      # electron-builder only packages what already exists; build the renderer
-      # (dist/) and Electron main (dist-electron/main.js) first.
-      - name: Build renderer + main
-        run: npm run typecheck && npx vite build
-
-      # On a tag push: publish to the draft GitHub Release.
-      # On a tag push, --publish always uploads the installers straight to the
-      # GitHub Release. On manual dispatch, --publish never builds only (a
-      # green run confirms packaging works, e.g. after a config change).
-      - name: Build & package
-        run: >-
-          npx electron-builder
-          --config electron-builder.json5
-          --${{ matrix.platform }}
-          ${{ github.event_name == 'push' && '--publish always' || '--publish never' }}
+      # tauri-action runs the frontend build (beforeBuildCommand), compiles the
+      # Rust, bundles per-platform installers, and — on a tag push — uploads them
+      # to a draft GitHub Release. On manual dispatch (no tag) it just builds.
+      - name: Build (+ publish on tag)
+        uses: tauri-apps/tauri-action@v0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Unsigned builds: don't let electron-builder try to auto-discover a
-          # signing identity (would fail on the macOS runners).
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: 'Croc Desktop __VERSION__'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
