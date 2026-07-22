@@ -15,19 +15,12 @@ export function AppShell() {
   const recv = useReceive();
 
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        background: 'var(--background)',
-        color: 'var(--foreground)',
-      }}
-    >
+    <div className="flex h-full bg-background text-foreground">
       <Sidebar screen={screen} onNavigate={setScreen} />
-      <div className="croc-canvas" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+      <div className="croc-canvas flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Keyed so the screen re-plays its entrance on each navigation.
-            minHeight:0 lets inner overflow:auto regions (e.g. Settings) scroll. */}
-        <div key={screen} className="croc-screen" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+            min-h-0 lets inner overflow-y-auto regions (e.g. Settings) scroll. */}
+        <div key={screen} className="croc-screen flex min-h-0 min-w-0 flex-1 flex-col">
           {screen === 'send' && <SendScreen send={send} onViewHistory={() => setScreen('history')} />}
           {screen === 'receive' && <ReceiveScreen recv={recv} />}
           {screen === 'history' && <HistoryScreen />}

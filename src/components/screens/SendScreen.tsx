@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Camera, Check, CheckCircle2, Copy, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
+import { Camera, Check, Copy, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
 import type { StatEntry } from '@/lib/services/ipc';
 import type { UseSend } from '@/lib/useSend';
 import { croc } from '@/lib/services/ipc';
@@ -10,8 +10,6 @@ import { Button } from '@/components/ui/button';
 import { StatusChip, type ChipStatus } from '@/components/ui/status-chip';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
 import { CrocMark } from '@/components/CrocLogo';
-
-const HEADING = 'var(--font-heading)';
 
 const TITLE: Record<string, string> = {
   idle: 'Send files',
@@ -26,16 +24,10 @@ const TITLE: Record<string, string> = {
 function TypeBadge({ type, small }: { type: string; small?: boolean }) {
   return (
     <span
-      style={{
-        fontFamily: HEADING,
-        fontSize: small ? 10 : 11,
-        fontWeight: 600,
-        color: '#fff',
-        borderRadius: small ? 5 : 6,
-        padding: small ? '2px 6px' : '3px 7px',
-        background: typeColor(type),
-        flexShrink: 0,
-      }}
+      className={`shrink-0 font-heading font-semibold text-white ${
+        small ? 'rounded-[5px] px-1.5 py-0.5 text-[10px]' : 'rounded-[6px] px-[7px] py-[3px] text-[11px]'
+      }`}
+      style={{ background: typeColor(type) }}
     >
       {type}
     </span>
@@ -230,29 +222,19 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   });
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* header */}
-      <div
-        style={{
-          padding: '26px 32px 0',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 16,
-        }}
-      >
+      <div className="flex items-start justify-between gap-4 px-8 pt-[26px]">
         <div>
-          <div style={{ fontFamily: HEADING, fontSize: 26, fontWeight: 600, letterSpacing: '.01em' }}>
-            {TITLE[status]}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 3 }}>{subtitle}</div>
+          <div className="font-heading text-[26px] font-semibold tracking-[.01em]">{TITLE[status]}</div>
+          <div className="mt-[3px] text-[13px] text-muted-foreground">{subtitle}</div>
         </div>
         {chip && <StatusChip status={chip.s}>{chip.l}</StatusChip>}
       </div>
 
       {/* idle */}
       {(status === 'idle' || status === 'starting') && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '22px 32px 32px', minHeight: 0 }}>
+        <div className="flex min-h-0 flex-1 flex-col px-8 pb-8 pt-[22px]">
           <div
             role="button"
             tabIndex={0}
@@ -269,47 +251,23 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               if (depth.current <= 0) setDragging(false);
             }}
             onDrop={onDrop}
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `2px dashed ${dragging ? 'var(--brand)' : 'var(--border)'}`,
-              borderRadius: 18,
-              background: 'transparent',
-              cursor: 'pointer',
-              textAlign: 'center',
-              outline: 'none',
-              transition: 'border-color .15s',
-            }}
+            className={`flex flex-1 cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed bg-transparent text-center outline-none transition-colors duration-150 ${
+              dragging ? 'border-brand' : 'border-border'
+            }`}
           >
-            <div
-              style={{
-                width: 76,
-                height: 76,
-                borderRadius: 22,
-                background: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 12px 30px -10px rgba(30,80,40,.35)',
-              }}
-            >
+            <div className="flex h-[76px] w-[76px] items-center justify-center rounded-[22px] bg-white shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]">
               <CrocMark width={52} height={34} fill="var(--brand-deep)" dot="#fff" />
             </div>
-            <div style={{ fontFamily: HEADING, fontSize: 24, fontWeight: 600, marginTop: 22 }}>
-              Drop files or a folder to send
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--muted-foreground)', marginTop: 6, maxWidth: 340 }}>
+            <div className="mt-[22px] font-heading text-2xl font-semibold">Drop files or a folder to send</div>
+            <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
               Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to the
               other device.
             </div>
-            <div style={{ marginTop: 22 }} onClick={(e) => e.stopPropagation()}>
+            <div className="mt-[22px]" onClick={(e) => e.stopPropagation()}>
               <Button onClick={browse}>Browse files…</Button>
             </div>
             {status === 'starting' && (
-              <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted-foreground)', fontSize: 13 }}>
+              <div className="mt-[18px] flex items-center gap-2 text-[13px] text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Starting croc…
               </div>
             )}
@@ -319,35 +277,37 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
 
       {/* staging */}
       {status === 'staging' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '22px 32px 28px', minHeight: 0, gap: 16 }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', minHeight: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{countLabel} ready to send</span>
-              <span onClick={send.clear} style={{ fontSize: 13, color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-7 pt-[22px]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-border">
+            <div className="flex items-center justify-between border-b border-border px-[18px] py-3.5">
+              <span className="text-sm font-semibold">{countLabel} ready to send</span>
+              <span onClick={send.clear} className="cursor-pointer text-[13px] text-muted-foreground">
                 Clear all
               </span>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
               {entries.map((f) => (
                 <div
                   key={f.path}
-                  className="croc-file"
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', border: '1px solid var(--border)', borderRadius: 11, background: 'var(--card)' }}
+                  className="croc-file flex items-center gap-3 rounded-[11px] border border-border bg-card px-3 py-[11px]"
                 >
                   <TypeBadge type={f.type} />
-                  <MiddleTruncate text={f.name} style={{ flex: 1, fontSize: 13, fontWeight: 500 }} />
-                  <span style={{ marginLeft: 'auto', paddingLeft: 8, fontSize: 12, color: 'var(--muted-foreground)', flexShrink: 0 }}>{f.sizeHuman}</span>
-                  <span className="croc-file-x" onClick={() => send.removeEntry(f.path)} style={{ cursor: 'pointer', color: 'var(--muted-foreground)', display: 'flex' }}>
+                  <MiddleTruncate text={f.name} className="flex-1 text-[13px] font-medium" />
+                  <span className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">{f.sizeHuman}</span>
+                  <span
+                    className="croc-file-x flex cursor-pointer text-muted-foreground"
+                    onClick={() => send.removeEntry(f.path)}
+                  >
                     <X size={15} />
                   </span>
                 </div>
               ))}
             </div>
-            <div style={{ padding: 11, borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: 12, color: 'var(--muted-foreground)' }}>
+            <div className="border-t border-border p-[11px] text-center text-xs text-muted-foreground">
               Drop more files here, or use Add
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="flex gap-2.5">
             <Button variant="outline" className="h-11 flex-1" onClick={browse}>
               <Plus /> Add more
             </Button>
@@ -360,134 +320,152 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
 
       {/* active: two-column */}
       {active && (
-        <div style={{ flex: 1, display: 'flex', gap: 20, padding: '20px 32px 28px', minHeight: 0 }}>
+        <div className="flex min-h-0 flex-1 gap-5 px-8 pb-7 pt-5">
           {/* LEFT — transparent so it blends into the layout brand wash */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'transparent', minWidth: 0 }}>
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-transparent">
             {status === 'waiting' && result && (
               <>
-                <div style={{ background: 'linear-gradient(150deg,var(--brand),var(--brand-deep))', padding: '22px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)' }}>
+                <div className="flex flex-col items-center gap-3 bg-[linear-gradient(150deg,var(--brand),var(--brand-deep))] px-6 pb-6 pt-[22px]">
+                  <div className="flex items-center gap-[7px] text-[11px] tracking-[.14em] text-white/80">
                     <Lock size={13} /> TRANSFER CODE
                   </div>
                   <CopyCodeButton code={result.code} />
                   {result.qr && (
-                    <div style={{ background: '#fff', borderRadius: 14, padding: 12, boxShadow: '0 16px 34px -14px rgba(20,5,60,.55)' }}>
-                      <img src={result.qr} alt="QR" width={118} height={118} style={{ display: 'block' }} draggable={false} />
+                    <div className="rounded-[14px] bg-white p-3 shadow-[0_16px_34px_-14px_rgba(20,5,60,.55)]">
+                      <img src={result.qr} alt="QR" width={118} height={118} className="block" draggable={false} />
                     </div>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'rgba(255,255,255,.85)' }}>
+                  <div className="flex items-center gap-1.5 text-xs text-white/85">
                     <Camera size={13} /> Point a phone camera to receive
                   </div>
                 </div>
-                <div style={{ flex: 1, padding: 18, display: 'flex', flexDirection: 'column', gap: 12, justifyContent: 'center' }}>
+                <div className="flex flex-1 flex-col justify-center gap-3 p-[18px]">
                   <Button className="w-full" onClick={shareTransfer}>
                     {sharedCopied ? <Check /> : <Share2 />} {sharedCopied ? 'Code copied' : 'Share…'}
                   </Button>
-                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                  <div className="flex justify-center gap-2.5">
                     <CopyPill value={result.code} label="Copy code" icon="code" />
                     <CopyPill value={result.receiveCommand.posix} label="Copy command" icon="cmd" />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 12, color: 'var(--muted-foreground)' }}>
-                    <Lock size={13} style={{ color: 'var(--success-text)' }} /> Code works once, then expires
+                  <div className="flex items-center justify-center gap-[7px] text-xs text-muted-foreground">
+                    <Lock size={13} className="text-success-text" /> Code works once, then expires
                   </div>
                 </div>
               </>
             )}
 
-            {status === 'transferring' && (
-              <div style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, minWidth: 0 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontFamily: HEADING, fontSize: 68, fontWeight: 600, lineHeight: 1, color: 'var(--brand-deep)' }}>{percent}%</div>
-                  <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 8 }}>
-                    {progress?.speedHuman ? `${progress.speedHuman}${progress.etaHuman ? ` · ETA ${progress.etaHuman}` : ''}` : 'Transferring…'}
+            {(status === 'transferring' || complete) && (
+              <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
+                <div className="text-center">
+                  <div className="font-heading text-[68px] font-semibold leading-none text-brand-deep">{complete ? 100 : percent}%</div>
+                  <div className="mt-2 text-[13px] text-muted-foreground">
+                    {complete
+                      ? 'Transfer complete'
+                      : progress?.speedHuman
+                        ? `${progress.speedHuman}${progress.etaHuman ? ` · ETA ${progress.etaHuman}` : ''}`
+                        : 'Transferring…'}
                   </div>
                 </div>
-                <div style={{ width: '100%', maxWidth: 420, height: 12, borderRadius: 999, background: 'var(--secondary)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(90deg,var(--brand),var(--brand-deep))', width: `${percent}%`, transition: 'width .2s ease' }} />
+                <div className="h-3 w-full max-w-[420px] overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,var(--brand),var(--brand-deep))] transition-[width] duration-200"
+                    style={{ width: `${complete ? 100 : percent}%` }}
+                  />
                 </div>
-                {inFlight && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, width: '100%', minWidth: 0 }}>
-                    <span style={{ position: 'relative', display: 'flex', width: 9, height: 9, flexShrink: 0 }}>
-                      <span style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: 'var(--brand)', opacity: 0.5, animation: 'crocping 1.4s ease-out infinite' }} />
-                      <span style={{ position: 'relative', width: 9, height: 9, borderRadius: '50%', background: 'var(--brand)' }} />
-                    </span>
-                    <span style={{ flexShrink: 0 }}>Sending</span>
-                    <MiddleTruncate
-                      text={send.fileInfo?.name ?? entries[0]?.name ?? ''}
-                      style={{ flex: '0 1 auto', fontWeight: 500 }}
-                    />
-                    {progress?.transferredHuman && progress?.totalHuman && (
-                      <span style={{ flexShrink: 0, color: 'var(--muted-foreground)' }}>
-                        · {progress.transferredHuman} / {progress.totalHuman}
-                      </span>
+                {complete ? (
+                  <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-success-text">
+                    <Check size={16} strokeWidth={3} className="shrink-0" />
+                    {entries.length > 1 ? (
+                      <span className="shrink-0">All {entries.length} items delivered securely</span>
+                    ) : (
+                      <>
+                        <MiddleTruncate text={entries[0]?.name ?? send.fileInfo?.name ?? 'File'} className="flex-[0_1_auto] font-medium" />
+                        <span className="shrink-0">delivered securely</span>
+                      </>
                     )}
                   </div>
+                ) : (
+                  inFlight && (
+                    <div className="flex w-full min-w-0 items-center justify-center gap-1.5 text-[13px]">
+                      <span className="relative flex h-[9px] w-[9px] shrink-0">
+                        <span className="absolute h-full w-full animate-[crocping_1.4s_ease-out_infinite] rounded-full bg-brand opacity-50" />
+                        <span className="relative h-[9px] w-[9px] rounded-full bg-brand" />
+                      </span>
+                      <span className="shrink-0">Sending</span>
+                      <MiddleTruncate
+                        text={send.fileInfo?.name ?? entries[0]?.name ?? ''}
+                        className="flex-[0_1_auto] font-medium"
+                      />
+                      {progress?.transferredHuman && progress?.totalHuman && (
+                        <span className="shrink-0 text-muted-foreground">
+                          · {progress.transferredHuman} / {progress.totalHuman}
+                        </span>
+                      )}
+                    </div>
+                  )
                 )}
-              </div>
-            )}
-
-            {status === 'done' && (
-              <div style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--success-surface)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <CheckCircle2 size={32} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: 'var(--success-text)' }}>
-                  {countLabel} · {totalHuman} delivered securely
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <Button onClick={send.reset}>Send more</Button>
-                  <Button variant="outline" onClick={onViewHistory}>
-                    View in history
-                  </Button>
-                </div>
               </div>
             )}
           </div>
 
           {/* RIGHT */}
-          <div style={{ width: 332, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, minHeight: 0 }}>
-            <div style={{ border: '1px solid var(--border)', borderRadius: 14, padding: 18, background: 'var(--card)' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Connection</div>
+          <div className="flex min-h-0 w-[332px] shrink-0 flex-col gap-3.5">
+            <div className="rounded-[14px] border border-border bg-card p-[18px]">
+              <div className="mb-4 text-[13px] font-semibold">Connection</div>
               {buildSteps(status).map((s, i) => (
                 <TimelineStep key={i} step={s} />
               ))}
             </div>
-            <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 14, padding: '15px 16px', background: 'var(--card)', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', minHeight: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Files</div>
+            <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto rounded-[14px] border border-border bg-card px-4 py-[15px]">
+              <div className="text-[13px] font-semibold">Files</div>
               {fileRows.map((f) => (
-                <div key={f.path} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13 }}>
+                <div key={f.path} className="flex flex-col gap-[7px]">
+                  <div className="flex items-center gap-[9px] text-[13px]">
                     <TypeBadge type={f.type} small />
-                    <MiddleTruncate text={f.name} style={{ flex: 1 }} />
-                    <span style={{ marginLeft: 'auto', paddingLeft: 6, fontSize: 12, color: f.showBar ? 'var(--brand-deep)' : 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                      {f.showCheck && <Check size={13} style={{ color: 'var(--success-text)' }} />}
+                    <MiddleTruncate text={f.name} className="flex-1" />
+                    <span
+                      className={`ml-auto flex shrink-0 items-center gap-[5px] pl-1.5 text-xs ${
+                        f.showBar ? 'text-brand-deep' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {f.showCheck && <Check size={13} className="text-success-text" />}
                       {f.showBar ? `${f.pct}%` : f.sizeHuman}
                     </span>
                   </div>
                   {f.showBar && (
-                    <div style={{ height: 5, borderRadius: 999, background: 'var(--secondary)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 999, background: 'var(--brand)', width: `${f.pct}%`, transition: 'width .2s ease' }} />
+                    <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-brand transition-[width] duration-200"
+                        style={{ width: `${f.pct}%` }}
+                      />
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            {(status === 'waiting' || inFlight) && (
+            {complete ? (
+              <div className="flex gap-2.5">
+                <Button className="flex-1" onClick={send.reset}>Send more</Button>
+                <Button variant="outline" className="flex-1" onClick={onViewHistory}>
+                  View in history
+                </Button>
+              </div>
+            ) : (status === 'waiting' || inFlight) ? (
               <Button variant="outline" className="w-full" onClick={send.cancel}>
                 Cancel transfer
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
       )}
 
       {status === 'error' && (
-        <div style={{ padding: '0 32px 28px' }}>
-          <div style={{ border: '1px solid var(--error-text)', background: 'var(--error-surface)', borderRadius: 14, padding: 16, color: 'var(--error-text)' }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>Transfer failed</div>
-            {error && <div style={{ fontSize: 13 }}>{error}</div>}
+        <div className="px-8 pb-7">
+          <div className="rounded-[14px] border border-error-text bg-error-surface p-4 text-error-text">
+            <div className="mb-1 font-semibold">Transfer failed</div>
+            {error && <div className="text-[13px]">{error}</div>}
           </div>
-          <div style={{ marginTop: 14 }}>
+          <div className="mt-3.5">
             <Button onClick={send.reset}>Try again</Button>
           </div>
         </div>
@@ -506,22 +484,12 @@ function CopyCodeButton({ code }: { code: string }) {
           setTimeout(() => setCopied(false), 1400);
         }
       }}
-      style={{
-        font: 'inherit',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        background: 'rgba(255,255,255,.14)',
-        border: '1px solid rgba(255,255,255,.28)',
-        borderRadius: 12,
-        padding: '10px 18px',
-        cursor: 'pointer',
-      }}
+      className="flex cursor-pointer items-center gap-3.5 rounded-xl border border-white/[.28] bg-white/[.14] px-[18px] py-2.5"
     >
-      <span style={{ fontFamily: HEADING, fontSize: 26, fontWeight: 600, color: '#fff', letterSpacing: '.03em', whiteSpace: 'nowrap' }}>
+      <span className="font-heading text-[26px] font-semibold tracking-[.03em] text-white whitespace-nowrap">
         {code}
       </span>
-      {copied ? <Check size={18} color="#fff" /> : <Copy size={18} color="rgba(255,255,255,.85)" />}
+      {copied ? <Check size={18} className="text-white" /> : <Copy size={18} className="text-white/85" />}
     </button>
   );
 }
@@ -529,30 +497,31 @@ function CopyCodeButton({ code }: { code: string }) {
 function TimelineStep({ step }: { step: Step }) {
   const ring =
     step.kind === 'done'
-      ? { bg: 'var(--success-surface)', fg: 'var(--success-text)', border: 'none' }
+      ? 'bg-success-surface text-success-text'
       : step.kind === 'active'
-        ? { bg: 'transparent', fg: 'var(--warning-text)', border: '2px solid var(--warning-text)' }
+        ? 'border-2 border-warning-text text-warning-text'
         : step.kind === 'brand'
-          ? { bg: 'transparent', fg: 'var(--brand)', border: '2px solid var(--brand)' }
-          : { bg: 'var(--secondary)', fg: 'var(--muted-foreground)', border: 'none' };
-  const titleColor = step.kind === 'pending' ? 'var(--muted-foreground)' : 'var(--foreground)';
+          ? 'border-2 border-brand text-brand'
+          : 'bg-secondary text-muted-foreground';
   return (
-    <div style={{ display: 'flex', gap: 12 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <span style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: ring.bg, color: ring.fg, border: ring.border }}>
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <span className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full ${ring}`}>
           {step.kind === 'done' ? (
             <Check size={13} strokeWidth={3} />
           ) : step.kind === 'pending' ? (
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', opacity: 0.5 }} />
+            <span className="h-[5px] w-[5px] rounded-full bg-current opacity-50" />
           ) : (
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor' }} />
+            <span className="h-[7px] w-[7px] rounded-full bg-current" />
           )}
         </span>
-        {step.line && <span style={{ flex: 1, width: 2, minHeight: 16, background: 'var(--border)', margin: '3px 0' }} />}
+        {step.line && <span className="my-[3px] min-h-4 w-0.5 flex-1 bg-border" />}
       </div>
-      <div style={{ paddingBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: titleColor }}>{step.title}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{step.sub}</div>
+      <div className="pb-3">
+        <div className={`text-[13px] font-medium ${step.kind === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>
+          {step.title}
+        </div>
+        <div className="text-xs text-muted-foreground">{step.sub}</div>
       </div>
     </div>
   );

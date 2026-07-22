@@ -2,12 +2,12 @@ import * as React from 'react';
 
 export type ChipStatus = 'success' | 'warning' | 'info' | 'error' | 'neutral';
 
-const CHIP: Record<ChipStatus, [string, string]> = {
-  success: ['var(--success-surface)', 'var(--success-text)'],
-  warning: ['var(--warning-surface)', 'var(--warning-text)'],
-  info: ['var(--info-surface)', 'var(--info-text)'],
-  error: ['var(--error-surface)', 'var(--error-text)'],
-  neutral: ['var(--secondary)', 'var(--muted-foreground)'],
+const CHIP: Record<ChipStatus, string> = {
+  success: 'bg-success-surface text-success-text',
+  warning: 'bg-warning-surface text-warning-text',
+  info: 'bg-info-surface text-info-text',
+  error: 'bg-error-surface text-error-text',
+  neutral: 'bg-secondary text-muted-foreground',
 };
 
 export function StatusChip({
@@ -17,22 +17,9 @@ export function StatusChip({
   status?: ChipStatus;
   children: React.ReactNode;
 }) {
-  const [background, color] = CHIP[status];
   return (
     <span
-      style={{
-        background,
-        color,
-        fontSize: 12,
-        fontWeight: 600,
-        padding: '5px 11px',
-        borderRadius: 999,
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        whiteSpace: 'nowrap',
-        lineHeight: 1,
-      }}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] py-[5px] text-xs font-semibold leading-none ${CHIP[status]}`}
     >
       {children}
     </span>

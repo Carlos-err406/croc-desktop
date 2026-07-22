@@ -8,7 +8,7 @@ interface CrocMarkProps {
 /** The croc mascot mark from the design (viewBox 40×26). */
 export function CrocMark({ width = 40, height = 26, fill = '#fff', dot = 'var(--brand-deep)' }: CrocMarkProps) {
   return (
-    <svg width={width} height={height} viewBox="0 0 40 26" fill="none" style={{ display: 'block' }}>
+    <svg width={width} height={height} viewBox="0 0 40 26" fill="none" className="block">
       <g stroke={fill} strokeWidth="2.6" strokeLinecap="round">
         <path d="M12 10.5 10 7" />
         <path d="M22 10.5 24 7" />
@@ -31,16 +31,8 @@ export function CrocMark({ width = 40, height = 26, fill = '#fff', dot = 'var(--
 export function CrocBadge({ size = 34, mark = 26 }: { size?: number; mark?: number }) {
   return (
     <span
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.3,
-        background: 'linear-gradient(140deg,var(--brand),var(--brand-deep))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-      }}
+      className="flex shrink-0 items-center justify-center bg-[linear-gradient(140deg,var(--brand),var(--brand-deep))]"
+      style={{ width: size, height: size, borderRadius: size * 0.3 }}
     >
       <CrocMark width={mark} height={mark * 0.65} fill="#fff" dot="var(--brand-deep)" />
     </span>

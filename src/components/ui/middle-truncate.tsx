@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 // Shared offscreen canvas for text measurement.
 let sharedCanvas: HTMLCanvasElement | null = null;
@@ -107,15 +108,9 @@ export function MiddleTruncate({
     <span
       ref={ref}
       title={text}
-      className={className}
-      style={{
-        display: 'block',
-        minWidth: 0,
-        overflow: 'hidden',
-        whiteSpace: 'nowrap',
-        textOverflow: 'clip', // never let native ellipsis add a second "…"
-        ...style,
-      }}
+      // text-clip: never let native ellipsis add a second "…"
+      className={cn('block min-w-0 overflow-hidden whitespace-nowrap text-clip', className)}
+      style={style}
     >
       {display}
     </span>

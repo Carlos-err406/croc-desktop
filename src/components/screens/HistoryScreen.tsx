@@ -4,23 +4,15 @@ import { croc, type HistoryEntry } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
 
-const HEADING = 'var(--font-heading)';
 type Filter = 'all' | 'sent' | 'received';
 
 function Seg({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <div
       onClick={onClick}
-      style={{
-        fontSize: 13,
-        fontWeight: 500,
-        padding: '6px 14px',
-        borderRadius: 7,
-        cursor: 'pointer',
-        background: active ? 'var(--card)' : 'transparent',
-        color: active ? 'var(--foreground)' : 'var(--muted-foreground)',
-        boxShadow: active ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
-      }}
+      className={`cursor-pointer rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium ${
+        active ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]' : 'text-muted-foreground'
+      }`}
     >
       {children}
     </div>
@@ -52,39 +44,20 @@ function Row({ e }: { e: HistoryEntry }) {
     .filter(Boolean)
     .join('  ·  ');
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        border: '1px solid var(--border)',
-        borderRadius: 14,
-        background: 'var(--card)',
-        padding: '12px 16px',
-        minWidth: 0,
-      }}
-    >
+    <div className="flex min-w-0 items-center gap-3.5 rounded-[14px] border border-border bg-card px-4 py-3">
       <span
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 11,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: isSend ? 'var(--brand-surface)' : 'var(--info-surface)',
-          color: isSend ? 'var(--brand-deep)' : 'var(--info-text)',
-        }}
+        className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] ${
+          isSend ? 'bg-brand-surface text-brand-deep' : 'bg-info-surface text-info-text'
+        }`}
       >
         {isSend ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
       </span>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <MiddleTruncate text={title} style={{ fontSize: 14, fontWeight: 500 }} />
-        <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 2 }}>{meta}</div>
+      <div className="min-w-0 flex-1">
+        <MiddleTruncate text={title} className="text-sm font-medium" />
+        <div className="mt-0.5 text-xs text-muted-foreground">{meta}</div>
       </div>
       {e.kind === 'receive' && e.out && (
-        <Button variant="ghost" size="sm" onClick={() => croc.showItem(e.out!)} style={{ flexShrink: 0 }}>
+        <Button variant="ghost" size="sm" className="shrink-0" onClick={() => croc.showItem(e.out!)}>
           <Folder /> Reveal
         </Button>
       )}
@@ -110,21 +83,21 @@ export function HistoryScreen() {
   );
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ padding: '26px 32px 0' }}>
-        <div style={{ fontFamily: HEADING, fontSize: 26, fontWeight: 600, letterSpacing: '.01em' }}>History</div>
-        <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 3 }}>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="px-8 pt-[26px]">
+        <div className="font-heading text-[26px] font-semibold tracking-[.01em]">History</div>
+        <div className="mt-[3px] text-[13px] text-muted-foreground">
           Every transfer stays on this device. Nothing is stored in the cloud.
         </div>
       </div>
 
-      <div style={{ padding: '18px 32px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ display: 'flex', background: 'var(--secondary)', borderRadius: 9, padding: 3, gap: 3 }}>
+      <div className="flex items-center gap-3 px-8 pt-[18px]">
+        <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
           <Seg active={filter === 'all'} onClick={() => setFilter('all')}>All</Seg>
           <Seg active={filter === 'sent'} onClick={() => setFilter('sent')}>Sent</Seg>
           <Seg active={filter === 'received'} onClick={() => setFilter('received')}>Received</Seg>
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--muted-foreground)' }}>
+        <span className="ml-auto text-[13px] text-muted-foreground">
           {entries.length} transfer{entries.length === 1 ? '' : 's'}
         </span>
         {entries.length > 0 && (
@@ -134,32 +107,21 @@ export function HistoryScreen() {
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 32px 28px' }}>
+      <div className="flex-1 overflow-y-auto px-8 pb-7 pt-4">
         {shown.length === 0 ? (
-          <div
-            style={{
-              border: '1px dashed var(--border)',
-              borderRadius: 14,
-              padding: '56px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              gap: 12,
-            }}
-          >
-            <div style={{ width: 52, height: 52, borderRadius: 16, background: 'var(--secondary)', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed border-border px-6 py-14 text-center">
+            <div className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
               <HistoryIcon size={24} />
             </div>
-            <div style={{ fontFamily: HEADING, fontSize: 18, fontWeight: 600 }}>
+            <div className="font-heading text-lg font-semibold">
               {entries.length === 0 ? 'No transfers yet' : `No ${filter} transfers`}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--muted-foreground)', maxWidth: 320 }}>
+            <div className="max-w-[320px] text-[13px] text-muted-foreground">
               Sends and receives will show up here, kept locally on this device.
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {shown.map((e) => (
               <Row key={e.id} e={e} />
             ))}

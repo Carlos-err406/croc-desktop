@@ -9,8 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
 
-const HEADING = 'var(--font-heading)';
-
 function extType(name: string): string {
   const dot = name.lastIndexOf('.');
   if (dot <= 0 || dot === name.length - 1) return 'FILE';
@@ -28,7 +26,10 @@ function formatDuration(sec: number): string {
 
 function TypeBadge({ type }: { type: string }) {
   return (
-    <span style={{ fontFamily: HEADING, fontSize: 10, fontWeight: 600, color: '#fff', borderRadius: 5, padding: '2px 6px', background: typeColor(type), flexShrink: 0 }}>
+    <span
+      className="shrink-0 rounded-[5px] px-1.5 py-0.5 font-heading text-[10px] font-semibold text-white"
+      style={{ background: typeColor(type) }}
+    >
       {type}
     </span>
   );
@@ -57,29 +58,31 @@ function receiveSteps(status: string): Step[] {
 function TimelineStep({ step }: { step: Step }) {
   const ring =
     step.kind === 'done'
-      ? { bg: 'var(--success-surface)', fg: 'var(--success-text)', border: 'none' }
+      ? 'bg-success-surface text-success-text'
       : step.kind === 'active'
-        ? { bg: 'transparent', fg: 'var(--warning-text)', border: '2px solid var(--warning-text)' }
+        ? 'border-2 border-warning-text text-warning-text'
         : step.kind === 'brand'
-          ? { bg: 'transparent', fg: 'var(--brand)', border: '2px solid var(--brand)' }
-          : { bg: 'var(--secondary)', fg: 'var(--muted-foreground)', border: 'none' };
+          ? 'border-2 border-brand text-brand'
+          : 'bg-secondary text-muted-foreground';
   return (
-    <div style={{ display: 'flex', gap: 12 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <span style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: ring.bg, color: ring.fg, border: ring.border }}>
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <span className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full ${ring}`}>
           {step.kind === 'done' ? (
             <Check size={13} strokeWidth={3} />
           ) : step.kind === 'pending' ? (
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', opacity: 0.5 }} />
+            <span className="h-[5px] w-[5px] rounded-full bg-current opacity-50" />
           ) : (
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor' }} />
+            <span className="h-[7px] w-[7px] rounded-full bg-current" />
           )}
         </span>
-        {step.line && <span style={{ flex: 1, width: 2, minHeight: 16, background: 'var(--border)', margin: '3px 0' }} />}
+        {step.line && <span className="my-[3px] min-h-4 w-0.5 flex-1 bg-border" />}
       </div>
-      <div style={{ paddingBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: step.kind === 'pending' ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{step.title}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{step.sub}</div>
+      <div className="pb-3">
+        <div className={`text-[13px] font-medium ${step.kind === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>
+          {step.title}
+        </div>
+        <div className="text-xs text-muted-foreground">{step.sub}</div>
       </div>
     </div>
   );
@@ -139,12 +142,12 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   }));
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ padding: '26px 32px 0' }}>
-        <div style={{ fontFamily: HEADING, fontSize: 26, fontWeight: 600, letterSpacing: '.01em' }}>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="px-8 pt-[26px]">
+        <div className="font-heading text-[26px] font-semibold tracking-[.01em]">
           {isText ? (status === 'done' ? 'Received text' : 'Receiving text') : status === 'done' ? 'Received' : 'Receive files'}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 3 }}>
+        <div className="mt-[3px] text-[13px] text-muted-foreground">
           {isText
             ? status === 'done'
               ? 'A text message from your peer.'
@@ -159,16 +162,16 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* IDLE: enter code */}
       {status === 'idle' && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 32px 32px' }}>
-          <div style={{ width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 8 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--brand-surface)', color: 'var(--brand-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+        <div className="flex flex-1 items-center justify-center px-8 pb-8 pt-6">
+          <div className="flex w-full max-w-[440px] flex-col items-center gap-2 text-center">
+            <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-[18px] bg-brand-surface text-brand-deep">
               <Download size={30} />
             </div>
-            <div style={{ fontFamily: HEADING, fontSize: 22, fontWeight: 600 }}>Enter the transfer code</div>
-            <div style={{ fontSize: 13, color: 'var(--muted-foreground)', maxWidth: 340 }}>
+            <div className="font-heading text-[22px] font-semibold">Enter the transfer code</div>
+            <div className="max-w-[340px] text-[13px] text-muted-foreground">
               Type the code the sender shared with you — or scan their QR with this device's camera.
             </div>
-            <div style={{ width: '100%', marginTop: 18, textAlign: 'left' }}>
+            <div className="mt-[18px] w-full text-left">
               <Input
                 value={code}
                 onChange={(e) => recv.setCode(e.target.value)}
@@ -178,22 +181,22 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 autoFocus
               />
             </div>
-            <div style={{ width: '100%', marginTop: 12 }}>
+            <div className="mt-3 w-full">
               <Button className="h-11 w-full" disabled={!code.trim()} onClick={recv.begin}>
                 Receive files
               </Button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, color: 'var(--muted-foreground)', fontSize: 12 }}>
-              <span style={{ width: 44, height: 1, background: 'var(--border)' }} />
+            <div className="mt-3.5 flex items-center gap-2.5 text-xs text-muted-foreground">
+              <span className="h-px w-11 bg-border" />
               or
-              <span style={{ width: 44, height: 1, background: 'var(--border)' }} />
+              <span className="h-px w-11 bg-border" />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted-foreground)', marginTop: 4 }}>
+            <div className="mt-1 flex items-center gap-2 text-[13px] text-muted-foreground">
               <QrCode size={15} /> Scan a QR code (coming soon)
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 16, display: 'flex', alignItems: 'center', gap: 6, maxWidth: 380 }}>
-              <Folder size={13} style={{ flexShrink: 0 }} /> Saving to{' '}
-              <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>{abbrevHome(savedDir)}</span>
+            <div className="mt-4 flex max-w-[380px] items-center gap-1.5 text-xs text-muted-foreground">
+              <Folder size={13} className="shrink-0" /> Saving to{' '}
+              <span className="font-medium text-foreground">{abbrevHome(savedDir)}</span>
             </div>
           </div>
         </div>
@@ -201,34 +204,23 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* TEXT MESSAGE: `croc send --text` — show the body with a copy button */}
       {isText && status !== 'idle' && status !== 'error' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '20px 32px 28px', minHeight: 0 }}>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-7 pt-5">
           {text == null ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, border: '1px solid var(--border)', borderRadius: 16 }}>
-              <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', animation: 'crocspin .8s linear infinite' }} />
-              <div style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Receiving text message…</div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-[18px] rounded-2xl border border-border">
+              <div className="h-11 w-11 animate-[crocspin_.8s_linear_infinite] rounded-full border-[3px] border-border border-t-brand" />
+              <div className="text-sm text-muted-foreground">Receiving text message…</div>
             </div>
           ) : (
             <>
-              <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 16, background: 'var(--card)', padding: '18px 20px', overflowY: 'auto', minHeight: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: 12 }}>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-border bg-card px-5 py-[18px]">
+                <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <MessageSquareText size={15} /> TEXT MESSAGE
                 </div>
-                <pre
-                  style={{
-                    margin: 0,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 14,
-                    lineHeight: 1.65,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    userSelect: 'text',
-                    color: 'var(--foreground)',
-                  }}
-                >
+                <pre className="m-0 select-text whitespace-pre-wrap break-words font-mono text-sm leading-[1.65] text-foreground">
                   {text}
                 </pre>
               </div>
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div className="flex gap-2.5">
                 <Button className="flex-1" onClick={copyText}>
                   {copied ? <Check /> : <Copy />} {copied ? 'Copied!' : 'Copy text'}
                 </Button>
@@ -243,21 +235,21 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* ACTIVE: connecting / receiving / done — two-column, gradient hero */}
       {!isText && (status === 'connecting' || status === 'receiving' || status === 'done') && (
-        <div style={{ flex: 1, display: 'flex', gap: 20, padding: '20px 32px 28px', minHeight: 0 }}>
+        <div className="flex min-h-0 flex-1 gap-5 px-8 pb-7 pt-5">
           {/* LEFT — transparent so it blends into the layout brand wash */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'transparent', minWidth: 0 }}>
-            <div style={{ flex: 1, padding: '30px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, minWidth: 0 }}>
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-transparent">
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
               {status === 'connecting' ? (
                 <>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', animation: 'crocspin .8s linear infinite' }} />
-                  <div style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>Connecting to sender…</div>
-                  <div style={{ fontFamily: HEADING, fontSize: 22, color: 'var(--brand-deep)', letterSpacing: '.03em' }}>{code}</div>
+                  <div className="h-11 w-11 animate-[crocspin_.8s_linear_infinite] rounded-full border-[3px] border-border border-t-brand" />
+                  <div className="text-sm text-muted-foreground">Connecting to sender…</div>
+                  <div className="font-heading text-[22px] tracking-[.03em] text-brand-deep">{code}</div>
                 </>
               ) : (
                 <>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: HEADING, fontSize: 68, fontWeight: 600, lineHeight: 1, color: 'var(--brand-deep)' }}>{overall}%</div>
-                    <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 8 }}>
+                  <div className="text-center">
+                    <div className="font-heading text-[68px] font-semibold leading-none text-brand-deep">{overall}%</div>
+                    <div className="mt-2 text-[13px] text-muted-foreground">
                       {status === 'done'
                         ? 'Download complete'
                         : progress?.speedHuman
@@ -265,34 +257,37 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                           : 'Downloading…'}
                     </div>
                   </div>
-                  <div style={{ width: '100%', maxWidth: 420, height: 12, borderRadius: 999, background: 'var(--secondary)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(90deg,var(--brand),var(--brand-deep))', width: `${overall}%`, transition: 'width .2s ease' }} />
+                  <div className="h-3 w-full max-w-[420px] overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(90deg,var(--brand),var(--brand-deep))] transition-[width] duration-200"
+                      style={{ width: `${overall}%` }}
+                    />
                   </div>
                   {status === 'done' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', minWidth: 0, color: 'var(--success-text)', fontWeight: 500 }}>
-                      <Check size={16} strokeWidth={3} style={{ flexShrink: 0 }} />
+                    <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-success-text">
+                      <Check size={16} strokeWidth={3} className="shrink-0" />
                       {totalFiles > 1 ? (
-                        <span style={{ flexShrink: 0 }}>All {totalFiles} files received</span>
+                        <span className="shrink-0">All {totalFiles} files received</span>
                       ) : (
                         <>
-                          <MiddleTruncate text={fileInfo?.name ?? 'File'} style={{ flex: '0 1 auto', fontWeight: 500 }} />
-                          <span style={{ flexShrink: 0 }}>received</span>
+                          <MiddleTruncate text={fileInfo?.name ?? 'File'} className="flex-[0_1_auto] font-medium" />
+                          <span className="shrink-0">received</span>
                         </>
                       )}
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', minWidth: 0 }}>
-                      <span style={{ position: 'relative', display: 'flex', width: 9, height: 9, flexShrink: 0 }}>
-                        <span style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', background: 'var(--brand)', opacity: 0.5, animation: 'crocping 1.4s ease-out infinite' }} />
-                        <span style={{ position: 'relative', width: 9, height: 9, borderRadius: '50%', background: 'var(--brand)' }} />
+                    <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px]">
+                      <span className="relative flex h-[9px] w-[9px] shrink-0">
+                        <span className="absolute h-full w-full animate-[crocping_1.4s_ease-out_infinite] rounded-full bg-brand opacity-50" />
+                        <span className="relative h-[9px] w-[9px] rounded-full bg-brand" />
                       </span>
-                      <span style={{ flexShrink: 0 }}>Downloading</span>
-                      <MiddleTruncate text={currentFile || fileInfo?.name || ''} style={{ flex: '0 1 auto', fontWeight: 500 }} />
+                      <span className="shrink-0">Downloading</span>
+                      <MiddleTruncate text={currentFile || fileInfo?.name || ''} className="flex-[0_1_auto] font-medium" />
                       {totalFiles > 1 ? (
-                        <span style={{ flexShrink: 0, color: 'var(--muted-foreground)' }}>· {seen} of {totalFiles} files</span>
+                        <span className="shrink-0 text-muted-foreground">· {seen} of {totalFiles} files</span>
                       ) : (
                         progress?.transferredHuman && progress?.totalHuman && (
-                          <span style={{ flexShrink: 0, color: 'var(--muted-foreground)' }}>· {progress.transferredHuman} / {progress.totalHuman}</span>
+                          <span className="shrink-0 text-muted-foreground">· {progress.transferredHuman} / {progress.totalHuman}</span>
                         )
                       )}
                     </div>
@@ -303,45 +298,52 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
           </div>
 
           {/* RIGHT: timeline + files + cancel */}
-          <div style={{ width: 332, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, minHeight: 0 }}>
-            <div style={{ border: '1px solid var(--border)', borderRadius: 14, padding: 18, background: 'var(--card)' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Connection</div>
+          <div className="flex min-h-0 w-[332px] shrink-0 flex-col gap-3.5">
+            <div className="rounded-[14px] border border-border bg-card p-[18px]">
+              <div className="mb-4 text-[13px] font-semibold">Connection</div>
               {receiveSteps(status).map((st, i) => (
                 <TimelineStep key={i} step={st} />
               ))}
             </div>
-            <div style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 14, padding: '15px 16px', background: 'var(--card)', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', minHeight: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Files</span>
+            <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto rounded-[14px] border border-border bg-card px-4 py-[15px]">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[13px] font-semibold">Files</span>
                 {totalFiles > 1 && (
-                  <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                  <span className="text-xs text-muted-foreground">
                     {seen}/{totalFiles}
                   </span>
                 )}
               </div>
               {fileRows.length === 0 && (
-                <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Waiting for the file list…</div>
+                <div className="text-xs text-muted-foreground">Waiting for the file list…</div>
               )}
               {fileRows.map((f) => (
-                <div key={f.name} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13 }}>
+                <div key={f.name} className="flex flex-col gap-[7px]">
+                  <div className="flex items-center gap-[9px] text-[13px]">
                     <TypeBadge type={extType(f.name)} />
-                    <MiddleTruncate text={f.name} style={{ flex: 1 }} />
-                    <span style={{ marginLeft: 'auto', paddingLeft: 6, fontSize: 12, color: f.showBar ? 'var(--brand-deep)' : 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                      {f.showCheck && <Check size={13} style={{ color: 'var(--success-text)' }} />}
+                    <MiddleTruncate text={f.name} className="flex-1" />
+                    <span
+                      className={`ml-auto flex shrink-0 items-center gap-[5px] pl-1.5 text-xs ${
+                        f.showBar ? 'text-brand-deep' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {f.showCheck && <Check size={13} className="text-success-text" />}
                       {f.showBar ? `${f.pct}%` : f.size}
                     </span>
                   </div>
                   {f.showBar && (
-                    <div style={{ height: 5, borderRadius: 999, background: 'var(--secondary)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 999, background: 'var(--brand)', width: `${f.pct}%`, transition: 'width .2s ease' }} />
+                    <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-brand transition-[width] duration-200"
+                        style={{ width: `${f.pct}%` }}
+                      />
                     </div>
                   )}
                 </div>
               ))}
             </div>
             {status === 'done' ? (
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div className="flex gap-2.5">
                 <Button className="flex-1" onClick={() => savedDir && croc.showItem(savedDir)}>
                   <Folder /> Show in folder
                 </Button>
@@ -360,10 +362,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* ERROR */}
       {status === 'error' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 32, textAlign: 'center' }}>
-          <div style={{ maxWidth: 420, border: '1px solid var(--error-text)', background: 'var(--error-surface)', borderRadius: 14, padding: 16, color: 'var(--error-text)' }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>Couldn't receive</div>
-            {recv.error && <div style={{ fontSize: 13 }}>{recv.error}</div>}
+        <div className="flex flex-1 flex-col items-center justify-center gap-3.5 p-8 text-center">
+          <div className="max-w-[420px] rounded-[14px] border border-error-text bg-error-surface p-4 text-error-text">
+            <div className="mb-1 font-semibold">Couldn't receive</div>
+            {recv.error && <div className="text-[13px]">{recv.error}</div>}
           </div>
           <Button onClick={recv.reset}>Try again</Button>
         </div>

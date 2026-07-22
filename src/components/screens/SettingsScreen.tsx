@@ -8,12 +8,10 @@ import { Input } from '@/components/ui/input';
 import { StatusChip } from '@/components/ui/status-chip';
 import { CrocBadge } from '@/components/CrocLogo';
 
-const HEADING = 'var(--font-heading)';
-
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 14, background: 'var(--card)' }}>
-      <div style={{ padding: '16px 20px 12px', fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
+    <div className="rounded-[14px] border border-border bg-card">
+      <div className="px-5 pb-3 pt-4 text-xs font-semibold uppercase tracking-[.06em] text-muted-foreground">
         {title}
       </div>
       {children}
@@ -23,10 +21,10 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function Row({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+    <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-3.5">
       <div>
-        <div style={{ fontSize: 14, fontWeight: 500 }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 2 }}>{sub}</div>
+        <div className="text-sm font-medium">{title}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
       </div>
       {children}
     </div>
@@ -37,20 +35,11 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
     <div
       onClick={onClick}
-      style={{
-        width: 44,
-        height: 26,
-        borderRadius: 999,
-        padding: 3,
-        cursor: 'pointer',
-        flexShrink: 0,
-        display: 'flex',
-        background: on ? 'var(--brand)' : 'var(--secondary)',
-        justifyContent: on ? 'flex-end' : 'flex-start',
-        transition: 'all .15s',
-      }}
+      className={`flex h-[26px] w-[44px] shrink-0 cursor-pointer rounded-full p-[3px] transition-all ${
+        on ? 'justify-end bg-brand' : 'justify-start bg-secondary'
+      }`}
     >
-      <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+      <span className="h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,.3)]" />
     </div>
   );
 }
@@ -59,19 +48,9 @@ function Seg({ active, onClick, children }: { active: boolean; onClick: () => vo
   return (
     <div
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 13,
-        fontWeight: 500,
-        padding: '7px 13px',
-        borderRadius: 7,
-        cursor: 'pointer',
-        background: active ? 'var(--card)' : 'transparent',
-        color: active ? 'var(--foreground)' : 'var(--muted-foreground)',
-        boxShadow: active ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
-      }}
+      className={`flex cursor-pointer items-center gap-1.5 rounded-[7px] px-[13px] py-[7px] text-[13px] font-medium ${
+        active ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]' : 'text-muted-foreground'
+      }`}
     >
       {children}
     </div>
@@ -82,16 +61,9 @@ function RelayChoice({ active, onClick, children }: { active: boolean; onClick: 
   return (
     <div
       onClick={onClick}
-      style={{
-        fontSize: 13,
-        fontWeight: 500,
-        padding: '8px 14px',
-        borderRadius: 9,
-        cursor: 'pointer',
-        border: `1px solid ${active ? 'var(--brand)' : 'var(--border)'}`,
-        background: active ? 'var(--brand-surface)' : 'transparent',
-        color: active ? 'var(--brand-deep)' : 'var(--foreground)',
-      }}
+      className={`cursor-pointer rounded-[9px] border px-3.5 py-2 text-[13px] font-medium ${
+        active ? 'border-brand bg-brand-surface text-brand-deep' : 'border-border text-foreground'
+      }`}
     >
       {children}
     </div>
@@ -119,21 +91,21 @@ export function SettingsScreen() {
   const chooseRelay = (r: RelayMode) => update({ relay: r });
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <div style={{ padding: '26px 32px 0' }}>
-        <div style={{ fontFamily: HEADING, fontSize: 26, fontWeight: 600, letterSpacing: '.01em' }}>Settings</div>
-        <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 3 }}>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="px-8 pt-[26px]">
+        <div className="font-heading text-[26px] font-semibold tracking-[.01em]">Settings</div>
+        <div className="mt-[3px] text-[13px] text-muted-foreground">
           Preferences are stored locally on this device.
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 32px 32px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-8 pb-8 pt-5">
         <Card title="General">
           <Row title="Download folder" sub="Where received files are saved">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div className="flex min-w-0 items-center gap-2.5">
               <span
                 title={prefs.downloadDir || defaultDir}
-                style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--secondary)', borderRadius: 8, padding: '7px 11px', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                className="max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-secondary px-[11px] py-[7px] font-mono text-xs"
               >
                 {downloadLabel}
               </span>
@@ -150,7 +122,7 @@ export function SettingsScreen() {
 
         <Card title="Network">
           <Row title="Relay" sub="Rendezvous server used to pair devices">
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               <RelayChoice active={prefs.relay === 'default'} onClick={() => chooseRelay('default')}>
                 Default (croc.schollz.com)
               </RelayChoice>
@@ -160,7 +132,7 @@ export function SettingsScreen() {
             </div>
           </Row>
           {prefs.relay === 'custom' && (
-            <div style={{ padding: '0 20px 16px' }}>
+            <div className="px-5 pb-4">
               <Input
                 placeholder="relay.example.com:9009"
                 value={prefs.relayCustom}
@@ -172,7 +144,7 @@ export function SettingsScreen() {
 
         <Card title="Appearance">
           <Row title="Theme" sub="Match the mood of your desktop">
-            <div style={{ display: 'flex', background: 'var(--secondary)', borderRadius: 9, padding: 3, gap: 3 }}>
+            <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
               <Seg active={prefs.theme === 'light'} onClick={() => chooseTheme('light')}>
                 <Sun size={14} /> Light
               </Seg>
@@ -183,17 +155,15 @@ export function SettingsScreen() {
           </Row>
         </Card>
 
-        <div style={{ border: '1px solid var(--border)', borderRadius: 14, background: 'var(--card)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div className="flex items-center gap-3.5 rounded-[14px] border border-border bg-card px-5 py-4">
           <CrocBadge size={40} mark={30} />
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>
-              Croc Desktop <span style={{ fontWeight: 400, color: 'var(--muted-foreground)' }}>v{__APP_VERSION__}</span>
+            <div className="text-sm font-semibold">
+              Croc Desktop <span className="font-normal text-muted-foreground">v{__APP_VERSION__}</span>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 1 }}>
-              Using the croc binary from your PATH
-            </div>
+            <div className="mt-px text-xs text-muted-foreground">Using the croc binary from your PATH</div>
           </div>
-          <span style={{ marginLeft: 'auto' }}>
+          <span className="ml-auto">
             <StatusChip status="success">Ready</StatusChip>
           </span>
         </div>

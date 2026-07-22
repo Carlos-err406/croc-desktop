@@ -16,57 +16,28 @@ export function Sidebar({
   onNavigate: (s: Screen) => void;
 }) {
   return (
-    <nav
-      style={{
-        width: 220,
-        background: 'var(--sidebar)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '20px 14px',
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px 22px' }}>
+    <nav className="flex w-[220px] shrink-0 flex-col border-r border-border bg-sidebar px-[14px] py-5">
+      <div className="flex items-center gap-2.5 px-2 pb-[22px] pt-1.5">
         <CrocBadge />
-        <span
-          style={{
-            fontFamily: 'var(--font-heading)',
-            fontWeight: 600,
-            fontSize: 20,
-            letterSpacing: '.02em',
-          }}
-        >
-          Croc
-        </span>
+        <span className="font-heading text-xl font-semibold tracking-[.02em]">Croc</span>
       </div>
 
       {NAV.map(({ id, label, Icon }) => (
         <button
           key={id}
-          className="croc-nav"
+          className="croc-nav mb-[3px]"
           data-active={screen === id}
           onClick={() => onNavigate(id)}
-          style={{ marginBottom: 3 }}
         >
           <Icon size={18} />
           {label}
         </button>
       ))}
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 9,
-            padding: '10px 12px',
-            borderRadius: 10,
-            background: 'var(--success-surface)',
-          }}
-        >
-          <Lock size={15} style={{ color: 'var(--success-text)', flexShrink: 0 }} />
-          <span style={{ fontSize: 11, lineHeight: 1.35, color: 'var(--success-text)' }}>
+      <div className="mt-auto flex flex-col gap-3">
+        <div className="flex items-center gap-[9px] rounded-[10px] bg-success-surface px-3 py-2.5">
+          <Lock size={15} className="shrink-0 text-success-text" />
+          <span className="text-[11px] leading-[1.35] text-success-text">
             End-to-end encrypted
             <br />
             peer-to-peer
@@ -82,16 +53,9 @@ export function Sidebar({
         </button>
         <div
           title={`Built ${new Date(__BUILD_TIME__).toLocaleString()}`}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            padding: '2px 12px 0',
-            fontSize: 10,
-            color: 'var(--muted-foreground)',
-          }}
+          className="flex items-baseline justify-between px-3 pt-0.5 text-[10px] text-muted-foreground"
         >
-          <span style={{ fontWeight: 500 }}>v{__APP_VERSION__}</span>
+          <span className="font-medium">v{__APP_VERSION__}</span>
           <span>
             build{' '}
             {new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
