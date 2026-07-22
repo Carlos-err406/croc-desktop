@@ -62,3 +62,20 @@ run means the packaging succeeded. Installers are only produced by tag releases.
 auto-derives `.icns` (macOS) and `.ico` (Windows) from it at build time and uses
 the PNG directly on Linux — no per-platform config needed. Replace that one file
 to rebrand.
+
+## DMG background (macOS 26 patch)
+
+The custom DMG window (`build/background.tiff` + the `dmg` block) relies on a
+patch: `patches/dmg-builder+24.13.3.patch` (applied by `patch-package` in
+`postinstall`, including in CI).
+
+electron-builder 24's vendored `dmgbuild` writes the background two ways — a
+relative alias *and* an absolute `pBBk` bookmark. macOS 26.2+ tightened Finder's
+plist parser and **rejects the whole `.` record when the `pBBk` blob is
+malformed**, so the background, window size, *and* icon positions all fall back
+to defaults (fine on macOS 15, broken on 26). The patch drops the `pBBk` write
+and keeps the relative alias, which Finder still honors. See electron-builder
+issue #9072 / fix PR #9512.
+
+When upgrading to electron-builder ≥ 26.5 (which ships the fix upstream), delete
+this patch — it won't apply to the new version and is no longer needed.
