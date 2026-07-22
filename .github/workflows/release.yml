@@ -45,7 +45,9 @@ jobs:
         run: npm run typecheck && npx vite build
 
       # On a tag push: publish to the draft GitHub Release.
-      # On manual dispatch: build only (artifacts uploaded below for testing).
+      # On a tag push, --publish always uploads the installers straight to the
+      # GitHub Release. On manual dispatch, --publish never builds only (a
+      # green run confirms packaging works, e.g. after a config change).
       - name: Build & package
         run: >-
           npx electron-builder
@@ -57,15 +59,3 @@ jobs:
           # Unsigned builds: don't let electron-builder try to auto-discover a
           # signing identity (would fail on the macOS runners).
           CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Upload installers as workflow artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          name: croc-desktop-${{ matrix.platform }}
-          if-no-files-found: ignore
-          path: |
-            dist-release/*.dmg
-            dist-release/*.zip
-            dist-release/*.exe
-            dist-release/*.AppImage
-            dist-release/*.deb

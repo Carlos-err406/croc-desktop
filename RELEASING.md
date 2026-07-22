@@ -38,9 +38,10 @@ Builds are produced by GitHub Actions. There is no local release step.
 4. The Release workflow builds all platforms and uploads them to a **draft**
    GitHub Release. Review it under *Releases*, then publish when ready.
 
-To test a build without cutting a release, trigger the Release workflow manually
-(*Actions → Release → Run workflow*). Manual runs build and upload the installers
-as **workflow artifacts** but do not publish a GitHub Release.
+To sanity-check that packaging still works without cutting a release (e.g. after
+a build-config change), trigger the Release workflow manually (*Actions → Release
+→ Run workflow*). Manual runs build all platforms but publish nothing — a green
+run means the packaging succeeded. Installers are only produced by tag releases.
 
 ## Not yet configured
 
