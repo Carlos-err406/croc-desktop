@@ -134,15 +134,25 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   }, []);
 
   // Open the OS share sheet with the code + join command as text (works in
-  // every target — Messages, Mail, Notes, AirDrop, chat apps). The in-app QR
-  // panel handles scanning. If the share sheet is unavailable, copy the code.
-  const shareTransfer = async () => {
+  // every target — Messages, Mail, Notes, AirDrop, chat apps). Anchored to the
+  // Share button via `position`. If the sheet is unavailable, copy the code.
+  const shareTransfer = async (anchor?: HTMLElement) => {
     if (!result) return;
     const text =
-      `Sending you files with croc — code: ${result.code}\n` +
-      `Scan the QR, or run:  ${result.receiveCommand.posix}`;
+      `Receive my files with croc.\n` +
+      `Code: ${result.code}\n` +
+      `Run:  ${result.receiveCommand.posix}`;
+    let position;
+    if (anchor) {
+      const r = anchor.getBoundingClientRect();
+      position = {
+        x: Math.round(r.left + r.width / 2),
+        y: Math.round(r.top + r.height / 2),
+        preferredEdge: 'bottom' as const,
+      };
+    }
     try {
-      await shareText(text);
+      await shareText(text, position ? { position } : undefined);
     } catch {
       if (await copyText(result.code)) {
         setSharedCopied(true);
@@ -307,7 +317,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col justify-center gap-3 p-[18px]">
-                  <Button className="w-full" onClick={shareTransfer}>
+                  <Button className="w-full" onClick={(e) => shareTransfer(e.currentTarget)}>
                     {sharedCopied ? <Check /> : <Share2 />} {sharedCopied ? 'Code copied' : 'Share…'}
                   </Button>
                   <div className="flex justify-center gap-2.5">
