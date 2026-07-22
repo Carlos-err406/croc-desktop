@@ -271,9 +271,14 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                   {status === 'done' ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', minWidth: 0, color: 'var(--success-text)', fontWeight: 500 }}>
                       <Check size={16} strokeWidth={3} style={{ flexShrink: 0 }} />
-                      <span style={{ flexShrink: 0 }}>
-                        {totalFiles > 1 ? `All ${totalFiles} files received` : `${fileInfo?.name ?? 'File'} received`}
-                      </span>
+                      {totalFiles > 1 ? (
+                        <span style={{ flexShrink: 0 }}>All {totalFiles} files received</span>
+                      ) : (
+                        <>
+                          <MiddleTruncate text={fileInfo?.name ?? 'File'} style={{ flex: '0 1 auto', fontWeight: 500 }} />
+                          <span style={{ flexShrink: 0 }}>received</span>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', minWidth: 0 }}>
