@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
 import { Camera, Check, Copy, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
 import type { StatEntry } from '@/lib/services/ipc';
 import type { UseSend } from '@/lib/useSend';
@@ -32,40 +33,6 @@ function TypeBadge({ type, small }: { type: string; small?: boolean }) {
       {type}
     </span>
   );
-}
-
-/**
- * Render a shareable PNG: the QR (crisp, no smoothing) with the transfer code
- * printed beneath it, so the code is legible even in share targets that only
- * accept the image. Returns a data URL.
- */
-async function composeShareImage(qrDataUrl: string, code: string): Promise<string> {
-  const img = new Image();
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = reject;
-    img.src = qrDataUrl;
-  });
-  const W = 460;
-  const QR = 360;
-  const padTop = 48;
-  const gap = 30;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = padTop + QR + gap + 78;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.imageSmoothingEnabled = false; // keep QR modules sharp when upscaled
-  ctx.drawImage(img, (W - QR) / 2, padTop, QR, QR);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#0b1220';
-  ctx.font = "600 32px 'Poppins', system-ui, sans-serif";
-  ctx.fillText(code, W / 2, padTop + QR + gap + 12);
-  ctx.font = "500 15px 'Poppins', system-ui, sans-serif";
-  ctx.fillStyle = '#6b7280';
-  ctx.fillText('croc transfer code', W / 2, padTop + QR + gap + 42);
-  return canvas.toDataURL('image/png');
 }
 
 function totalBytes(entries: StatEntry[]) {
@@ -166,29 +133,21 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Share the QR image (code printed on it) AND the passphrase as plain text,
-  // so the code is copyable text everywhere. Trade-off: chat apps like Telegram
-  // prefer the text and drop the image, so they show the passphrase but not the
-  // QR; every other target (Mail, Messages, AirDrop, Notes) shows both. macOS
-  // shows the native share menu; elsewhere there's no sheet, so we copy instead.
+  // Open the OS share sheet with the code + join command as text (works in
+  // every target — Messages, Mail, Notes, AirDrop, chat apps). The in-app QR
+  // panel handles scanning. If the share sheet is unavailable, copy the code.
   const shareTransfer = async () => {
     if (!result) return;
     const text =
       `Sending you files with croc — code: ${result.code}\n` +
       `Scan the QR, or run:  ${result.receiveCommand.posix}`;
-    let image: string | undefined;
-    if (result.qr) {
-      try {
-        image = await composeShareImage(result.qr, result.code);
-      } catch {
-        /* QR optional — the text still carries the passphrase */
+    try {
+      await shareText(text);
+    } catch {
+      if (await copyText(result.code)) {
+        setSharedCopied(true);
+        setTimeout(() => setSharedCopied(false), 1600);
       }
-    }
-    const [, res] = await croc.share({ image, text });
-    if (!res?.shown) {
-      await copyText(result.code);
-      setSharedCopied(true);
-      setTimeout(() => setSharedCopied(false), 1600);
     }
   };
 

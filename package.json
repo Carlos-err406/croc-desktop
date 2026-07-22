@@ -21,6 +21,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@choochmeque/tauri-plugin-sharekit-api": "^0.3.1",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
