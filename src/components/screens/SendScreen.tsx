@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
 import { Camera, Check, Copy, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
 import type { StatEntry } from '@/lib/services/ipc';
 import type { UseSend } from '@/lib/useSend';
 import { croc } from '@/lib/services/ipc';
-import { pathsFromFileList } from '@/lib/paths';
 import { typeColor } from '@/lib/badge';
 import { copyText } from '@/lib/clipboard';
 import { Button } from '@/components/ui/button';
@@ -32,40 +33,6 @@ function TypeBadge({ type, small }: { type: string; small?: boolean }) {
       {type}
     </span>
   );
-}
-
-/**
- * Render a shareable PNG: the QR (crisp, no smoothing) with the transfer code
- * printed beneath it, so the code is legible even in share targets that only
- * accept the image. Returns a data URL.
- */
-async function composeShareImage(qrDataUrl: string, code: string): Promise<string> {
-  const img = new Image();
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = reject;
-    img.src = qrDataUrl;
-  });
-  const W = 460;
-  const QR = 360;
-  const padTop = 48;
-  const gap = 30;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = padTop + QR + gap + 78;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.imageSmoothingEnabled = false; // keep QR modules sharp when upscaled
-  ctx.drawImage(img, (W - QR) / 2, padTop, QR, QR);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#0b1220';
-  ctx.font = "600 32px 'Poppins', system-ui, sans-serif";
-  ctx.fillText(code, W / 2, padTop + QR + gap + 12);
-  ctx.font = "500 15px 'Poppins', system-ui, sans-serif";
-  ctx.fillStyle = '#6b7280';
-  ctx.fillText('croc transfer code', W / 2, padTop + QR + gap + 42);
-  return canvas.toDataURL('image/png');
 }
 
 function totalBytes(entries: StatEntry[]) {
@@ -135,31 +102,62 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const { status, entries, result, progress, error } = send;
   const [dragging, setDragging] = useState(false);
   const [sharedCopied, setSharedCopied] = useState(false);
-  const depth = useRef(0);
 
-  // Share the QR image (code printed on it) AND the passphrase as plain text,
-  // so the code is copyable text everywhere. Trade-off: chat apps like Telegram
-  // prefer the text and drop the image, so they show the passphrase but not the
-  // QR; every other target (Mail, Messages, AirDrop, Notes) shows both. macOS
-  // shows the native share menu; elsewhere there's no sheet, so we copy instead.
-  const shareTransfer = async () => {
+  // Tauri delivers native file drops (with real filesystem paths, incl. folders)
+  // at the window level — HTML5 DnD in a webview yields no paths. Subscribe while
+  // the Send screen is mounted; a ref gives the handler the latest status so a
+  // drop only stages when we're idle/staging (never mid-transfer).
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const p = event.payload;
+        const idle = statusRef.current === 'idle' || statusRef.current === 'starting';
+        if (p.type === 'enter' || p.type === 'over') {
+          if (idle) setDragging(true);
+        } else if (p.type === 'leave') {
+          setDragging(false);
+        } else if (p.type === 'drop') {
+          setDragging(false);
+          if ((idle || statusRef.current === 'staging') && p.paths.length) {
+            send.stage(p.paths);
+          }
+        }
+      })
+      .then((f) => {
+        unlisten = f;
+      });
+    return () => unlisten?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Open the OS share sheet with the code + join command as text (works in
+  // every target — Messages, Mail, Notes, AirDrop, chat apps). Anchored to the
+  // Share button via `position`. If the sheet is unavailable, copy the code.
+  const shareTransfer = async (anchor?: HTMLElement) => {
     if (!result) return;
     const text =
-      `Sending you files with croc — code: ${result.code}\n` +
-      `Scan the QR, or run:  ${result.receiveCommand.posix}`;
-    let image: string | undefined;
-    if (result.qr) {
-      try {
-        image = await composeShareImage(result.qr, result.code);
-      } catch {
-        /* QR optional — the text still carries the passphrase */
-      }
+      `Receive my files with croc.\n` +
+      `Code: ${result.code}\n` +
+      `Run:  ${result.receiveCommand.posix}`;
+    let position;
+    if (anchor) {
+      const r = anchor.getBoundingClientRect();
+      position = {
+        x: Math.round(r.left + r.width / 2),
+        y: Math.round(r.top + r.height / 2),
+        preferredEdge: 'bottom' as const,
+      };
     }
-    const [, res] = await croc.share({ image, text });
-    if (!res?.shown) {
-      await copyText(result.code);
-      setSharedCopied(true);
-      setTimeout(() => setSharedCopied(false), 1600);
+    try {
+      await shareText(text, position ? { position } : undefined);
+    } catch {
+      if (await copyText(result.code)) {
+        setSharedCopied(true);
+        setTimeout(() => setSharedCopied(false), 1600);
+      }
     }
   };
 
@@ -198,14 +196,6 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
     const [, paths] = await croc.pickPaths();
     if (paths && paths.length) send.stage(paths);
   }
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    depth.current = 0;
-    setDragging(false);
-    const paths = pathsFromFileList(e.dataTransfer.files);
-    if (paths.length) send.stage(paths);
-  }
-
   // per-file progress (sequential, weighted by size) — mirrors the design
   const transferred = total * (percent / 100);
   let acc = 0;
@@ -240,17 +230,6 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             tabIndex={0}
             onClick={browse}
             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && browse()}
-            onDragOver={(e) => e.preventDefault()}
-            onDragEnter={(e) => {
-              e.preventDefault();
-              depth.current += 1;
-              setDragging(true);
-            }}
-            onDragLeave={() => {
-              depth.current -= 1;
-              if (depth.current <= 0) setDragging(false);
-            }}
-            onDrop={onDrop}
             className={`flex flex-1 cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed bg-transparent text-center outline-none transition-colors duration-150 ${
               dragging ? 'border-brand' : 'border-border'
             }`}
@@ -338,7 +317,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col justify-center gap-3 p-[18px]">
-                  <Button className="w-full" onClick={shareTransfer}>
+                  <Button className="w-full" onClick={(e) => shareTransfer(e.currentTarget)}>
                     {sharedCopied ? <Check /> : <Share2 />} {sharedCopied ? 'Code copied' : 'Share…'}
                   </Button>
                   <div className="flex justify-center gap-2.5">

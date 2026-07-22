@@ -1,35 +1,62 @@
-import {
-  CROC_CANCEL,
-  CROC_DEFAULT_DIR,
-  CROC_PICK_FOLDER,
-  CROC_PICK_PATHS,
-  CROC_RECEIVE,
-  CROC_SEND,
-  CROC_SHARE,
-  CROC_SHOW_ITEM,
-  CROC_STAT_PATHS,
-  CROC_HISTORY_LIST,
-  CROC_HISTORY_ADD,
-  CROC_HISTORY_CLEAR,
-} from '@electron/ipc/croc/channels';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import type {
+  CrocEvent,
+  CrocReceiveResult,
+  CrocSendResult,
+  HistoryDraft,
+  HistoryEntry,
+  StatEntry,
+} from '@/lib/ipc-types';
 
-const ipc = window.ipc;
+// Preserve the Go-style [err, result] tuple the renderer already destructures
+// (previously produced by the Electron `$try` wrapper), so useSend/useReceive
+// and the screens are unchanged — only the transport swaps to Tauri invoke().
+type TryOk<T> = [null, T];
+type TryErr = [{ message: string; stack?: string }, null];
+type Tuple<T> = Promise<TryOk<T> | TryErr>;
+
+async function call<T>(cmd: string, args?: Record<string, unknown>): Tuple<T> {
+  try {
+    return [null, await invoke<T>(cmd, args)];
+  } catch (error) {
+    const e = error instanceof Error ? error : new Error(String(error));
+    return [{ message: e.message, stack: e.stack }, null];
+  }
+}
 
 export const croc = {
-  pickPaths: ipc[CROC_PICK_PATHS],
-  pickFolder: ipc[CROC_PICK_FOLDER],
-  defaultDir: ipc[CROC_DEFAULT_DIR],
-  statPaths: ipc[CROC_STAT_PATHS],
-  send: ipc[CROC_SEND],
-  receive: ipc[CROC_RECEIVE],
-  cancel: ipc[CROC_CANCEL],
-  showItem: ipc[CROC_SHOW_ITEM],
-  share: ipc[CROC_SHARE],
-  historyList: ipc[CROC_HISTORY_LIST],
-  historyAdd: ipc[CROC_HISTORY_ADD],
-  historyClear: ipc[CROC_HISTORY_CLEAR],
-  onEvent: ipc.onCrocEvent,
-  pathForFile: ipc.pathForFile,
+  pickPaths: () => call<string[]>('croc_pick_paths'),
+  pickFolder: () => call<string>('croc_pick_folder'),
+  defaultDir: () => call<string>('croc_default_dir'),
+  statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
+  send: (paths: string[], transferId?: string, relay?: string, zip?: boolean) =>
+    call<CrocSendResult>('croc_send', { paths, transferId, relay, zip }),
+  receive: (code: string, opts?: { out?: string; relay?: string }, transferId?: string) =>
+    call<CrocReceiveResult>('croc_receive', {
+      code,
+      out: opts?.out,
+      relay: opts?.relay,
+      transferId,
+    }),
+  cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
+  showItem: (path: string) => call<null>('croc_show_item', { path }),
+  historyList: () => call<HistoryEntry[]>('croc_history_list'),
+  historyAdd: (draft: HistoryDraft) => call<HistoryEntry[]>('croc_history_add', { draft }),
+  historyClear: () => call<HistoryEntry[]>('croc_history_clear'),
+
+  // Backend streams events over the "croc://event" Tauri event; return a sync
+  // unsubscribe for the React effect cleanup.
+  onEvent: (cb: (e: CrocEvent) => void): (() => void) => {
+    const unlisten = listen<CrocEvent>('croc://event', (event) => cb(event.payload));
+    return () => {
+      void unlisten.then((f) => f());
+    };
+  },
+
+  // Drag-drop file paths need Tauri's native onDragDropEvent (Phase 4) — a
+  // webview's HTML5 drop yields no filesystem path. The Browse button works.
+  pathForFile: (_file: File): string => '',
 };
 
 export type {
@@ -39,4 +66,4 @@ export type {
   StatEntry,
   HistoryEntry,
   HistoryDraft,
-} from '@electron/ipc/croc/channels';
+} from '@/lib/ipc-types';

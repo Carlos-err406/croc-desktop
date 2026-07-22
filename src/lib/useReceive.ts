@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CrocFileInfo, CrocProgress } from '@electron/lib/croc';
+import type { CrocFileInfo, CrocProgress } from '@/lib/ipc-types';
 import { croc, type CrocEvent } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
 
