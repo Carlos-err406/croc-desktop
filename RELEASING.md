@@ -7,16 +7,16 @@ Builds are produced by GitHub Actions. There is no local release step.
 - **CI** (`.github/workflows/ci.yml`) — runs on every push to `main` and every
   PR. Installs deps (rebuilding the native `node-pty`), typechecks, and builds
   the renderer + Electron main. No installers are produced.
-- **Release** (`.github/workflows/release.yml`) — runs on a `v*` tag. A matrix
-  builds each platform on its own native runner (no cross-compilation of
-  `node-pty`):
+- **Release** (`.github/workflows/release.yml`) — runs on a `v*` tag. One job
+  per OS; each builds every arch its electron-builder target lists (the macOS
+  Apple-Silicon runner cross-builds x64 too — electron-builder rebuilds
+  `node-pty` per arch):
 
-  | Runner        | Platform | Arch  | Artifacts            |
-  | ------------- | -------- | ----- | -------------------- |
-  | macos-14      | mac      | arm64 | `.dmg`, `.zip`       |
-  | macos-13      | mac      | x64   | `.dmg`, `.zip`       |
-  | windows-latest| win      | x64   | `.exe` (NSIS)        |
-  | ubuntu-latest | linux    | x64   | `.AppImage`, `.deb`  |
+  | Runner         | Platform | Arch(s)     | Artifacts           |
+  | -------------- | -------- | ----------- | ------------------- |
+  | macos-14       | mac      | arm64 + x64 | `.dmg`, `.zip`      |
+  | windows-latest | win      | x64         | `.exe` (NSIS)       |
+  | ubuntu-latest  | linux    | x64         | `.AppImage`, `.deb` |
 
 ## Cutting a release
 

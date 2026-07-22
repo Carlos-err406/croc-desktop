@@ -17,21 +17,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # node-pty is a native module, so each OS/arch builds on its own
-          # native runner — no cross-compilation. macOS arm64 and x64 are split
-          # across the Apple-Silicon (macos-14) and Intel (macos-13) runners.
+          # One job per OS; each builds every arch its electron-builder target
+          # lists. The macOS (Apple-Silicon) runner cross-builds x64 too —
+          # electron-builder rebuilds node-pty per-arch — so no Intel runner is
+          # needed.
           - os: macos-14
             platform: mac
-            arch: arm64
-          - os: macos-13
-            platform: mac
-            arch: x64
           - os: windows-latest
             platform: win
-            arch: x64
           - os: ubuntu-latest
             platform: linux
-            arch: x64
 
     steps:
       - uses: actions/checkout@v5
@@ -55,7 +50,7 @@ jobs:
         run: >-
           npx electron-builder
           --config electron-builder.json5
-          --${{ matrix.platform }} --${{ matrix.arch }}
+          --${{ matrix.platform }}
           ${{ github.event_name == 'push' && '--publish always' || '--publish never' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,7 +61,7 @@ jobs:
       - name: Upload installers as workflow artifacts
         uses: actions/upload-artifact@v5
         with:
-          name: croc-desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          name: croc-desktop-${{ matrix.platform }}
           if-no-files-found: ignore
           path: |
             dist-release/*.dmg
