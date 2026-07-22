@@ -4,20 +4,13 @@ import { readFileSync } from 'node:fs';
 import path, { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
-import electron from 'vite-plugin-electron/simple';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // App version (from package.json) + a build timestamp, injected at build /
-// dev-server-start time. The timestamp changes on every `npm run dev`, so a
-// stale window is immediately obvious in the UI.
+// dev-server-start time. The timestamp changes on every dev start, so a stale
+// window is immediately obvious in the UI.
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
-
-// Native deps that must not be bundled into the main or preload output — they
-// are resolved from node_modules at runtime (and rebuilt for Electron's ABI via
-// `electron-builder install-app-deps`). qrcode is pure JS, so it's bundled
-// instead (keeps its yargs CLI tree out of the shipped app).
-const externals = ['node-pty', /\.node$/];
 
 const aliases = {
   '@': resolve(__dirname, './src'),
@@ -25,36 +18,22 @@ const aliases = {
   '@utils': resolve(__dirname, './utils'),
 };
 
-// https://vitejs.dev/config/
+// Frontend-only Vite config for Tauri. The backend is Rust (src-tauri/), so the
+// vite-plugin-electron main/preload builds are gone; this just produces the web
+// UI in dist/, which Tauri bundles. Tauri-recommended dev-server settings below.
+// https://v2.tauri.app/start/frontend/vite/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
-  plugins: [
-    tailwindcss(),
-    react(),
-    electron({
-      main: {
-        entry: 'electron/main.ts',
-        vite: {
-          build: {
-            rollupOptions: { external: externals },
-          },
-          resolve: { alias: aliases },
-        },
-      },
-      preload: {
-        input: path.join(__dirname, 'electron/preload.ts'),
-        vite: {
-          build: {
-            rollupOptions: { external: externals },
-          },
-          resolve: { alias: aliases },
-        },
-      },
-      renderer: process.env.NODE_ENV === 'test' ? undefined : {},
-    }),
-  ],
+  plugins: [tailwindcss(), react()],
   resolve: { alias: aliases },
+  // Tauri expects a fixed dev-server port and its own clear-screen handling.
+  clearScreen: false,
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
+  envPrefix: ['VITE_', 'TAURI_ENV_'],
 });

@@ -10,16 +10,15 @@
   },
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "tauri dev",
+    "dev:vite": "vite",
     "typecheck": "tsc --noEmit",
-    "build": "tsc && vite build && electron-builder --config electron-builder.json5 --publish=never",
-    "build:mac": "tsc && vite build && electron-builder --config electron-builder.json5 --mac --publish=never",
-    "build:win": "tsc && vite build && electron-builder --config electron-builder.json5 --win --publish=never",
-    "build:linux": "tsc && vite build && electron-builder --config electron-builder.json5 --linux --publish=never",
+    "build": "tauri build",
+    "build:vite": "tsc && vite build",
+    "tauri": "tauri",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "format": "prettier --write .",
-    "postinstall": "patch-package --error-on-fail && electron-builder install-app-deps && node scripts/fix-node-pty-perms.mjs"
+    "format": "prettier --write ."
   },
   "dependencies": {
     "node-pty": "^1.0.0"
@@ -30,6 +29,8 @@
     "@radix-ui/react-progress": "^1.1.2",
     "@radix-ui/react-slot": "^1.2.3",
     "@tailwindcss/vite": "^4.1.13",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^22.10.0",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.2.64",
