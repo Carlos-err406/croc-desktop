@@ -290,7 +290,8 @@ nav {
 .croc-nav svg {
   transition: transform 0.16s cubic-bezier(0.22, 0.68, 0.28, 1);
 }
-.croc-nav:hover svg {
+.croc-nav:hover svg,
+.croc-nav[data-active='true'] svg {
   transform: translateX(2px);
 }
 .croc-nav[data-active='true']::before {

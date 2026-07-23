@@ -1,16 +1,16 @@
 import { cn } from '@/lib/utils';
-import crocLogo from '@/assets/croc-logo.svg';
+import crocIcon from '@/assets/croc-icon.png';
 
 /**
- * The croc brand mark — the same art (src/assets/croc-logo.svg) that becomes the
- * macOS/Windows/Linux app icon, so the in-app logo matches the installed icon.
- * The SVG is a white square with the green croc; rounding the <img> clips it
- * into the app-icon tile. Pass `className` to override the default shadow.
+ * The croc brand mark — the green-gradient app-icon art (src/assets/croc-icon.png,
+ * a full-bleed green square with the white-rimmed croc), so the in-app logo matches
+ * the installed app icon. Rounding the <img> gives it the app-icon tile shape.
+ * Pass `className` to override the default shadow.
  */
 export function CrocBadge({ size = 34, className }: { size?: number; className?: string }) {
   return (
     <img
-      src={crocLogo}
+      src={crocIcon}
       alt=""
       draggable={false}
       className={cn('block shrink-0 shadow-[0_2px_8px_-3px_rgba(30,80,40,.4)]', className)}
