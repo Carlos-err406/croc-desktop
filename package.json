@@ -1,7 +1,7 @@
 {
   "name": "croc-desktop",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "Cross-platform desktop app for the croc secure file transfer tool (Tauri + Vite + React + TS + TailwindCSS + Shadcn/ui)",
   "author": {
@@ -20,7 +20,9 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@choochmeque/tauri-plugin-sharekit-api": "^0.3.1"
+    "@choochmeque/tauri-plugin-sharekit-api": "^0.3.1",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1"
   },
   "devDependencies": {
     "@fontsource/oswald": "^5.3.0",

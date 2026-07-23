@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.2.0"
+version = "0.2.2"
 description = "Croc Desktop — GUI for the croc secure file transfer tool"
 authors = ["Carlos Daniel Vilaseca Illnait"]
 license = ""
@@ -26,6 +26,8 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-sharekit = "0.3.1"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 portable-pty = "0.9"
 regex = "1"
 qrcode = "0.14"

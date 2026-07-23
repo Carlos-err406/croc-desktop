@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, RefreshCw, RotateCw, Sun } from 'lucide-react';
 import { getPrefs, setPrefs, setTheme, type Prefs, type RelayMode, type Theme } from '@/lib/prefs';
+import { useUpdater } from '@/lib/updater';
 import { abbrevHome } from '@/lib/paths';
 import { croc } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
@@ -74,6 +75,17 @@ export function SettingsScreen() {
   const [prefs, setLocal] = useState<Prefs>(() => getPrefs());
   const [defaultDir, setDefaultDir] = useState('');
   const update = (patch: Partial<Prefs>) => setLocal(setPrefs(patch));
+  const updater = useUpdater();
+
+  const updateStatus: string = {
+    idle: `You're on v${__APP_VERSION__}`,
+    checking: 'Checking for updates…',
+    uptodate: `You're on the latest version (v${__APP_VERSION__})`,
+    available: `Version ${updater.version} is available`,
+    downloading: `Downloading update… ${Math.round(updater.progress * 100)}%`,
+    ready: `Version ${updater.version} downloaded — restart to apply`,
+    error: 'Could not check for updates',
+  }[updater.status];
 
   useEffect(() => {
     if (!prefs.downloadDir) croc.defaultDir().then(([, d]) => d && setDefaultDir(d));
@@ -152,6 +164,33 @@ export function SettingsScreen() {
                 <Moon size={14} /> Dark
               </Seg>
             </div>
+          </Row>
+        </Card>
+
+        <Card title="Updates">
+          <Row title="Automatic updates" sub="Download and install new versions automatically on launch">
+            <Toggle on={prefs.autoUpdate} onClick={() => update({ autoUpdate: !prefs.autoUpdate })} />
+          </Row>
+          <Row title="Software update" sub={updateStatus}>
+            {updater.status === 'ready' ? (
+              <Button size="sm" onClick={() => void updater.restart()}>
+                <RotateCw size={14} /> Restart
+              </Button>
+            ) : updater.status === 'available' ? (
+              <Button size="sm" onClick={() => void updater.install()}>
+                Install now
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={updater.status === 'checking' || updater.status === 'downloading'}
+                onClick={() => void updater.check({ manual: true })}
+              >
+                <RefreshCw size={14} className={updater.status === 'checking' ? 'animate-spin' : ''} />
+                Check for Updates
+              </Button>
+            )}
           </Row>
         </Card>
 
