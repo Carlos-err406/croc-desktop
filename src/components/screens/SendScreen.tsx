@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTransferNotification } from '@/lib/notify';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
 import { Camera, Check, Copy, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
@@ -100,6 +101,17 @@ function CopyPill({ value, label, icon }: { value: string; label: string; icon: 
 
 export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHistory: () => void }) {
   const { status, entries, result, progress, error } = send;
+
+  useTransferNotification(status, error, (s) =>
+    s === 'done'
+      ? {
+          title: 'Files sent',
+          body: entries.length
+            ? `${entries.length} item${entries.length > 1 ? 's' : ''} delivered to your peer.`
+            : 'Your files were delivered.',
+        }
+      : { title: 'Send failed', body: error ?? 'The transfer did not complete.' },
+  );
   const [dragging, setDragging] = useState(false);
   const [sharedCopied, setSharedCopied] = useState(false);
 

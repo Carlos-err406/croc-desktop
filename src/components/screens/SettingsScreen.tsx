@@ -138,6 +138,9 @@ export function SettingsScreen() {
           <Row title="Reveal in folder when done" sub="Open the file location after a transfer completes">
             <Toggle on={prefs.revealOnDone} onClick={() => update({ revealOnDone: !prefs.revealOnDone })} />
           </Row>
+          <Row title="Notify when transfers finish" sub="Show a system notification when a send or receive completes and the app is in the background">
+            <Toggle on={prefs.notify} onClick={() => update({ notify: !prefs.notify })} />
+          </Row>
           <Row title="Bundle folders into one transfer" sub="Much faster for folders with many files — the other side still receives the extracted folder">
             <Toggle on={prefs.zipFolders} onClick={() => update({ zipFolders: !prefs.zipFolders })} />
           </Row>

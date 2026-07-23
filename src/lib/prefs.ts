@@ -9,6 +9,7 @@ export interface Prefs {
   downloadDir: string; // '' → use the app default (~/Downloads/Croc)
   zipFolders: boolean; // bundle folders into one transfer (much faster for many files)
   autoUpdate: boolean; // automatically download & install updates on launch
+  notify: boolean; // OS notification when a transfer finishes (while app is unfocused)
 }
 
 const KEY = 'croc.prefs';
@@ -20,6 +21,7 @@ const DEFAULTS: Prefs = {
   downloadDir: '',
   zipFolders: true,
   autoUpdate: true,
+  notify: true,
 };
 
 /** The relay address to pass to croc, or undefined for croc's default relay. */
