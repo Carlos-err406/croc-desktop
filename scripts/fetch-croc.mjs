@@ -14,7 +14,10 @@ import { platform, tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CROC_VERSION = 'v10.6.0';
+// Pinned to the 10.4.x line to stay protocol-compatible with the wider croc
+// ecosystem (Android croc-app ships 10.4.4; croc v10.5.0 changed LAN relay
+// behavior, which broke transfers between a 10.6.x app and 10.4.x peers).
+const CROC_VERSION = 'v10.4.14';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BIN_DIR = join(ROOT, 'src-tauri', 'binaries');
 const BASE = `https://github.com/schollz/croc/releases/download/${CROC_VERSION}`;
