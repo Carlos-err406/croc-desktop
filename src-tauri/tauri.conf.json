@@ -1,13 +1,13 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Croc Desktop",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "identifier": "dev.carlosd.crocdesktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev:vite",
-    "beforeBuildCommand": "npm run build:vite"
+    "beforeDevCommand": "node scripts/fetch-croc.mjs && npm run dev:vite",
+    "beforeBuildCommand": "node scripts/fetch-croc.mjs && npm run build:vite"
   },
   "app": {
     "windows": [
@@ -29,6 +29,7 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
+    "externalBin": ["binaries/croc"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

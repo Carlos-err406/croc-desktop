@@ -3,7 +3,7 @@ import { Moon, RefreshCw, RotateCw, Sun } from 'lucide-react';
 import { getPrefs, setPrefs, setTheme, type Prefs, type RelayMode, type Theme } from '@/lib/prefs';
 import { useUpdater } from '@/lib/updater';
 import { abbrevHome } from '@/lib/paths';
-import { croc } from '@/lib/services/ipc';
+import { croc, type CrocInfo } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusChip } from '@/components/ui/status-chip';
@@ -90,6 +90,17 @@ export function SettingsScreen() {
   useEffect(() => {
     if (!prefs.downloadDir) croc.defaultDir().then(([, d]) => d && setDefaultDir(d));
   }, [prefs.downloadDir]);
+
+  const [crocInfo, setCrocInfo] = useState<CrocInfo | null>(null);
+  useEffect(() => {
+    croc.info().then(([, info]) => info && setCrocInfo(info));
+  }, []);
+  const crocVersion = crocInfo?.version?.replace(/^croc\s+version\s+/i, '').trim();
+  const crocSub = !crocInfo
+    ? 'Locating croc…'
+    : crocInfo.path
+      ? `${crocInfo.bundled ? 'Bundled' : 'System'} croc${crocVersion ? ` · ${crocVersion}` : ''}`
+      : 'croc binary not found';
 
   const chooseFolder = async () => {
     const [, dir] = await croc.pickFolder();
@@ -200,10 +211,14 @@ export function SettingsScreen() {
             <div className="text-sm font-semibold">
               Croc Desktop <span className="font-normal text-muted-foreground">v{__APP_VERSION__}</span>
             </div>
-            <div className="mt-px text-xs text-muted-foreground">Using the croc binary from your PATH</div>
+            <div className="mt-px text-xs text-muted-foreground">{crocSub}</div>
           </div>
           <span className="ml-auto">
-            <StatusChip status="success">Ready</StatusChip>
+            {crocInfo && !crocInfo.path ? (
+              <StatusChip status="error">croc missing</StatusChip>
+            ) : (
+              <StatusChip status="success">Ready</StatusChip>
+            )}
           </span>
         </div>
       </div>

@@ -16,6 +16,12 @@ type TryOk<T> = [null, T];
 type TryErr = [{ message: string; stack?: string }, null];
 type Tuple<T> = Promise<TryOk<T> | TryErr>;
 
+export interface CrocInfo {
+  path: string | null;
+  version: string | null;
+  bundled: boolean;
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Tuple<T> {
   try {
     return [null, await invoke<T>(cmd, args)];
@@ -29,6 +35,7 @@ export const croc = {
   pickPaths: () => call<string[]>('croc_pick_paths'),
   pickFolder: () => call<string>('croc_pick_folder'),
   defaultDir: () => call<string>('croc_default_dir'),
+  info: () => call<CrocInfo>('croc_info'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (paths: string[], transferId?: string, relay?: string, zip?: boolean) =>
     call<CrocSendResult>('croc_send', { paths, transferId, relay, zip }),

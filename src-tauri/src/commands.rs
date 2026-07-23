@@ -33,6 +33,38 @@ pub fn croc_default_dir(app: AppHandle) -> String {
     default_download_dir(&app)
 }
 
+#[derive(serde::Serialize)]
+pub struct CrocInfo {
+    pub path: Option<String>,
+    pub version: Option<String>,
+    pub bundled: bool,
+}
+
+/// Which croc binary the app resolved, whether it's the bundled sidecar, and its version.
+#[tauri::command]
+pub fn croc_info() -> CrocInfo {
+    let resolved = croc::find_croc_binary();
+    let bundled = matches!(
+        (&resolved, croc::bundled_croc_binary()),
+        (Some(r), Some(b)) if r == &b
+    );
+    let version = resolved.as_ref().and_then(|p| {
+        std::process::Command::new(p)
+            .arg("--version")
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    });
+    CrocInfo {
+        path: resolved.map(|p| p.to_string_lossy().into_owned()),
+        version,
+        bundled,
+    }
+}
+
 #[tauri::command]
 pub fn croc_stat_paths(paths: Vec<String>) -> Vec<StatEntry> {
     croc::stat_paths(paths)

@@ -64,13 +64,26 @@ fn croc_exe() -> &'static str {
     }
 }
 
+/// The croc binary bundled next to the app executable (Tauri externalBin sidecar).
+pub fn bundled_croc_binary() -> Option<PathBuf> {
+    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let candidate = dir.join(croc_exe());
+    candidate.exists().then_some(candidate)
+}
+
 pub fn find_croc_binary() -> Option<PathBuf> {
+    // Explicit override wins (power users / tests).
     if let Ok(p) = std::env::var("CROC_BIN") {
         let pb = PathBuf::from(&p);
         if pb.exists() {
             return Some(pb);
         }
     }
+    // Prefer the bundled sidecar so the app is self-contained.
+    if let Some(pb) = bundled_croc_binary() {
+        return Some(pb);
+    }
+    // Fall back to PATH (e.g. during `tauri dev`, or if the sidecar is missing).
     let mut dirs: Vec<PathBuf> = std::env::var("PATH")
         .unwrap_or_default()
         .split(if cfg!(windows) { ';' } else { ':' })

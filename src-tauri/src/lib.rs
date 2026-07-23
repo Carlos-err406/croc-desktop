@@ -30,6 +30,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::croc_default_dir,
+            commands::croc_info,
             commands::croc_stat_paths,
             commands::croc_pick_paths,
             commands::croc_pick_folder,
