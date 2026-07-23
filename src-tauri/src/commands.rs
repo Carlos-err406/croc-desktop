@@ -140,6 +140,44 @@ pub fn croc_send(
     })
 }
 
+/// Send a text message (`croc send --text`) instead of files.
+#[tauri::command]
+pub fn croc_send_text(
+    app: AppHandle,
+    text: String,
+    transfer_id: Option<String>,
+    relay: Option<String>,
+) -> Result<CrocSendResult, String> {
+    if text.is_empty() {
+        return Err("Nothing to send.".into());
+    }
+    let transfer_id = transfer_id.unwrap_or_else(gen_id);
+    let code = codephrase::generate_code();
+
+    let mut args: Vec<String> = Vec::new();
+    if let Some(r) = relay.filter(|s| !s.is_empty()) {
+        args.push("--relay".into());
+        args.push(r);
+    }
+    args.push("send".into());
+    args.push("--text".into());
+    args.push(text);
+
+    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone())?;
+
+    let qr = croc::generate_qr_data_url(&code);
+    Ok(CrocSendResult {
+        transfer_id,
+        qr,
+        receive_command: ReceiveCommand {
+            code: code.clone(),
+            posix: format!("CROC_SECRET={code} croc"),
+            interactive: "croc   # then paste the code when prompted".into(),
+        },
+        code,
+    })
+}
+
 #[tauri::command]
 pub fn croc_receive(
     app: AppHandle,
