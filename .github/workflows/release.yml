@@ -56,6 +56,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Cache the bundled croc download; beforeBuildCommand's fetch-croc.mjs then
+      # skips re-downloading when the cache hits.
+      - name: Cache croc sidecar
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries
+          key: croc-${{ runner.os }}-${{ hashFiles('scripts/fetch-croc.mjs') }}
+
       # tauri-action runs the frontend build (beforeBuildCommand), compiles the
       # Rust, bundles per-platform installers, and — on a tag push — uploads them
       # to a draft GitHub Release. On manual dispatch (no tag) it just builds.
