@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { primeNotifications } from '@/lib/notify';
 import { useSend } from '@/lib/useSend';
 import { useReceive } from '@/lib/useReceive';
 import { Sidebar } from './Sidebar';
@@ -14,6 +15,11 @@ export function AppShell() {
   const [screen, setScreen] = useState<Screen>('send');
   const send = useSend();
   const recv = useReceive();
+
+  // Ask for notification permission at launch so it's ready before any transfer.
+  useEffect(() => {
+    primeNotifications();
+  }, []);
 
   return (
     <div className="flex h-full bg-background text-foreground">

@@ -24,17 +24,25 @@ function ensurePermission(): Promise<boolean> {
   return permission;
 }
 
-/** Fire an OS notification, gated by the pref and skipped while the app is focused. */
+/** Fire an OS notification, gated by the "notify" pref. */
 export async function notify(title: string, body: string): Promise<void> {
   if (!IN_TAURI || !getPrefs().notify) return;
-  // The user is already watching — no need to interrupt them.
-  if (typeof document !== 'undefined' && document.hasFocus()) return;
   if (!(await ensurePermission())) return;
   try {
     sendNotification({ title, body });
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Request notification permission up front (at app launch) so the macOS prompt
+ * appears once and permission is already granted by the time a transfer finishes.
+ * Without this, permission was only ever requested lazily — and never at all when
+ * a notification was skipped, so notifications silently never showed.
+ */
+export function primeNotifications(): void {
+  if (IN_TAURI) void ensurePermission();
 }
 
 /**
