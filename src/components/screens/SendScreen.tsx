@@ -103,6 +103,16 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
 
   const [dragging, setDragging] = useState(false);
   const [sharedCopied, setSharedCopied] = useState(false);
+  const [mode, setMode] = useState<'files' | 'text'>('files');
+  const [draft, setDraft] = useState('');
+  const pasteClipboard = async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) setDraft((d) => (d ? `${d}${t}` : t));
+    } catch {
+      /* clipboard unavailable — the textarea still accepts Cmd/Ctrl+V */
+    }
+  };
 
   // Tauri delivers native file drops (with real filesystem paths, incl. folders)
   // at the window level — HTML5 DnD in a webview yields no paths. Subscribe while
@@ -226,30 +236,73 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       {/* idle */}
       {(status === 'idle' || status === 'starting') && (
         <div className="flex min-h-0 flex-1 flex-col px-8 pb-8 pt-[22px]">
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={browse}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && browse()}
-            className={`flex flex-1 cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed bg-transparent text-center outline-none transition-colors duration-150 ${
-              dragging ? 'border-brand' : 'border-border'
-            }`}
-          >
-            <CrocBadge size={76} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
-            <div className="mt-[22px] font-heading text-2xl font-semibold">Drop files or a folder to send</div>
-            <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
-              Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to the
-              other device.
+          {/* Files / Text mode toggle */}
+          <div className="mb-4 flex justify-center">
+            <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
+              {(['files', 'text'] as const).map((m) => (
+                <div
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`cursor-pointer rounded-[7px] px-[15px] py-[7px] text-[13px] font-medium capitalize ${
+                    mode === m ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]' : 'text-muted-foreground'
+                  }`}
+                >
+                  {m}
+                </div>
+              ))}
             </div>
-            <div className="mt-[22px]" onClick={(e) => e.stopPropagation()}>
-              <Button onClick={browse}>Browse files…</Button>
-            </div>
-            {status === 'starting' && (
-              <div className="mt-[18px] flex items-center gap-2 text-[13px] text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" /> Starting croc…
-              </div>
-            )}
           </div>
+
+          {mode === 'files' ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={browse}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && browse()}
+              className={`flex flex-1 cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed bg-transparent text-center outline-none transition-colors duration-150 ${
+                dragging ? 'border-brand' : 'border-border'
+              }`}
+            >
+              <CrocBadge size={76} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
+              <div className="mt-[22px] font-heading text-2xl font-semibold">Drop files or a folder to send</div>
+              <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
+                Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to the
+                other device.
+              </div>
+              <div className="mt-[22px]" onClick={(e) => e.stopPropagation()}>
+                <Button onClick={browse}>Browse files…</Button>
+              </div>
+              {status === 'starting' && (
+                <div className="mt-[18px] flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Starting croc…
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Type or paste a message, link, or snippet to send…"
+                spellCheck={false}
+                className="min-h-0 flex-1 resize-none rounded-[14px] border border-border bg-card p-4 font-mono text-[13px] leading-relaxed outline-none transition-colors focus:border-brand"
+              />
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={pasteClipboard}>Paste</Button>
+                <span className="ml-auto text-xs text-muted-foreground">{draft.length} characters</span>
+                <Button
+                  onClick={() => send.sendText(draft)}
+                  disabled={!draft.trim() || status === 'starting'}
+                >
+                  {status === 'starting' ? (
+                    <><Loader2 className="size-4 animate-spin" /> Starting…</>
+                  ) : (
+                    'Send text'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -395,8 +448,14 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               ))}
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto rounded-[14px] border border-border bg-card px-4 py-[15px]">
-              <div className="text-[13px] font-semibold">Files</div>
-              {fileRows.map((f) => (
+              <div className="text-[13px] font-semibold">{send.isText ? 'Message' : 'Files'}</div>
+              {send.isText && (
+                <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed text-muted-foreground">
+                  {draft}
+                </pre>
+              )}
+              {!send.isText &&
+                fileRows.map((f) => (
                 <div key={f.path} className="flex flex-col gap-[7px]">
                   <div className="flex items-center gap-[9px] text-[13px]">
                     <TypeBadge type={f.type} small />

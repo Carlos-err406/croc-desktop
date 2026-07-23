@@ -21,6 +21,7 @@ export interface SendState {
   progress: CrocProgress | null;
   error: string | null;
   logLines: string[];
+  isText: boolean; // sending a text message (croc send --text) rather than files
 }
 
 const INITIAL: SendState = {
@@ -31,6 +32,7 @@ const INITIAL: SendState = {
   progress: null,
   error: null,
   logLines: [],
+  isText: false,
 };
 
 function humanBytes(n: number): string {
@@ -78,6 +80,7 @@ export interface UseSend extends SendState {
   removeEntry: (path: string) => void;
   clear: () => void;
   begin: () => Promise<void>;
+  sendText: (text: string) => Promise<void>;
   cancel: () => void;
   reset: () => void;
 }
@@ -91,12 +94,14 @@ export function useSend(): UseSend {
   // the Send screen, so it shows even if the user navigated to another screen.
   useTransferNotification(state.status, state.error, (s) =>
     s === 'done'
-      ? {
-          title: 'Files sent',
-          body: state.entries.length
-            ? `${state.entries.length} item${state.entries.length > 1 ? 's' : ''} delivered to your peer.`
-            : 'Your files were delivered.',
-        }
+      ? state.isText
+        ? { title: 'Text sent', body: 'Your message was delivered to your peer.' }
+        : {
+            title: 'Files sent',
+            body: state.entries.length
+              ? `${state.entries.length} item${state.entries.length > 1 ? 's' : ''} delivered to your peer.`
+              : 'Your files were delivered.',
+          }
       : { title: 'Send failed', body: state.error ?? 'The transfer did not complete.' },
   );
 
@@ -120,10 +125,11 @@ export function useSend(): UseSend {
     const totalBytes = state.entries.reduce((a, e) => a + e.size, 0);
     croc.historyAdd({
       kind: 'send',
-      names: state.entries.map((e) => e.name),
-      count: state.entries.length,
-      sizeHuman: totalBytes > 0 ? humanBytes(totalBytes) : undefined,
+      names: state.isText ? ['Text message'] : state.entries.map((e) => e.name),
+      count: state.isText ? 1 : state.entries.length,
+      sizeHuman: state.isText || totalBytes === 0 ? undefined : humanBytes(totalBytes),
       code: state.result?.code,
+      isText: state.isText || undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status]);
@@ -176,6 +182,27 @@ export function useSend(): UseSend {
     }));
   }
 
+  async function sendText(text: string) {
+    const msg = text.trim();
+    if (!msg) return;
+    if (state.result) croc.cancel(state.result.transferId);
+    const id = crypto.randomUUID();
+    idRef.current = id;
+    setState(() => ({ ...INITIAL, isText: true, status: 'starting' }));
+
+    const [err, result] = await croc.sendText(msg, id, relayArg());
+    if (idRef.current !== id) return;
+    if (err || !result) {
+      setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to start croc.' }));
+      return;
+    }
+    setState((v) => ({
+      ...v,
+      result,
+      status: v.status === 'transferring' || v.status === 'done' ? v.status : 'waiting',
+    }));
+  }
+
   function cancel() {
     if (state.result) croc.cancel(state.result.transferId);
     idRef.current = null;
@@ -188,5 +215,5 @@ export function useSend(): UseSend {
     setState(INITIAL);
   }
 
-  return { ...state, stage, removeEntry, clear, begin, cancel, reset };
+  return { ...state, stage, removeEntry, clear, begin, sendText, cancel, reset };
 }
