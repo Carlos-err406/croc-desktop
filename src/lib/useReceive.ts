@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CrocFileInfo, CrocProgress } from '@/lib/ipc-types';
+import type { CrocFileInfo, CrocProgress, CrocPrompt } from '@/lib/ipc-types';
 import { croc, type CrocEvent } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
+import { notify } from '@/lib/notify';
 
 export type ReceiveStatus = 'idle' | 'connecting' | 'receiving' | 'done' | 'error';
 
@@ -24,6 +25,7 @@ export interface ReceiveState {
   error: string | null;
   out: string;
   logLines: string[];
+  prompt: CrocPrompt | null; // pending accept/overwrite prompt awaiting the user
 }
 
 const INITIAL: ReceiveState = {
@@ -39,6 +41,7 @@ const INITIAL: ReceiveState = {
   error: null,
   out: '',
   logLines: [],
+  prompt: null,
 };
 
 function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
@@ -90,24 +93,39 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
         perFile,
         currentFile,
         totalFiles,
+        prompt: null,
       };
     }
     case 'text':
       return { ...v, isText: true, text: e.text };
+    case 'prompt':
+      return {
+        ...v,
+        prompt: {
+          kind: e.kind,
+          fname: e.fname,
+          size: e.size,
+          file: e.file,
+          percent: e.percent,
+          message: e.message,
+          defaultYes: e.defaultYes,
+        },
+      };
     case 'done':
       return {
         ...v,
         status: 'done',
+        prompt: null,
         progress: { ...(v.progress ?? {}), percent: 100 },
         perFile: v.perFile.map((f) => ({ ...f, percent: 100 })),
       };
     case 'error':
-      return { ...v, status: 'error', error: e.message };
+      return { ...v, status: 'error', error: e.message, prompt: null };
     case 'exit':
       if (v.status === 'done' || v.status === 'error') return v;
       return e.code === 0
-        ? { ...v, status: 'done' }
-        : { ...v, status: 'error', error: `croc exited (code ${e.code}).` };
+        ? { ...v, status: 'done', prompt: null }
+        : { ...v, status: 'error', error: `croc exited (code ${e.code}).`, prompt: null };
     default:
       return v;
   }
@@ -116,6 +134,7 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
 export interface UseReceive extends ReceiveState {
   setCode: (code: string) => void;
   begin: () => Promise<void>;
+  respond: (yes: boolean) => void;
   cancel: () => void;
   reset: () => void;
 }
@@ -132,6 +151,18 @@ export function useReceive(): UseReceive {
       // Reveal the download folder on completion, if enabled.
       if ((e.type === 'done' || (e.type === 'exit' && e.code === 0)) && getPrefs().revealOnDone && outRef.current) {
         croc.showItem(outRef.current);
+      }
+      // A prompt means croc is blocked waiting for the user — nudge them.
+      if (e.type === 'prompt') {
+        const body =
+          e.kind === 'accept'
+            ? `A peer wants to send you ${e.fname ?? 'files'}${e.size ? ` (${e.size})` : ''}.`
+            : e.kind === 'overwrite'
+              ? `'${e.file}' already exists — replace it?`
+              : e.kind === 'resume'
+                ? `Resume the partial download of '${e.file}'?`
+                : 'Croc needs your confirmation to continue.';
+        void notify('Croc is waiting for you', body);
       }
       setState((v) => reduce(v, e));
     });
@@ -169,7 +200,7 @@ export function useReceive(): UseReceive {
     const prefs = getPrefs();
     const [err, result] = await croc.receive(
       code,
-      { out: prefs.downloadDir || undefined, relay: relayArg(prefs) },
+      { out: prefs.downloadDir || undefined, relay: relayArg(prefs), autoAccept: prefs.autoAccept },
       id
     );
     if (idRef.current !== id) return;
@@ -179,6 +210,11 @@ export function useReceive(): UseReceive {
     }
     outRef.current = result.out;
     setState((v) => ({ ...v, out: result.out }));
+  }
+
+  function respond(yes: boolean) {
+    if (idRef.current) croc.respond(idRef.current, yes);
+    setState((v) => ({ ...v, prompt: null }));
   }
 
   function cancel() {
@@ -193,5 +229,5 @@ export function useReceive(): UseReceive {
     setState(INITIAL);
   }
 
-  return { ...state, setCode, begin, cancel, reset };
+  return { ...state, setCode, begin, respond, cancel, reset };
 }

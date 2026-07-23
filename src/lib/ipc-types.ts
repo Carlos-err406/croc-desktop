@@ -63,6 +63,17 @@ export interface HistoryEntry {
 /** What the renderer records on completion; id + timestamp are added in Rust. */
 export type HistoryDraft = Omit<HistoryEntry, 'id' | 'at'>;
 
+/** An interactive croc prompt awaiting a yes/no answer (via croc_respond). */
+export interface CrocPrompt {
+  kind: 'accept' | 'overwrite' | 'resume' | 'confirm';
+  fname?: string; // accept: what's incoming ("3 files" or a single name)
+  size?: string; // accept: total size, human
+  file?: string; // overwrite/resume: the conflicting file
+  percent?: number; // resume: how far the partial file got
+  message?: string; // confirm: raw prompt text for anything unmodeled
+  defaultYes: boolean; // true = (Y/n), false = (y/N)
+}
+
 /** Events streamed from the backend to the renderer over "croc://event". */
 export type CrocEvent =
   | { transferId: string; type: 'log'; line: string }
@@ -71,6 +82,7 @@ export type CrocEvent =
   | { transferId: string; type: 'file-info'; info: CrocFileInfo }
   | { transferId: string; type: 'progress'; progress: CrocProgress }
   | { transferId: string; type: 'text'; text: string }
+  | ({ transferId: string; type: 'prompt' } & CrocPrompt)
   | { transferId: string; type: 'done' }
   | { transferId: string; type: 'error'; message: string }
   | { transferId: string; type: 'exit'; code: number };

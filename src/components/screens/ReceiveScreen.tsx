@@ -90,7 +90,7 @@ function TimelineStep({ step }: { step: Step }) {
 }
 
 export function ReceiveScreen({ recv }: { recv: UseReceive }) {
-  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text, error } = recv;
+  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text, error, prompt } = recv;
 
   useTransferNotification(status, error, (s) =>
     s === 'done'
@@ -173,6 +173,55 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 : 'Get files someone is sending you.'}
         </div>
       </div>
+
+      {/* Interactive prompt: croc is blocked waiting for the user to accept /
+          overwrite. Shown above the flow whenever one is pending. */}
+      {prompt && (
+        <div className="mx-8 mt-4 rounded-[14px] border border-brand/40 bg-brand-surface p-4">
+          <div className="text-sm font-semibold text-brand-deep">
+            {prompt.kind === 'accept'
+              ? 'Incoming files'
+              : prompt.kind === 'overwrite'
+                ? 'File already exists'
+                : prompt.kind === 'resume'
+                  ? 'Resume download?'
+                  : 'Confirm'}
+          </div>
+          <div className="mt-1 text-[13px] text-foreground">
+            {prompt.kind === 'accept' ? (
+              <>
+                A peer wants to send you <b>{prompt.fname}</b>
+                {prompt.size ? <> · {prompt.size}</> : null}. Accept the transfer?
+              </>
+            ) : prompt.kind === 'overwrite' ? (
+              <>
+                <b>{prompt.file}</b> already exists in your download folder. Replace it?
+              </>
+            ) : prompt.kind === 'resume' ? (
+              <>
+                Resume the partial download of <b>{prompt.file}</b>
+                {prompt.percent != null ? <> ({Math.round(prompt.percent)}%)</> : null}?
+              </>
+            ) : (
+              prompt.message
+            )}
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => recv.respond(false)}>
+              {prompt.kind === 'accept' ? 'Decline' : prompt.kind === 'overwrite' ? 'Keep existing' : 'No'}
+            </Button>
+            <Button size="sm" onClick={() => recv.respond(true)}>
+              {prompt.kind === 'accept'
+                ? 'Accept'
+                : prompt.kind === 'overwrite'
+                  ? 'Replace'
+                  : prompt.kind === 'resume'
+                    ? 'Resume'
+                    : 'Yes'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* IDLE: enter code */}
       {status === 'idle' && (

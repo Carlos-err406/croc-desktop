@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Croc Desktop",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "identifier": "dev.carlosd.crocdesktop",
   "build": {
     "frontendDist": "../dist",
@@ -27,9 +27,17 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg", "nsis", "appimage", "deb"],
+    "targets": [
+      "app",
+      "dmg",
+      "nsis",
+      "appimage",
+      "deb"
+    ],
     "createUpdaterArtifacts": true,
-    "externalBin": ["binaries/croc"],
+    "externalBin": [
+      "binaries/croc"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -40,9 +48,18 @@
     "macOS": {
       "dmg": {
         "background": "dmg-background.png",
-        "windowSize": { "width": 600, "height": 420 },
-        "appPosition": { "x": 160, "y": 205 },
-        "applicationFolderPosition": { "x": 440, "y": 205 }
+        "windowSize": {
+          "width": 600,
+          "height": 420
+        },
+        "appPosition": {
+          "x": 160,
+          "y": 205
+        },
+        "applicationFolderPosition": {
+          "x": 440,
+          "y": 205
+        }
       }
     },
     "android": {

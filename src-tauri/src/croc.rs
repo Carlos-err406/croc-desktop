@@ -7,15 +7,23 @@ use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, PtySize};
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
 
-/// Active transfers keyed by transferId; the killer lets `croc_cancel` stop one.
+/// A live transfer: `killer` lets `croc_cancel` stop it; `writer` lets
+/// `croc_respond` answer croc's interactive prompts (accept / overwrite) by
+/// writing to the PTY (e.g. "y\n").
+pub struct Transfer {
+    pub killer: Box<dyn ChildKiller + Send + Sync>,
+    pub writer: Box<dyn Write + Send>,
+}
+
+/// Active transfers keyed by transferId.
 #[derive(Default)]
 pub struct CrocState {
-    pub transfers: Mutex<HashMap<String, Box<dyn ChildKiller + Send + Sync>>>,
+    pub transfers: Mutex<HashMap<String, Transfer>>,
 }
 
 // ── DTOs (camelCase to match the frontend contract) ───────────────────────
@@ -206,6 +214,19 @@ static TRAIL_DOTS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s*(?:\.{3,}|
 static WAITING: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(code is|on the other computer|sending|connecting|securing channel)").unwrap()
 });
+// Interactive prompts (croc writes them to the TTY with NO trailing newline, so
+// they live in the partial tail and are detected there rather than per-line).
+static ACCEPT_PROMPT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)Accept\s+(.+?)\s+\(([^)]+)\)(?:\s+from\s+'[^']*')?\?\s*\(Y/n\)").unwrap()
+});
+static RESUME_PROMPT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)Resume\s+'(.+?)'\s+\(([\d.]+)%\)\?\s*\(y/N\)").unwrap()
+});
+static OVERWRITE_PROMPT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Overwrite\s+'(.+?)'\?\s*\(y/N\)").unwrap());
+// The (Y/n)/(y/N) marker signals a prompt. Matched anywhere (not end-anchored),
+// because overwrite/resume prompts trail "(use --overwrite to omit)" after it.
+static ANY_PROMPT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\((?:Y/n|y/N)\)").unwrap());
 
 const MAX_LOG_EMITS: u32 = 1000;
 const MAX_TOTAL_LINES: u64 = 100_000;
@@ -221,6 +242,7 @@ struct Parser {
     text_mode: bool,
     text_started: bool,
     text_lines: Vec<String>,
+    last_prompt: Option<String>,
 }
 
 impl Parser {
@@ -236,6 +258,7 @@ impl Parser {
             text_mode: false,
             text_started: false,
             text_lines: Vec::new(),
+            last_prompt: None,
         }
     }
 
@@ -263,6 +286,47 @@ impl Parser {
         for raw in lines {
             self.handle_line(&raw);
         }
+        // An interactive prompt has no trailing newline, so it stays in the tail.
+        let tail = self.line_buf.clone();
+        self.detect_prompt(&tail);
+    }
+
+    /// If the pending (newline-less) tail is a croc prompt, surface it once so the
+    /// UI can answer it via `croc_respond`.
+    fn detect_prompt(&mut self, tail: &str) {
+        if self.finished {
+            return;
+        }
+        let clean = ANSI.replace_all(tail, "").trim().to_string();
+        if clean.is_empty() || !ANY_PROMPT.is_match(&clean) {
+            return;
+        }
+        if self.last_prompt.as_deref() == Some(clean.as_str()) {
+            return; // already surfaced this exact prompt
+        }
+        self.last_prompt = Some(clean.clone());
+
+        let mut m = serde_json::Map::new();
+        if let Some(c) = ACCEPT_PROMPT.captures(&clean) {
+            m.insert("kind".into(), "accept".into());
+            m.insert("fname".into(), c[1].trim_matches('\'').to_string().into());
+            m.insert("size".into(), c[2].to_string().into());
+            m.insert("defaultYes".into(), true.into());
+        } else if let Some(c) = RESUME_PROMPT.captures(&clean) {
+            m.insert("kind".into(), "resume".into());
+            m.insert("file".into(), c[1].to_string().into());
+            m.insert("percent".into(), c[2].parse::<f64>().unwrap_or(0.0).into());
+            m.insert("defaultYes".into(), false.into());
+        } else if let Some(c) = OVERWRITE_PROMPT.captures(&clean) {
+            m.insert("kind".into(), "overwrite".into());
+            m.insert("file".into(), c[1].to_string().into());
+            m.insert("defaultYes".into(), false.into());
+        } else {
+            m.insert("kind".into(), "confirm".into());
+            m.insert("message".into(), clean.clone().into());
+            m.insert("defaultYes".into(), clean.contains("(Y/n)").into());
+        }
+        self.send("prompt", m);
     }
 
     fn handle_line(&mut self, raw: &str) {
@@ -459,13 +523,14 @@ pub fn spawn_transfer(
     drop(pair.slave);
 
     let killer = child.clone_killer();
+    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
     {
         let state = app.state::<CrocState>();
         state
             .transfers
             .lock()
             .unwrap()
-            .insert(transfer_id.clone(), killer);
+            .insert(transfer_id.clone(), Transfer { killer, writer });
     }
 
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
@@ -494,7 +559,18 @@ pub fn spawn_transfer(
 pub fn cancel_transfer(app: &AppHandle, transfer_id: &str) {
     let state = app.state::<CrocState>();
     let mut map = state.transfers.lock().unwrap();
-    if let Some(killer) = map.get_mut(transfer_id) {
-        let _ = killer.kill();
+    if let Some(t) = map.get_mut(transfer_id) {
+        let _ = t.killer.kill();
+    }
+}
+
+/// Answer an interactive croc prompt (accept / overwrite / resume) by writing to
+/// its PTY. `yes` → "y\n", otherwise "n\n".
+pub fn respond(app: &AppHandle, transfer_id: &str, yes: bool) {
+    let state = app.state::<CrocState>();
+    let mut map = state.transfers.lock().unwrap();
+    if let Some(t) = map.get_mut(transfer_id) {
+        let _ = t.writer.write_all(if yes { b"y\n" } else { b"n\n" });
+        let _ = t.writer.flush();
     }
 }

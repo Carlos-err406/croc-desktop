@@ -39,13 +39,19 @@ export const croc = {
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (paths: string[], transferId?: string, relay?: string, zip?: boolean) =>
     call<CrocSendResult>('croc_send', { paths, transferId, relay, zip }),
-  receive: (code: string, opts?: { out?: string; relay?: string }, transferId?: string) =>
+  receive: (
+    code: string,
+    opts?: { out?: string; relay?: string; autoAccept?: boolean },
+    transferId?: string
+  ) =>
     call<CrocReceiveResult>('croc_receive', {
       code,
       out: opts?.out,
       relay: opts?.relay,
       transferId,
+      autoAccept: opts?.autoAccept,
     }),
+  respond: (transferId: string, yes: boolean) => call<null>('croc_respond', { transferId, yes }),
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   historyList: () => call<HistoryEntry[]>('croc_history_list'),

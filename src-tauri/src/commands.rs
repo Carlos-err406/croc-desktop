@@ -147,6 +147,7 @@ pub fn croc_receive(
     out: Option<String>,
     relay: Option<String>,
     transfer_id: Option<String>,
+    auto_accept: Option<bool>,
 ) -> Result<CrocReceiveResult, String> {
     let trimmed = code.trim().to_string();
     if trimmed.is_empty() {
@@ -164,11 +165,21 @@ pub fn croc_receive(
     }
     args.push("--out".into());
     args.push(out.clone());
-    args.push("--yes".into());
-    args.push("--overwrite".into());
+    // Auto-accept (default) → suppress croc's prompts entirely. Otherwise leave
+    // them on so the app can surface accept + per-file overwrite/resume prompts.
+    if auto_accept.unwrap_or(true) {
+        args.push("--yes".into());
+        args.push("--overwrite".into());
+    }
 
     croc::spawn_transfer(app.clone(), transfer_id.clone(), args, trimmed)?;
     Ok(CrocReceiveResult { transfer_id, out })
+}
+
+/// Answer an interactive croc prompt (accept / overwrite / resume).
+#[tauri::command]
+pub fn croc_respond(app: AppHandle, transfer_id: String, yes: bool) {
+    croc::respond(&app, &transfer_id, yes);
 }
 
 #[tauri::command]

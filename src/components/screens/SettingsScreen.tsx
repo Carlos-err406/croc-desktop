@@ -141,6 +141,9 @@ export function SettingsScreen() {
           <Row title="Notify when transfers finish" sub="Show a system notification when a send or receive completes and the app is in the background">
             <Toggle on={prefs.notify} onClick={() => update({ notify: !prefs.notify })} />
           </Row>
+          <Row title="Auto-accept incoming files" sub="When off, review and approve incoming files (and confirm overwrites) before they download">
+            <Toggle on={prefs.autoAccept} onClick={() => update({ autoAccept: !prefs.autoAccept })} />
+          </Row>
           <Row title="Bundle folders into one transfer" sub="Much faster for folders with many files — the other side still receives the extracted folder">
             <Toggle on={prefs.zipFolders} onClick={() => update({ zipFolders: !prefs.zipFolders })} />
           </Row>

@@ -10,6 +10,7 @@ export interface Prefs {
   zipFolders: boolean; // bundle folders into one transfer (much faster for many files)
   autoUpdate: boolean; // automatically download & install updates on launch
   notify: boolean; // OS notification when a transfer finishes (while app is unfocused)
+  autoAccept: boolean; // receive files without prompting to accept/overwrite
 }
 
 const KEY = 'croc.prefs';
@@ -22,6 +23,7 @@ const DEFAULTS: Prefs = {
   zipFolders: true,
   autoUpdate: true,
   notify: true,
+  autoAccept: true,
 };
 
 /** The relay address to pass to croc, or undefined for croc's default relay. */
