@@ -42,6 +42,11 @@ jobs:
         with:
           targets: ${{ matrix.rust-targets }}
 
+      # Faster linker on Linux (mold becomes the default ld); no-op on mac/windows.
+      - name: Set up mold linker (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        uses: rui314/setup-mold@v1
+
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
         with:

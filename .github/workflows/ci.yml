@@ -25,6 +25,10 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # Faster linker for the Tauri crate graph (mold becomes the default ld).
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
         with:
