@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CrocFileInfo, CrocProgress, CrocPrompt } from '@/lib/ipc-types';
 import { croc, type CrocEvent } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
-import { notify } from '@/lib/notify';
+import { notify, useTransferNotification } from '@/lib/notify';
 
 export type ReceiveStatus = 'idle' | 'connecting' | 'receiving' | 'done' | 'error';
 
@@ -144,6 +144,21 @@ export function useReceive(): UseReceive {
   const idRef = useRef<string | null>(null);
   const outRef = useRef('');
   const recordedRef = useRef<string | null>(null);
+
+  // Fire the completion notification from the hook (always mounted) rather than
+  // the Receive screen, so it shows even if the user navigated away.
+  useTransferNotification(state.status, state.error, (s) =>
+    s === 'done'
+      ? state.isText
+        ? { title: 'Text received', body: 'A text message arrived from your peer.' }
+        : {
+            title: 'Download complete',
+            body: state.totalFiles
+              ? `Received ${state.totalFiles} file${state.totalFiles === 1 ? '' : 's'}.`
+              : 'Your files were received.',
+          }
+      : { title: 'Download failed', body: state.error ?? 'The transfer did not complete.' },
+  );
 
   useEffect(() => {
     const unsub = croc.onEvent((e: CrocEvent) => {

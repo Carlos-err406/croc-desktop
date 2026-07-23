@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CrocFileInfo, CrocProgress } from '@/lib/ipc-types';
 import { croc, type CrocEvent, type CrocSendResult, type StatEntry } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
+import { useTransferNotification } from '@/lib/notify';
 
 export type SendStatus =
   | 'idle'
@@ -85,6 +86,19 @@ export function useSend(): UseSend {
   const [state, setState] = useState<SendState>(INITIAL);
   const idRef = useRef<string | null>(null);
   const recordedRef = useRef<string | null>(null);
+
+  // Fire the completion notification from the hook (always mounted) rather than
+  // the Send screen, so it shows even if the user navigated to another screen.
+  useTransferNotification(state.status, state.error, (s) =>
+    s === 'done'
+      ? {
+          title: 'Files sent',
+          body: state.entries.length
+            ? `${state.entries.length} item${state.entries.length > 1 ? 's' : ''} delivered to your peer.`
+            : 'Your files were delivered.',
+        }
+      : { title: 'Send failed', body: state.error ?? 'The transfer did not complete.' },
+  );
 
   useEffect(() => {
     const unsub = croc.onEvent((e: CrocEvent) => {

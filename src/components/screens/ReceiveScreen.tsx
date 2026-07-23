@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useTransferNotification } from '@/lib/notify';
 import { Check, Copy, Download, Folder, MessageSquareText, QrCode, X } from 'lucide-react';
 import type { UseReceive } from '@/lib/useReceive';
 import { croc } from '@/lib/services/ipc';
@@ -90,20 +89,8 @@ function TimelineStep({ step }: { step: Step }) {
 }
 
 export function ReceiveScreen({ recv }: { recv: UseReceive }) {
-  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text, error, prompt } = recv;
+  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text, prompt } = recv;
 
-  useTransferNotification(status, error, (s) =>
-    s === 'done'
-      ? isText
-        ? { title: 'Text received', body: 'A text message arrived from your peer.' }
-        : {
-            title: 'Download complete',
-            body: totalFiles
-              ? `Received ${totalFiles} file${totalFiles === 1 ? '' : 's'}.`
-              : 'Your files were received.',
-          }
-      : { title: 'Download failed', body: error ?? 'The transfer did not complete.' },
-  );
   const [copied, setCopied] = useState(false);
   const copyText = async () => {
     if (!text) return;
