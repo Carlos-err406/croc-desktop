@@ -1,7 +1,7 @@
 {
   "name": "croc-desktop",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.3.0",
   "type": "module",
   "description": "Cross-platform desktop app for the croc secure file transfer tool (Tauri + Vite + React + TS + TailwindCSS + Shadcn/ui)",
   "author": {

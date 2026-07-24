@@ -1,5 +1,6 @@
-import { Download, History, Send, Settings, Lock } from 'lucide-react';
+import { Download, History, Send, Settings, Lock, Info } from 'lucide-react';
 import { CrocBadge } from '@/components/CrocLogo';
+import { useUpdater } from '@/lib/updater';
 import type { Screen } from './AppShell';
 
 const NAV = [
@@ -15,6 +16,8 @@ export function Sidebar({
   screen: Screen;
   onNavigate: (s: Screen) => void;
 }) {
+  const { status: updateStatus } = useUpdater();
+  const updateReady = updateStatus === 'available' || updateStatus === 'ready';
   return (
     <nav className="flex w-[220px] shrink-0 flex-col border-r border-border bg-sidebar px-[14px] py-5">
       <div className="flex items-center gap-2.5 px-2 pb-[22px] pt-1.5">
@@ -50,14 +53,23 @@ export function Sidebar({
         >
           <Settings size={18} />
           Settings
+          {updateReady && (
+            <span className="relative ml-auto flex h-2 w-2" title="Update available">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+            </span>
+          )}
         </button>
         <button
-          onClick={() => onNavigate('about')}
-          title="About Croc Desktop"
+          className="croc-nav"
           data-active={screen === 'about'}
-          className="rounded-md px-3 pt-0.5 text-left text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground data-[active=true]:text-brand-deep"
+          onClick={() => onNavigate('about')}
         >
-          v{__APP_VERSION__}
+          <Info size={18} />
+          About
+          <span className="ml-auto text-[10px] font-medium text-muted-foreground">
+            v{__APP_VERSION__}
+          </span>
         </button>
       </div>
     </nav>

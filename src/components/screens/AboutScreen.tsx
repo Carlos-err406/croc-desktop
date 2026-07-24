@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Github, Lock } from 'lucide-react';
+import { ArrowUpCircle, Check, ExternalLink, Github, Lock, RotateCw } from 'lucide-react';
 import { croc, type CrocInfo } from '@/lib/services/ipc';
+import { useUpdater } from '@/lib/updater';
 import { Button } from '@/components/ui/button';
 import { CrocBadge } from '@/components/CrocLogo';
 
@@ -13,6 +14,7 @@ export function AboutScreen() {
     croc.info().then(([, i]) => i && setInfo(i));
   }, []);
   const crocVersion = info?.version?.replace(/^croc\s+version\s+/i, '').trim();
+  const updater = useUpdater();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -44,6 +46,32 @@ export function AboutScreen() {
             and text to any device with a one-time code, encrypted end-to-end, peer-to-peer.
           </p>
         </div>
+
+        {/* Update status */}
+        {updater.status === 'available' || updater.status === 'downloading' || updater.status === 'ready' ? (
+          <div className="flex w-[300px] items-center gap-2.5 rounded-[12px] border border-brand/40 bg-brand-surface px-4 py-2.5 text-[13px] text-brand-deep">
+            <ArrowUpCircle size={16} className="shrink-0" />
+            {updater.status === 'downloading' ? (
+              <span className="flex-1">Downloading update… {Math.round(updater.progress * 100)}%</span>
+            ) : updater.status === 'ready' ? (
+              <>
+                <span className="flex-1">Update{updater.version ? ` v${updater.version}` : ''} ready</span>
+                <Button size="sm" onClick={() => void updater.restart()}>
+                  <RotateCw size={14} /> Restart
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1">Version {updater.version} available</span>
+                <Button size="sm" onClick={() => void updater.install()}>Update now</Button>
+              </>
+            )}
+          </div>
+        ) : updater.status === 'uptodate' ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Check size={13} className="text-success-text" /> You're on the latest version
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-2.5">
           <Button onClick={() => croc.openUrl(REPO_URL)}>
