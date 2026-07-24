@@ -67,7 +67,18 @@ function fetchOne(s) {
   try {
     const archive = join(tmp, s.asset);
     console.log(`[fetch-croc] downloading ${s.asset}`);
-    run('curl', ['-fsSL', '-o', archive, `${BASE}/${s.asset}`]);
+    // Retry with backoff so a transient GitHub blip (504s, dropped connections)
+    // doesn't fail the build. curl treats 5xx/timeouts as retryable.
+    run('curl', [
+      '-fsSL',
+      '--retry', '5',
+      '--retry-delay', '3',
+      '--retry-all-errors',
+      '--retry-max-time', '180',
+      '--connect-timeout', '30',
+      '-o', archive,
+      `${BASE}/${s.asset}`,
+    ]);
     run('tar', [s.asset.endsWith('.zip') ? '-xf' : '-xzf', archive, '-C', tmp]);
     const binName = s.exe ? 'croc.exe' : 'croc';
     const found = findFile(tmp, binName);

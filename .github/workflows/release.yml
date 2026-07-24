@@ -43,8 +43,11 @@ jobs:
           targets: ${{ matrix.rust-targets }}
 
       # Faster linker on Linux (mold becomes the default ld); no-op on mac/windows.
+      # Non-fatal: a transient mold-download blip must not fail the release — the
+      # build just falls back to the default linker.
       - name: Set up mold linker (Linux)
         if: matrix.os == 'ubuntu-22.04'
+        continue-on-error: true
         uses: rui314/setup-mold@v1
 
       - name: Cache Rust

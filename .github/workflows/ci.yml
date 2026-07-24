@@ -27,6 +27,7 @@ jobs:
 
       # Faster linker for the Tauri crate graph (mold becomes the default ld).
       - name: Set up mold linker
+        continue-on-error: true
         uses: rui314/setup-mold@v1
 
       - name: Cache Rust
