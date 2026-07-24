@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Croc Desktop",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "identifier": "dev.carlosd.crocdesktop",
   "build": {
     "frontendDist": "../dist",
@@ -72,6 +72,13 @@
         "https://github.com/Carlos-err406/croc-desktop/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdCREFEOTgxQzYyQkU0RjkKUldUNTVDdkdnZG5hZXdOamdNV0lhblg3ZDRBdzdCZGdmMjBSMXhLUjR0Z2d1TDBNRG4rV2tlVGUK"
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "croc"
+        ]
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
-import { Camera, Check, Copy, KeyRound, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
+import { Camera, Check, Copy, KeyRound, Link2, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
 import type { StatEntry } from '@/lib/services/ipc';
 import type { UseSend } from '@/lib/useSend';
 import { croc } from '@/lib/services/ipc';
@@ -93,7 +93,7 @@ function buildSteps(status: string): Step[] {
   ];
 }
 
-function CopyPill({ value, label, icon }: { value: string; label: string; icon: 'code' | 'cmd' }) {
+function CopyPill({ value, label, icon }: { value: string; label: string; icon: 'code' | 'cmd' | 'link' }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -105,7 +105,7 @@ function CopyPill({ value, label, icon }: { value: string; label: string; icon: 
         }
       }}
     >
-      {copied ? <Check /> : icon === 'code' ? <Copy /> : <Terminal />}
+      {copied ? <Check /> : icon === 'code' ? <Copy /> : icon === 'cmd' ? <Terminal /> : <Link2 />}
       {copied ? 'Copied' : label}
     </Button>
   );
@@ -508,6 +508,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   </Button>
                   <div className="flex justify-center gap-2.5">
                     <CopyPill value={result.code} label="Copy code" icon="code" />
+                    <CopyPill value={`croc://receive?code=${encodeURIComponent(result.code)}`} label="Copy link" icon="link" />
                     <CopyPill value={result.receiveCommand.posix} label="Copy command" icon="cmd" />
                   </div>
                   <div className="flex items-center justify-center gap-[7px] text-xs text-muted-foreground">

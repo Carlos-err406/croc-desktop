@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getCurrent as getCurrentDeepLink, onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { primeNotifications } from '@/lib/notify';
 import { croc } from '@/lib/services/ipc';
 import { useSend } from '@/lib/useSend';
@@ -12,6 +13,21 @@ import { AboutScreen } from './screens/AboutScreen';
 import { UpdateBanner } from './UpdateBanner';
 
 export type Screen = 'send' | 'receive' | 'history' | 'settings' | 'about';
+
+/** Pull the transfer code out of a croc:// deep link (croc://receive?code=…,
+ * or croc://<code>). Returns null if it isn't a croc link. */
+function parseCrocUrl(raw: string): string | null {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'croc:') return null;
+    const q = url.searchParams.get('code');
+    if (q && q.trim()) return q.trim();
+    const fallback = (url.hostname || url.pathname.replace(/^\/+/, '')).trim();
+    return fallback ? decodeURIComponent(fallback) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function AppShell() {
   const [screen, setScreen] = useState<Screen>('send');
@@ -36,6 +52,29 @@ export function AppShell() {
     void drainAndStage();
     const unsub = croc.onOpenFiles(() => void drainAndStage());
     return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Deep links: a croc:// link (or scanned QR of one) opens the app and starts
+  // receiving that code. Handles cold launch (getCurrent) and while-running.
+  useEffect(() => {
+    const handleUrls = (urls: string[] | null) => {
+      for (const u of urls ?? []) {
+        const code = parseCrocUrl(u);
+        if (code) {
+          recv.setCode(code);
+          setScreen('receive');
+          void recv.begin(code);
+          break;
+        }
+      }
+    };
+    getCurrentDeepLink().then(handleUrls).catch(() => {});
+    let unsub: (() => void) | undefined;
+    onOpenUrl((urls) => handleUrls(urls))
+      .then((f) => (unsub = f))
+      .catch(() => {});
+    return () => unsub?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

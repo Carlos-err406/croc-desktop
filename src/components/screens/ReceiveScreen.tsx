@@ -266,7 +266,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               />
             </div>
             <div className="mt-3 w-full">
-              <Button className="h-11 w-full" disabled={!code.trim()} onClick={recv.begin}>
+              <Button className="h-11 w-full" disabled={!code.trim()} onClick={() => recv.begin()}>
                 Receive files
               </Button>
             </div>

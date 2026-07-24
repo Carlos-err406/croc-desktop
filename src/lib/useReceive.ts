@@ -133,7 +133,7 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
 
 export interface UseReceive extends ReceiveState {
   setCode: (code: string) => void;
-  begin: () => Promise<void>;
+  begin: (codeArg?: string) => Promise<void>;
   respond: (yes: boolean) => void;
   cancel: () => void;
   reset: () => void;
@@ -205,12 +205,12 @@ export function useReceive(): UseReceive {
     setState((v) => ({ ...v, code }));
   }
 
-  async function begin() {
-    const code = state.code.trim();
+  async function begin(codeArg?: string) {
+    const code = (codeArg ?? state.code).trim();
     if (!code) return;
     const id = crypto.randomUUID();
     idRef.current = id;
-    setState((v) => ({ ...v, status: 'connecting', progress: null, error: null, fileInfo: null }));
+    setState((v) => ({ ...v, code, status: 'connecting', progress: null, error: null, fileInfo: null }));
 
     const prefs = getPrefs();
     const [err, result] = await croc.receive(

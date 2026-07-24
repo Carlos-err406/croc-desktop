@@ -4,6 +4,17 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Croc Desktop uses the camera to scan a transfer QR code.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>dev.carlosd.crocdesktop</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>croc</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
