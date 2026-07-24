@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpCircle, Check, ExternalLink, Github, Lock, RotateCw } from 'lucide-react';
+import { ArrowUpCircle, Check, ExternalLink, Github, Lock, RotateCw, Smartphone } from 'lucide-react';
 import { croc, type CrocInfo } from '@/lib/services/ipc';
 import { useUpdater } from '@/lib/updater';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { CrocBadge } from '@/components/CrocLogo';
 
 const REPO_URL = 'https://github.com/Carlos-err406/croc-desktop';
 const CROC_URL = 'https://github.com/schollz/croc';
+// The companion Android app (upstream project) — scan a QR from here to pair.
+const ANDROID_URL = 'https://github.com/Dking08/croc-app';
 
 export function AboutScreen() {
   const [info, setInfo] = useState<CrocInfo | null>(null);
@@ -72,6 +74,22 @@ export function AboutScreen() {
             <Check size={13} className="text-success-text" /> You're on the latest version
           </div>
         ) : null}
+
+        {/* Recommended companion: the Android app, for phone ↔ desktop transfers */}
+        <div className="flex w-[340px] items-center gap-3 rounded-[12px] border border-border bg-secondary/50 px-4 py-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-brand-surface text-brand-deep">
+            <Smartphone size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-medium">Croc for Android</div>
+            <div className="text-xs text-muted-foreground">
+              Recommended companion — send & receive on your phone, scan to pair.
+            </div>
+          </div>
+          <Button size="sm" variant="outline" className="shrink-0" onClick={() => croc.openUrl(ANDROID_URL)}>
+            <ExternalLink size={14} /> Get
+          </Button>
+        </div>
 
         <div className="flex flex-col gap-2.5">
           <Button onClick={() => croc.openUrl(REPO_URL)}>
