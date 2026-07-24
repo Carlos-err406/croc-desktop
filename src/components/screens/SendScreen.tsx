@@ -5,7 +5,7 @@ import { Bookmark, Camera, Check, Copy, FolderPlus, KeyRound, Link2, Loader2, Lo
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
-import type { UseSend } from '@/lib/useSend';
+import { MAX_AUTO_RECONNECT, type UseSend } from '@/lib/useSend';
 import { croc } from '@/lib/services/ipc';
 import { typeColor } from '@/lib/badge';
 import { copyText } from '@/lib/clipboard';
@@ -156,7 +156,7 @@ function CopyPill({ value, label, icon }: { value: string; label: string; icon: 
 }
 
 export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHistory: () => void }) {
-  const { status, entries, result, progress, error } = send;
+  const { status, entries, result, progress, error, reconnecting, reconnectAttempt } = send;
 
   const [dragging, setDragging] = useState(false);
   const [sharedCopied, setSharedCopied] = useState(false);
@@ -317,8 +317,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   // Text mode: true once a text send is in flight, or while composing text on idle.
   const textual = send.isText || (status === 'idle' && mode === 'text');
 
-  const heading =
-    status === 'idle'
+  const heading = reconnecting
+    ? 'Reconnecting…'
+    : status === 'idle'
       ? textual ? 'Send text' : 'Send files'
       : status === 'transferring'
         ? textual ? 'Sending text…' : 'Sending…'
@@ -326,8 +327,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           ? textual ? 'Text sent' : 'Sent'
           : TITLE[status];
 
-  const subtitle =
-    status === 'staging'
+  const subtitle = reconnecting
+    ? 'The transfer dropped — retrying automatically.'
+    : status === 'staging'
       ? `${countLabel} · ${totalHuman} total`
       : status === 'waiting'
         ? 'The transfer starts the moment your peer joins.'
@@ -343,15 +345,17 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 ? 'Type or paste a message to send.'
                 : 'Drag anything in — Croc handles the rest.';
 
-  const chip: { s: ChipStatus; l: string } | null = complete
-    ? { s: 'success', l: 'Delivered' }
-    : status === 'waiting'
-      ? { s: 'warning', l: 'Waiting' }
-      : status === 'transferring'
-        ? { s: 'info', l: 'Transferring' }
-        : status === 'error'
-          ? { s: 'error', l: 'Failed' }
-          : null;
+  const chip: { s: ChipStatus; l: string } | null = reconnecting
+    ? { s: 'warning', l: 'Reconnecting' }
+    : complete
+      ? { s: 'success', l: 'Delivered' }
+      : status === 'waiting'
+        ? { s: 'warning', l: 'Waiting' }
+        : status === 'transferring'
+          ? { s: 'info', l: 'Transferring' }
+          : status === 'error'
+            ? { s: 'error', l: 'Failed' }
+            : null;
 
   async function browse() {
     const [, paths] = await croc.pickPaths();
@@ -389,8 +393,25 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
         {chip && <StatusChip status={chip.s}>{chip.l}</StatusChip>}
       </div>
 
+      {/* reconnecting — auto-retry after a dropped transfer (keeps the same code) */}
+      {reconnecting && (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 pb-8 pt-[22px] text-center">
+          <Loader2 className="size-9 animate-spin text-brand" />
+          <div>
+            <div className="font-heading text-xl font-semibold">Reconnecting…</div>
+            <div className="mt-1.5 max-w-[360px] text-sm text-muted-foreground">
+              The transfer dropped. Retrying with the same code (attempt {reconnectAttempt} of{' '}
+              {MAX_AUTO_RECONNECT}) — keep the other device open and it'll resume on its own.
+            </div>
+          </div>
+          <Button variant="outline" onClick={send.reset}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
       {/* idle */}
-      {(status === 'idle' || status === 'starting') && (
+      {(status === 'idle' || status === 'starting') && !reconnecting && (
         <div className="flex min-h-0 flex-1 flex-col px-8 pb-8 pt-[22px]">
           {/* Files / Text mode toggle */}
           <div className="mb-4 flex justify-center">
@@ -703,7 +724,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
         </div>
       )}
 
-      {status === 'error' && (
+      {status === 'error' && !reconnecting && (
         <div className="px-8 pb-7">
           <div className="rounded-[14px] border border-error-text bg-error-surface p-4 text-error-text">
             <div className="mb-1 font-semibold">Transfer failed</div>

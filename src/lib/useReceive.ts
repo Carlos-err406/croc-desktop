@@ -4,6 +4,11 @@ import { croc, type CrocEvent } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
 import { notify, useTransferNotification } from '@/lib/notify';
 
+// Auto-retry a dropped receive a few times before surfacing the error, so it
+// re-rendezvous with a sender that is also retrying — no manual coordination.
+export const MAX_AUTO_RECONNECT = 4;
+const reconnectDelay = (attempt: number) => Math.min(4000, 1000 * attempt);
+
 export type ReceiveStatus = 'idle' | 'connecting' | 'receiving' | 'done' | 'error';
 
 export interface ReceiveFile {
@@ -26,6 +31,8 @@ export interface ReceiveState {
   out: string;
   logLines: string[];
   prompt: CrocPrompt | null; // pending accept/overwrite prompt awaiting the user
+  reconnecting: boolean; // auto-retrying a dropped receive with the same code
+  reconnectAttempt: number; // 1-based attempt number while reconnecting
 }
 
 const INITIAL: ReceiveState = {
@@ -42,6 +49,8 @@ const INITIAL: ReceiveState = {
   out: '',
   logLines: [],
   prompt: null,
+  reconnecting: false,
+  reconnectAttempt: 0,
 };
 
 function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
@@ -94,10 +103,12 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
         currentFile,
         totalFiles,
         prompt: null,
+        reconnecting: false, // bytes are flowing — the (re)connection took
+        reconnectAttempt: 0,
       };
     }
     case 'text':
-      return { ...v, isText: true, text: e.text };
+      return { ...v, isText: true, text: e.text, reconnecting: false, reconnectAttempt: 0 };
     case 'prompt':
       return {
         ...v,
@@ -116,6 +127,8 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
         ...v,
         status: 'done',
         prompt: null,
+        reconnecting: false,
+        reconnectAttempt: 0,
         progress: { ...(v.progress ?? {}), percent: 100 },
         perFile: v.perFile.map((f) => ({ ...f, percent: 100 })),
       };
@@ -145,9 +158,21 @@ export function useReceive(): UseReceive {
   const idRef = useRef<string | null>(null);
   const outRef = useRef('');
   const recordedRef = useRef<string | null>(null);
+  const autoAttemptRef = useRef(0); // auto-reconnect attempts used for the current receive
+  const reconnectTimerRef = useRef<number | null>(null);
+  const failedNotifiedRef = useRef<string | null>(null); // transfer id we've already notified failure for
+
+  function clearReconnect() {
+    if (reconnectTimerRef.current !== null) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }
 
   // Fire the completion notification from the hook (always mounted) rather than
   // the Receive screen, so it shows even if the user navigated away.
+  // Success fires here; failure fires from the auto-reconnect give-up path below so
+  // it notifies once, only after retries are exhausted (not on each transient drop).
   useTransferNotification(state.status, state.error, (s) =>
     s === 'done'
       ? state.isText
@@ -158,7 +183,7 @@ export function useReceive(): UseReceive {
               ? `Received ${state.totalFiles} file${state.totalFiles === 1 ? '' : 's'}.`
               : 'Your files were received.',
           }
-      : { title: 'Download failed', body: state.error ?? 'The transfer did not complete.' },
+      : null,
   );
 
   useEffect(() => {
@@ -202,20 +227,50 @@ export function useReceive(): UseReceive {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status]);
 
+  // Auto-reconnect a dropped receive: re-attempt the same code a few times with
+  // backoff before surfacing the error (the sender re-offers in parallel, so they
+  // re-rendezvous on the relay). On the final failure, notify once.
+  useEffect(() => {
+    if (state.status !== 'error') return;
+    const eligible = state.code.trim().length > 0;
+    if (eligible && autoAttemptRef.current < MAX_AUTO_RECONNECT) {
+      const attempt = autoAttemptRef.current + 1;
+      autoAttemptRef.current = attempt;
+      setState((v) => ({ ...v, reconnecting: true, reconnectAttempt: attempt }));
+      clearReconnect();
+      reconnectTimerRef.current = window.setTimeout(() => {
+        reconnectTimerRef.current = null;
+        void respawn();
+      }, reconnectDelay(attempt));
+      return;
+    }
+    setState((v) => (v.reconnecting ? { ...v, reconnecting: false } : v));
+    const id = idRef.current;
+    if (id && failedNotifiedRef.current !== id) {
+      failedNotifiedRef.current = id;
+      void notify('Download failed', state.error ?? 'The transfer did not complete.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
+
   function setCode(code: string) {
     setState((v) => ({ ...v, code }));
   }
 
-  async function begin(codeArg?: string) {
-    const code = (codeArg ?? state.code).trim();
-    if (!code) return;
+  // Core connect — spawn `croc receive` for a code. Shared by the initial begin(),
+  // the manual retry(), and the automatic respawn(); it never touches the retry
+  // budget so those callers stay in control of it.
+  async function connect(code: string) {
+    const c = code.trim();
+    if (!c) return;
+    if (idRef.current) croc.cancel(idRef.current);
     const id = crypto.randomUUID();
     idRef.current = id;
-    setState((v) => ({ ...v, code, status: 'connecting', progress: null, error: null, fileInfo: null }));
+    setState((v) => ({ ...v, code: c, status: 'connecting', progress: null, error: null, fileInfo: null }));
 
     const prefs = getPrefs();
     const [err, result] = await croc.receive(
-      code,
+      c,
       { out: prefs.downloadDir || undefined, relay: relayArg(prefs), autoAccept: prefs.autoAccept },
       id
     );
@@ -228,27 +283,47 @@ export function useReceive(): UseReceive {
     setState((v) => ({ ...v, out: result.out }));
   }
 
+  async function begin(codeArg?: string) {
+    const code = (codeArg ?? state.code).trim();
+    if (!code) return;
+    clearReconnect();
+    autoAttemptRef.current = 0;
+    failedNotifiedRef.current = null;
+    setState((v) => ({ ...v, reconnecting: false, reconnectAttempt: 0 }));
+    await connect(code);
+  }
+
+  // The reconnect body (no budget reset) — reuse the code already in state.
+  async function respawn() {
+    await connect(state.code);
+  }
+
   function respond(yes: boolean) {
     if (idRef.current) croc.respond(idRef.current, yes);
     setState((v) => ({ ...v, prompt: null }));
   }
 
-  // Retry a failed receive without making the user re-enter the code — reuse the
-  // one they already typed/scanned. reset() clears it and sends them back to start.
+  // Manual "Try again": reset the auto-reconnect budget, then re-attempt the code
+  // the user already typed/scanned. reset() clears it and sends them back to start.
   async function retry() {
-    const code = state.code.trim();
-    if (!code) return;
-    if (idRef.current) croc.cancel(idRef.current);
-    await begin(code);
+    clearReconnect();
+    autoAttemptRef.current = 0;
+    failedNotifiedRef.current = null;
+    setState((v) => ({ ...v, reconnecting: false, reconnectAttempt: 0 }));
+    await respawn();
   }
 
   function cancel() {
+    clearReconnect();
+    autoAttemptRef.current = 0;
     if (idRef.current) croc.cancel(idRef.current);
     idRef.current = null;
     setState((v) => ({ ...INITIAL, code: v.code }));
   }
 
   function reset() {
+    clearReconnect();
+    autoAttemptRef.current = 0;
     if (idRef.current) croc.cancel(idRef.current);
     idRef.current = null;
     setState(INITIAL);

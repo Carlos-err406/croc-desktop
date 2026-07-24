@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Check, Copy, Download, Folder, MessageSquareText, QrCode, X } from 'lucide-react';
+import { Bookmark, Check, Copy, Download, Folder, Loader2, MessageSquareText, QrCode, X } from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
-import type { UseReceive } from '@/lib/useReceive';
+import { MAX_AUTO_RECONNECT, type UseReceive } from '@/lib/useReceive';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
 import { abbrevHome } from '@/lib/paths';
@@ -126,7 +126,7 @@ function TimelineStep({ step }: { step: Step }) {
 }
 
 export function ReceiveScreen({ recv }: { recv: UseReceive }) {
-  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text, prompt } = recv;
+  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text, prompt, reconnecting, reconnectAttempt } = recv;
 
   const [copied, setCopied] = useState(false);
   const copyText = async () => {
@@ -205,18 +205,22 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="px-8 pt-[26px]">
         <div className="font-heading text-[26px] font-semibold tracking-[.01em]">
-          {isText ? (status === 'done' ? 'Received text' : 'Receiving text') : status === 'done' ? 'Received' : 'Receive files'}
+          {reconnecting
+            ? 'Reconnecting…'
+            : isText ? (status === 'done' ? 'Received text' : 'Receiving text') : status === 'done' ? 'Received' : 'Receive files'}
         </div>
         <div className="mt-[3px] text-[13px] text-muted-foreground">
-          {isText
-            ? status === 'done'
-              ? 'A text message from your peer.'
-              : 'Receiving a text message from your peer.'
-            : status === 'done'
-              ? `Saved to ${abbrevHome(savedDir)}`
-              : status === 'receiving'
-                ? 'Downloading securely from your peer.'
-                : 'Get files someone is sending you.'}
+          {reconnecting
+            ? 'The transfer dropped — retrying automatically.'
+            : isText
+              ? status === 'done'
+                ? 'A text message from your peer.'
+                : 'Receiving a text message from your peer.'
+              : status === 'done'
+                ? `Saved to ${abbrevHome(savedDir)}`
+                : status === 'receiving'
+                  ? 'Downloading securely from your peer.'
+                  : 'Get files someone is sending you.'}
         </div>
       </div>
 
@@ -331,7 +335,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
       )}
 
       {/* TEXT MESSAGE: `croc send --text` — show the body with a copy button */}
-      {isText && status !== 'idle' && status !== 'error' && (
+      {isText && !reconnecting && status !== 'idle' && status !== 'error' && (
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-7 pt-5">
           {text == null ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-[18px] rounded-2xl border border-border">
@@ -361,8 +365,25 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
         </div>
       )}
 
+      {/* reconnecting — auto-retry after a dropped transfer (same code) */}
+      {reconnecting && (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 pb-8 pt-[22px] text-center">
+          <Loader2 className="size-9 animate-spin text-brand" />
+          <div>
+            <div className="font-heading text-xl font-semibold">Reconnecting…</div>
+            <div className="mt-1.5 max-w-[360px] text-sm text-muted-foreground">
+              The transfer dropped. Retrying the same code (attempt {reconnectAttempt} of{' '}
+              {MAX_AUTO_RECONNECT}) — keep the sender open and it'll resume on its own.
+            </div>
+          </div>
+          <Button variant="outline" onClick={recv.reset}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
       {/* ACTIVE: connecting / receiving / done — two-column, gradient hero */}
-      {!isText && (status === 'connecting' || status === 'receiving' || status === 'done') && (
+      {!isText && !reconnecting && (status === 'connecting' || status === 'receiving' || status === 'done') && (
         <div className="flex min-h-0 flex-1 gap-5 px-8 pb-7 pt-5">
           {/* LEFT — transparent so it blends into the layout brand wash */}
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-transparent">
@@ -489,7 +510,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
       )}
 
       {/* ERROR */}
-      {status === 'error' && (
+      {status === 'error' && !reconnecting && (
         <div className="flex flex-1 flex-col items-center justify-center gap-3.5 p-8 text-center">
           <div className="max-w-[420px] rounded-[14px] border border-error-text bg-error-surface p-4 text-error-text">
             <div className="mb-1 font-semibold">Couldn't receive</div>

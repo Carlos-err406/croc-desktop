@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import type { CrocFileInfo, CrocProgress } from '@/lib/ipc-types';
 import { croc, type CrocEvent, type CrocSendResult, type StatEntry } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
-import { useTransferNotification } from '@/lib/notify';
+import { notify, useTransferNotification } from '@/lib/notify';
+
+// A dropped transfer is retried automatically a few times before we surface the
+// error — the sender re-offers the same code, so it re-rendezvous with a peer that
+// is also retrying, without either side manually pressing "Try again".
+export const MAX_AUTO_RECONNECT = 4;
+const reconnectDelay = (attempt: number) => Math.min(4000, 1000 * attempt);
 
 export type SendStatus =
   | 'idle'
@@ -22,6 +28,8 @@ export interface SendState {
   error: string | null;
   logLines: string[];
   isText: boolean; // sending a text message (croc send --text) rather than files
+  reconnecting: boolean; // auto-retrying a dropped transfer (keeps the code alive)
+  reconnectAttempt: number; // 1-based attempt number while reconnecting
 }
 
 const INITIAL: SendState = {
@@ -33,6 +41,8 @@ const INITIAL: SendState = {
   error: null,
   logLines: [],
   isText: false,
+  reconnecting: false,
+  reconnectAttempt: 0,
 };
 
 function humanBytes(n: number): string {
@@ -91,9 +101,21 @@ export function useSend(): UseSend {
   const [state, setState] = useState<SendState>(INITIAL);
   const idRef = useRef<string | null>(null);
   const recordedRef = useRef<string | null>(null);
+  const autoAttemptRef = useRef(0); // auto-reconnect attempts used for the current transfer
+  const reconnectTimerRef = useRef<number | null>(null);
+  const failedNotifiedRef = useRef<string | null>(null); // transfer id we've already notified failure for
+
+  function clearReconnect() {
+    if (reconnectTimerRef.current !== null) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }
 
   // Fire the completion notification from the hook (always mounted) rather than
   // the Send screen, so it shows even if the user navigated to another screen.
+  // Success fires here; failure fires from the auto-reconnect give-up path below so
+  // it notifies once, only after retries are exhausted (not on each transient drop).
   useTransferNotification(state.status, state.error, (s) =>
     s === 'done'
       ? state.isText
@@ -104,7 +126,7 @@ export function useSend(): UseSend {
               ? `${state.entries.length} item${state.entries.length > 1 ? 's' : ''} delivered to your peer.`
               : 'Your files were delivered.',
           }
-      : { title: 'Send failed', body: state.error ?? 'The transfer did not complete.' },
+      : null,
   );
 
   useEffect(() => {
@@ -138,8 +160,37 @@ export function useSend(): UseSend {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status]);
 
+  // Auto-reconnect a dropped transfer: re-offer the same code a few times with
+  // backoff before surfacing the error. Only for file sends with staged entries
+  // (a text send can't be reconstructed here). On the final failure, notify once.
+  useEffect(() => {
+    if (state.status !== 'error') return;
+    const eligible = !state.isText && state.entries.length > 0;
+    if (eligible && autoAttemptRef.current < MAX_AUTO_RECONNECT) {
+      const attempt = autoAttemptRef.current + 1;
+      autoAttemptRef.current = attempt;
+      setState((v) => ({ ...v, reconnecting: true, reconnectAttempt: attempt }));
+      clearReconnect();
+      reconnectTimerRef.current = window.setTimeout(() => {
+        reconnectTimerRef.current = null;
+        void respawn();
+      }, reconnectDelay(attempt));
+      return;
+    }
+    // Not eligible, or attempts exhausted → surface the failure and notify once.
+    setState((v) => (v.reconnecting ? { ...v, reconnecting: false } : v));
+    const id = idRef.current;
+    if (id && failedNotifiedRef.current !== id) {
+      failedNotifiedRef.current = id;
+      void notify('Send failed', state.error ?? 'The transfer did not complete.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
+
   async function stage(paths: string[]) {
     if (!paths.length) return;
+    clearReconnect();
+    autoAttemptRef.current = 0;
     const [, all] = await croc.statPaths(paths);
     if (!all) return;
     // Drop paths that no longer exist (e.g. re-staging a moved/deleted history entry).
@@ -172,9 +223,20 @@ export function useSend(): UseSend {
 
     // Claim the id BEFORE spawning so the event filter accepts only this
     // transfer's events from the very first tick (no null-id acceptance gap).
+    clearReconnect();
+    autoAttemptRef.current = 0;
+    failedNotifiedRef.current = null;
     const id = crypto.randomUUID();
     idRef.current = id;
-    setState((v) => ({ ...v, status: 'starting', result: null, progress: null, error: null }));
+    setState((v) => ({
+      ...v,
+      status: 'starting',
+      result: null,
+      progress: null,
+      error: null,
+      reconnecting: false,
+      reconnectAttempt: 0,
+    }));
 
     const code = customCode?.trim() || undefined;
     const [err, result] = await croc.send(paths, id, relayArg(), getPrefs().zipFolders, code);
@@ -193,6 +255,9 @@ export function useSend(): UseSend {
   async function sendText(text: string, customCode?: string) {
     const msg = text.trim();
     if (!msg) return;
+    clearReconnect();
+    autoAttemptRef.current = 0;
+    failedNotifiedRef.current = null;
     if (state.result) croc.cancel(state.result.transferId);
     const id = crypto.randomUUID();
     idRef.current = id;
@@ -229,6 +294,8 @@ export function useSend(): UseSend {
     for (const e of additions) map.set(e.path, e);
     const merged = [...map.values()];
 
+    clearReconnect();
+    autoAttemptRef.current = 0;
     if (state.result) croc.cancel(state.result.transferId);
     const id = crypto.randomUUID();
     idRef.current = id;
@@ -249,10 +316,10 @@ export function useSend(): UseSend {
     }));
   }
 
-  // Retry a failed send WITHOUT making the user re-stage files or mint a new code:
-  // keep the staged entries and reuse the last code (so a QR/code the peer may
-  // already hold stays valid). reset(), by contrast, throws everything away.
-  async function retry() {
+  // Re-offer the staged files under the same code (so a QR/code the peer may
+  // already hold stays valid) — the shared logic behind both a manual "Try again"
+  // and the automatic reconnect. Keeps the entries; never re-stages or re-codes.
+  async function respawn() {
     if (!state.entries.length) return;
     const prev = state.result;
     if (prev) croc.cancel(prev.transferId);
@@ -277,17 +344,32 @@ export function useSend(): UseSend {
     setState((v) => ({
       ...v,
       result,
+      reconnecting: false,
+      reconnectAttempt: 0,
       status: v.status === 'transferring' || v.status === 'done' ? v.status : 'waiting',
     }));
   }
 
+  // Manual "Try again": reset the auto-reconnect budget, then re-offer.
+  async function retry() {
+    clearReconnect();
+    autoAttemptRef.current = 0;
+    failedNotifiedRef.current = null;
+    setState((v) => ({ ...v, reconnecting: false, reconnectAttempt: 0 }));
+    await respawn();
+  }
+
   function cancel() {
+    clearReconnect();
+    autoAttemptRef.current = 0;
     if (state.result) croc.cancel(state.result.transferId);
     idRef.current = null;
     setState(INITIAL);
   }
 
   function reset() {
+    clearReconnect();
+    autoAttemptRef.current = 0;
     if (state.result) croc.cancel(state.result.transferId);
     idRef.current = null;
     setState(INITIAL);
