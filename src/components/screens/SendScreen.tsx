@@ -212,7 +212,10 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
         return;
       }
       const text = dt.getData('text/plain');
-      if (text && text.trim() && !editable(document.activeElement)) {
+      // Text paste only makes sense when composing (idle) — while staging a file
+      // batch, ignore it so it can't derail the flow into text mode.
+      const staging = statusRef.current === 'staging';
+      if (text && text.trim() && !staging && !editable(document.activeElement)) {
         e.preventDefault();
         void withLock(async () => fillText(text));
         return;
@@ -227,12 +230,15 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== 'v' || !(e.metaKey || e.ctrlKey)) return;
       if (!ready() || editable(document.activeElement)) return;
+      const staging = statusRef.current === 'staging';
       void withLock(async () => {
         const [, paths] = await croc.clipboardFiles();
         if (paths?.length) {
           send.stage(paths);
           return;
         }
+        // Don't derail an in-progress file batch into text mode.
+        if (staging) return;
         try {
           const t = await navigator.clipboard.readText();
           if (t && t.trim()) fillText(t);
