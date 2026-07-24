@@ -64,6 +64,7 @@ export const croc = {
   relayTest: (relay?: string) => call<RelayTest>('croc_relay_test', { relay }),
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
+  openUrl: (url: string) => call<null>('croc_open_url', { url }),
   clipboardFiles: () => call<string[]>('croc_clipboard_files'),
   clipboardText: () => call<string | null>('croc_clipboard_text'),
   setProgress: (progress: number | null) =>

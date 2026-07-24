@@ -293,6 +293,14 @@ pub fn croc_show_item(app: AppHandle, path: String) {
     }
 }
 
+/// Open a URL in the user's default browser (e.g. the project repository).
+#[tauri::command]
+pub fn croc_open_url(app: AppHandle, url: String) {
+    if url.starts_with("https://") || url.starts_with("http://") {
+        let _ = app.opener().open_url(url, None::<&str>);
+    }
+}
+
 /// File paths on the OS clipboard (Finder/Explorer "Copy"), for in-app paste.
 #[tauri::command]
 pub fn croc_clipboard_files() -> Vec<String> {

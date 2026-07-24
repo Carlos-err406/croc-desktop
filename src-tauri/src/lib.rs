@@ -43,6 +43,7 @@ pub fn run() {
             commands::croc_relay_test,
             commands::croc_cancel,
             commands::croc_show_item,
+            commands::croc_open_url,
             commands::croc_clipboard_files,
             commands::croc_clipboard_text,
             commands::croc_set_progress,

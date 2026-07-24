@@ -8,9 +8,10 @@ import { SendScreen } from './screens/SendScreen';
 import { ReceiveScreen } from './screens/ReceiveScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { AboutScreen } from './screens/AboutScreen';
 import { UpdateBanner } from './UpdateBanner';
 
-export type Screen = 'send' | 'receive' | 'history' | 'settings';
+export type Screen = 'send' | 'receive' | 'history' | 'settings' | 'about';
 
 export function AppShell() {
   const [screen, setScreen] = useState<Screen>('send');
@@ -67,6 +68,7 @@ export function AppShell() {
             />
           )}
           {screen === 'settings' && <SettingsScreen />}
+          {screen === 'about' && <AboutScreen />}
         </div>
       </div>
     </div>
