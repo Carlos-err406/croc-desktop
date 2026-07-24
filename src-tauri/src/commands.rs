@@ -173,6 +173,7 @@ pub fn croc_send(
         args,
         code.clone(),
         Some(work_dir),
+        false,
     )?;
 
     let qr = croc::generate_qr_data_url(&croc::receive_link(&code));
@@ -215,7 +216,7 @@ pub fn croc_send_text(
     args.push("--text".into());
     args.push(text);
 
-    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone(), None)?;
+    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone(), None, false)?;
 
     let qr = croc::generate_qr_data_url(&croc::receive_link(&code));
     Ok(CrocSendResult {
@@ -255,14 +256,16 @@ pub fn croc_receive(
     }
     args.push("--out".into());
     args.push(out.clone());
-    // Auto-accept (default) → suppress croc's prompts entirely. Otherwise leave
-    // them on so the app can surface accept + per-file overwrite/resume prompts.
-    if auto_accept.unwrap_or(true) {
+    // Auto-accept (default): `--yes` auto-accepts the transfer, but we deliberately
+    // omit `--overwrite` so croc offers to RESUME a partial file — the backend then
+    // answers that prompt "yes" itself (auto_answer). Without auto-accept, leave all
+    // prompts on so the app can surface accept + per-file overwrite/resume choices.
+    let auto = auto_accept.unwrap_or(true);
+    if auto {
         args.push("--yes".into());
-        args.push("--overwrite".into());
     }
 
-    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, trimmed, None)?;
+    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, trimmed, None, auto)?;
     Ok(CrocReceiveResult { transfer_id, out })
 }
 

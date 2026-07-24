@@ -274,10 +274,14 @@ struct Parser {
     text_lines: Vec<String>,
     last_prompt: Option<String>,
     last_error: Option<String>,
+    // Auto-accept mode: answer croc's overwrite/resume prompts "yes" ourselves
+    // (silently) instead of surfacing them, so partial downloads resume without
+    // user input. Enabled for receive when auto-accept is on.
+    auto_answer_prompts: bool,
 }
 
 impl Parser {
-    fn new(app: AppHandle, transfer_id: String) -> Self {
+    fn new(app: AppHandle, transfer_id: String, auto_answer_prompts: bool) -> Self {
         Self {
             app,
             transfer_id,
@@ -291,6 +295,7 @@ impl Parser {
             text_lines: Vec::new(),
             last_prompt: None,
             last_error: None,
+            auto_answer_prompts,
         }
     }
 
@@ -337,6 +342,15 @@ impl Parser {
             return; // already surfaced this exact prompt
         }
         self.last_prompt = Some(clean.clone());
+
+        // Auto-accept mode: say "yes" to overwrite/resume prompts ourselves so a
+        // partial download resumes (croc transfers only the missing chunks) without
+        // bothering the user — replacing the blunt `--overwrite` that re-downloaded
+        // from scratch. (The initial accept prompt is handled by croc's own --yes.)
+        if self.auto_answer_prompts {
+            respond(&self.app, &self.transfer_id, true);
+            return;
+        }
 
         let mut m = serde_json::Map::new();
         if let Some(c) = ACCEPT_PROMPT.captures(&clean) {
@@ -564,6 +578,7 @@ pub fn spawn_transfer(
     args: Vec<String>,
     secret: String,
     work_dir: Option<std::path::PathBuf>,
+    auto_answer_prompts: bool,
 ) -> Result<(), String> {
     let bin = find_croc_binary()
         .ok_or("croc binary not found. Install croc (e.g. `brew install croc`) or set CROC_BIN.")?;
@@ -624,7 +639,7 @@ pub fn spawn_transfer(
     std::thread::spawn(move || {
         // Keep the master alive for the duration of the read loop.
         let _master = pair.master;
-        let mut parser = Parser::new(app.clone(), transfer_id.clone());
+        let mut parser = Parser::new(app.clone(), transfer_id.clone(), auto_answer_prompts);
         let mut buf = [0u8; 4096];
         loop {
             match reader.read(&mut buf) {
