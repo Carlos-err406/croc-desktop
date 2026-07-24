@@ -32,6 +32,12 @@ export function AboutScreen() {
               Version {__APP_VERSION__}
               {crocVersion ? `  ·  croc ${crocVersion}` : ''}
             </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              Built {new Date(__BUILD_TIME__).toLocaleString([], {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+            </div>
           </div>
           <p className="max-w-[380px] text-[13px] leading-relaxed text-muted-foreground">
             A friendly desktop app for <span className="font-medium text-foreground">croc</span> — send files

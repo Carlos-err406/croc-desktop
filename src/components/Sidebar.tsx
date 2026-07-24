@@ -55,13 +55,9 @@ export function Sidebar({
           onClick={() => onNavigate('about')}
           title="About Croc Desktop"
           data-active={screen === 'about'}
-          className="flex items-baseline justify-between rounded-md px-3 pt-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground data-[active=true]:text-brand-deep"
+          className="rounded-md px-3 pt-0.5 text-left text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground data-[active=true]:text-brand-deep"
         >
-          <span className="font-medium">v{__APP_VERSION__}</span>
-          <span>
-            build{' '}
-            {new Date(__BUILD_TIME__).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
+          v{__APP_VERSION__}
         </button>
       </div>
     </nav>

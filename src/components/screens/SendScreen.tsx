@@ -237,7 +237,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const shareTransfer = async (anchor?: HTMLElement) => {
     if (!result) return;
     const text =
-      `Receive my files with croc.\n` +
+      `Receive my ${send.isText ? 'text' : 'files'} with croc.\n` +
       `Code: ${result.code}\n` +
       `Run:  ${result.receiveCommand.posix}`;
     let position;
@@ -267,18 +267,34 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const inFlight = status === 'transferring' && percent < 100;
   const complete = status === 'done';
 
+  // Text mode: true once a text send is in flight, or while composing text on idle.
+  const textual = send.isText || (status === 'idle' && mode === 'text');
+
+  const heading =
+    status === 'idle'
+      ? textual ? 'Send text' : 'Send files'
+      : status === 'transferring'
+        ? textual ? 'Sending text…' : 'Sending…'
+        : status === 'done'
+          ? textual ? 'Text sent' : 'Sent'
+          : TITLE[status];
+
   const subtitle =
     status === 'staging'
       ? `${countLabel} · ${totalHuman} total`
       : status === 'waiting'
         ? 'The transfer starts the moment your peer joins.'
         : status === 'transferring'
-          ? `${countLabel} · ${totalHuman}`
+          ? textual ? 'Delivering your message…' : `${countLabel} · ${totalHuman}`
           : status === 'done'
-            ? 'Your files were delivered end-to-end encrypted.'
+            ? textual
+              ? 'Your message was delivered end-to-end encrypted.'
+              : 'Your files were delivered end-to-end encrypted.'
             : status === 'error'
               ? 'Something interrupted the transfer.'
-              : 'Drag anything in — Croc handles the rest.';
+              : textual
+                ? 'Type or paste a message to send.'
+                : 'Drag anything in — Croc handles the rest.';
 
   const chip: { s: ChipStatus; l: string } | null = complete
     ? { s: 'success', l: 'Delivered' }
@@ -314,7 +330,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       {/* header */}
       <div className="flex items-start justify-between gap-4 px-8 pt-[26px]">
         <div>
-          <div className="font-heading text-[26px] font-semibold tracking-[.01em]">{TITLE[status]}</div>
+          <div className="font-heading text-[26px] font-semibold tracking-[.01em]">{heading}</div>
           <div className="mt-[3px] text-[13px] text-muted-foreground">{subtitle}</div>
         </div>
         {chip && <StatusChip status={chip.s}>{chip.l}</StatusChip>}
@@ -472,7 +488,31 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               </>
             )}
 
-            {(status === 'transferring' || complete) && (
+            {/* Text send: a compact confirmation instead of the byte-progress hero
+                (a text message has no meaningful byte progress). */}
+            {send.isText && (status === 'transferring' || complete) && (
+              <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-4 px-[26px] py-[30px] text-center">
+                <div
+                  className={`flex h-16 w-16 items-center justify-center rounded-2xl ${
+                    complete ? 'bg-success-surface text-success-text' : 'bg-brand-surface text-brand-deep'
+                  }`}
+                >
+                  {complete ? <Check size={30} strokeWidth={2.5} /> : <Loader2 size={28} className="animate-spin" />}
+                </div>
+                <div>
+                  <div className="font-heading text-lg font-semibold">
+                    {complete ? 'Message delivered' : 'Delivering message…'}
+                  </div>
+                  <div className="mt-1 max-w-[300px] text-[13px] text-muted-foreground">
+                    {complete
+                      ? 'Your text was sent end-to-end encrypted.'
+                      : 'Hang tight — finishing the transfer.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!send.isText && (status === 'transferring' || complete) && (
               <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
                 <div className="text-center">
                   <div className="font-heading text-[68px] font-semibold leading-none text-brand-deep">{complete ? 100 : percent}%</div>
