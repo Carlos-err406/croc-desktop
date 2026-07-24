@@ -38,6 +38,19 @@ function TypeBadge({ type, small }: { type: string; small?: boolean }) {
 function totalBytes(entries: StatEntry[]) {
   return entries.reduce((a, e) => a + e.size, 0);
 }
+
+/** Read a Blob/File into a base64 string (no data: prefix) for croc_save_temp_file. */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const s = String(reader.result);
+      resolve(s.slice(s.indexOf(',') + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
 function humanBytes(n: number): string {
   if (n <= 0) return '0 B';
   if (n < 1000) return `${Math.round(n)} B`;
@@ -141,6 +154,100 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
         unlisten = f;
       });
     return () => unlisten?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Paste-to-send: ⌘V on the Send screen stages pasted files/images or fills the
+  // text box. The `paste` event carries images/text (best on WKWebView); a ⌘V
+  // keydown covers the idle screen where `paste` may not fire, and reads Finder
+  // file paths natively. A lock stops the two routes from double-handling one ⌘V.
+  const pasteBusy = useRef(false);
+  useEffect(() => {
+    const ready = () => ['idle', 'starting', 'staging'].includes(statusRef.current);
+    const editable = (el: Element | null) =>
+      !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || (el as HTMLElement).isContentEditable);
+
+    const stageBlobs = async (blobs: File[]) => {
+      const saved: string[] = [];
+      for (const b of blobs) {
+        try {
+          const b64 = await blobToBase64(b);
+          const [, p] = await croc.saveTempFile(b.name || 'pasted-file', b64);
+          if (p) saved.push(p);
+        } catch {
+          /* skip unreadable blob */
+        }
+      }
+      if (saved.length) send.stage(saved);
+    };
+    const fillText = (t: string) => {
+      setMode('text');
+      setDraft((d) => (d ? d + t : t));
+    };
+    const withLock = async (fn: () => Promise<void>) => {
+      if (pasteBusy.current) return;
+      pasteBusy.current = true;
+      try {
+        await fn();
+      } finally {
+        setTimeout(() => (pasteBusy.current = false), 200);
+      }
+    };
+
+    const onPaste = (e: ClipboardEvent) => {
+      if (!ready()) return;
+      const dt = e.clipboardData;
+      if (!dt) return;
+      const blobs = [
+        ...Array.from(dt.files || []),
+        ...Array.from(dt.items || [])
+          .filter((it) => it.kind === 'file')
+          .map((it) => it.getAsFile())
+          .filter((f): f is File => !!f),
+      ];
+      const uniqueBlobs = blobs.filter((b, i) => blobs.findIndex((x) => x === b) === i);
+      if (uniqueBlobs.length) {
+        e.preventDefault();
+        void withLock(() => stageBlobs(uniqueBlobs));
+        return;
+      }
+      const text = dt.getData('text/plain');
+      if (text && text.trim() && !editable(document.activeElement)) {
+        e.preventDefault();
+        void withLock(async () => fillText(text));
+        return;
+      }
+      // Nothing usable in the event — likely Finder files; read them natively.
+      if (!text) void withLock(async () => {
+        const [, paths] = await croc.clipboardFiles();
+        if (paths?.length) send.stage(paths);
+      });
+    };
+
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key !== 'v' || !(e.metaKey || e.ctrlKey)) return;
+      if (!ready() || editable(document.activeElement)) return;
+      void withLock(async () => {
+        const [, paths] = await croc.clipboardFiles();
+        if (paths?.length) {
+          send.stage(paths);
+          return;
+        }
+        try {
+          const t = await navigator.clipboard.readText();
+          if (t && t.trim()) fillText(t);
+        } catch {
+          /* clipboard read unavailable */
+        }
+      });
+    };
+
+    document.addEventListener('paste', onPaste);
+    window.addEventListener('keydown', onKeydown);
+    return () => {
+      document.removeEventListener('paste', onPaste);
+      window.removeEventListener('keydown', onKeydown);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

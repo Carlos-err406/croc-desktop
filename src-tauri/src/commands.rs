@@ -287,6 +287,31 @@ pub fn croc_show_item(app: AppHandle, path: String) {
     }
 }
 
+/// File paths on the OS clipboard (Finder/Explorer "Copy"), for in-app paste.
+#[tauri::command]
+pub fn croc_clipboard_files() -> Vec<String> {
+    crate::clipboard::clipboard_file_paths()
+}
+
+/// Write pasted bytes (base64) to a uniquely-named temp file and return its path,
+/// so a pasted image or file can be handed to croc as a normal file to send.
+#[tauri::command]
+pub fn croc_save_temp_file(name: String, base64_data: String) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let bytes = STANDARD
+        .decode(base64_data.as_bytes())
+        .map_err(|e| format!("Bad clipboard data: {e}"))?;
+    // Keep the original filename (croc uses it) but isolate each paste in its own
+    // subdir to avoid collisions.
+    let clean = name.rsplit(['/', '\\']).next().unwrap_or("pasted-file");
+    let clean = if clean.trim().is_empty() { "pasted-file" } else { clean.trim() };
+    let dir = std::env::temp_dir().join("croc-desktop-paste").join(gen_id());
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(clean);
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub fn croc_history_list(app: AppHandle) -> Vec<HistoryEntry> {
     history::list(&app)

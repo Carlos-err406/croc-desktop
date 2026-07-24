@@ -1,3 +1,4 @@
+mod clipboard;
 mod codephrase;
 mod commands;
 mod croc;
@@ -42,6 +43,8 @@ pub fn run() {
             commands::croc_relay_test,
             commands::croc_cancel,
             commands::croc_show_item,
+            commands::croc_clipboard_files,
+            commands::croc_save_temp_file,
             commands::croc_history_list,
             commands::croc_history_add,
             commands::croc_history_remove,

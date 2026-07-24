@@ -64,6 +64,9 @@ export const croc = {
   relayTest: (relay?: string) => call<RelayTest>('croc_relay_test', { relay }),
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
+  clipboardFiles: () => call<string[]>('croc_clipboard_files'),
+  saveTempFile: (name: string, base64Data: string) =>
+    call<string>('croc_save_temp_file', { name, base64Data }),
   historyList: () => call<HistoryEntry[]>('croc_history_list'),
   historyAdd: (draft: HistoryDraft) => call<HistoryEntry[]>('croc_history_add', { draft }),
   historyRemove: (id: string) => call<HistoryEntry[]>('croc_history_remove', { id }),
