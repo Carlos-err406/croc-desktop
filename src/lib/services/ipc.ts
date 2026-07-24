@@ -40,6 +40,7 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Tuple<T> {
 
 export const croc = {
   pickPaths: () => call<string[]>('croc_pick_paths'),
+  pickFolders: () => call<string[]>('croc_pick_folders'),
   pickFolder: () => call<string>('croc_pick_folder'),
   defaultDir: () => call<string>('croc_default_dir'),
   info: () => call<CrocInfo>('croc_info'),

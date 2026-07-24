@@ -135,6 +135,7 @@ export interface UseReceive extends ReceiveState {
   setCode: (code: string) => void;
   begin: (codeArg?: string) => Promise<void>;
   respond: (yes: boolean) => void;
+  retry: () => Promise<void>;
   cancel: () => void;
   reset: () => void;
 }
@@ -232,6 +233,15 @@ export function useReceive(): UseReceive {
     setState((v) => ({ ...v, prompt: null }));
   }
 
+  // Retry a failed receive without making the user re-enter the code — reuse the
+  // one they already typed/scanned. reset() clears it and sends them back to start.
+  async function retry() {
+    const code = state.code.trim();
+    if (!code) return;
+    if (idRef.current) croc.cancel(idRef.current);
+    await begin(code);
+  }
+
   function cancel() {
     if (idRef.current) croc.cancel(idRef.current);
     idRef.current = null;
@@ -244,5 +254,5 @@ export function useReceive(): UseReceive {
     setState(INITIAL);
   }
 
-  return { ...state, setCode, begin, respond, cancel, reset };
+  return { ...state, setCode, begin, respond, retry, cancel, reset };
 }

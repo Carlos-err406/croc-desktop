@@ -41,6 +41,7 @@ pub fn run() {
             commands::croc_stat_paths,
             commands::croc_pick_paths,
             commands::croc_pick_folder,
+            commands::croc_pick_folders,
             commands::croc_send,
             commands::croc_send_text,
             commands::croc_receive,

@@ -112,6 +112,25 @@ pub async fn croc_pick_folder(app: AppHandle) -> String {
         .unwrap_or_default()
 }
 
+// Pick folders to send. rfd can't offer files + folders in one native dialog, so
+// folder sending needs its own picker (previously folders could only be drag-dropped,
+// which the GTK/Linux file chooser in "Browse files…" doesn't allow at all).
+#[tauri::command]
+pub async fn croc_pick_folders(app: AppHandle) -> Vec<String> {
+    app.dialog()
+        .file()
+        .set_title("Choose folders to send")
+        .blocking_pick_folders()
+        .map(|folders| {
+            folders
+                .into_iter()
+                .filter_map(|f| f.into_path().ok())
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 #[tauri::command]
 pub fn croc_send(
     app: AppHandle,
@@ -143,7 +162,18 @@ pub fn croc_send(
     }
     args.extend(paths);
 
-    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone())?;
+    // Give each send its own scratch cwd. croc drops a temp `<folder>.zip` here when
+    // zipping a folder; isolating + wiping it (see spawn_transfer) stops a retry after
+    // a failed transfer from tripping croc's "file already exists!" error.
+    let work_dir = std::env::temp_dir().join(format!("croc-send-{transfer_id}"));
+    let _ = std::fs::create_dir_all(&work_dir);
+    croc::spawn_transfer(
+        app.clone(),
+        transfer_id.clone(),
+        args,
+        code.clone(),
+        Some(work_dir),
+    )?;
 
     let qr = croc::generate_qr_data_url(&croc::receive_link(&code));
     Ok(CrocSendResult {
@@ -185,7 +215,7 @@ pub fn croc_send_text(
     args.push("--text".into());
     args.push(text);
 
-    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone())?;
+    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone(), None)?;
 
     let qr = croc::generate_qr_data_url(&croc::receive_link(&code));
     Ok(CrocSendResult {
@@ -232,7 +262,7 @@ pub fn croc_receive(
         args.push("--overwrite".into());
     }
 
-    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, trimmed)?;
+    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, trimmed, None)?;
     Ok(CrocReceiveResult { transfer_id, out })
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
-import { Bookmark, Camera, Check, Copy, KeyRound, Link2, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
+import { Bookmark, Camera, Check, Copy, FolderPlus, KeyRound, Link2, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
@@ -357,6 +357,12 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
     const [, paths] = await croc.pickPaths();
     if (paths && paths.length) send.stage(paths);
   }
+  // Separate folder picker — the native file dialog can't select folders (esp. on
+  // Linux, where "Browse files…" hides them entirely), so folders get their own path.
+  async function browseFolders() {
+    const [, paths] = await croc.pickFolders();
+    if (paths && paths.length) send.stage(paths);
+  }
   // per-file progress (sequential, weighted by size) — mirrors the design
   const transferred = total * (percent / 100);
   let acc = 0;
@@ -419,8 +425,11 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to the
                 other device.
               </div>
-              <div className="mt-[22px]" onClick={(e) => e.stopPropagation()}>
+              <div className="mt-[22px] flex gap-2.5" onClick={(e) => e.stopPropagation()}>
                 <Button onClick={browse}>Browse files…</Button>
+                <Button variant="outline" onClick={browseFolders}>
+                  <FolderPlus /> Add folder
+                </Button>
               </div>
               {status === 'starting' && (
                 <div className="mt-[18px] flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -497,7 +506,10 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           <CustomCodeField value={customCode} onChange={setCustomCode} invalid={codeInvalid} />
           <div className="flex gap-2.5">
             <Button variant="outline" className="h-11 flex-1" onClick={browse}>
-              <Plus /> Add more
+              <Plus /> Add files
+            </Button>
+            <Button variant="outline" className="h-11 flex-1" onClick={browseFolders}>
+              <FolderPlus /> Add folder
             </Button>
             <Button className="h-11 flex-[2]" disabled={codeInvalid} onClick={() => send.begin(customCode)}>
               {customCode.trim() ? 'Send with this code' : 'Generate code & send'}
@@ -697,8 +709,17 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             <div className="mb-1 font-semibold">Transfer failed</div>
             {error && <div className="text-[13px]">{error}</div>}
           </div>
-          <div className="mt-3.5">
-            <Button onClick={send.reset}>Try again</Button>
+          <div className="mt-3.5 flex gap-2.5">
+            {!send.isText && send.entries.length > 0 ? (
+              <>
+                <Button onClick={send.retry}>Try again</Button>
+                <Button variant="outline" onClick={send.reset}>
+                  Start over
+                </Button>
+              </>
+            ) : (
+              <Button onClick={send.reset}>Try again</Button>
+            )}
           </div>
         </div>
       )}

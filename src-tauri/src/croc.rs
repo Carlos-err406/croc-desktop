@@ -563,6 +563,7 @@ pub fn spawn_transfer(
     transfer_id: String,
     args: Vec<String>,
     secret: String,
+    work_dir: Option<std::path::PathBuf>,
 ) -> Result<(), String> {
     let bin = find_croc_binary()
         .ok_or("croc binary not found. Install croc (e.g. `brew install croc`) or set CROC_BIN.")?;
@@ -584,8 +585,17 @@ pub fn spawn_transfer(
     cmd.env("CROC_SECRET", &secret);
     let path = std::env::var("PATH").unwrap_or_default();
     cmd.env("PATH", format!("{path}:/opt/homebrew/bin:/usr/local/bin"));
-    if let Ok(home) = std::env::var("HOME") {
-        cmd.cwd(home);
+    // When sending a folder, croc writes a temp `<name>.zip` into its CWD and only
+    // deletes it on a clean exit. A per-send scratch dir keeps that zip out of the
+    // user's home dir and lets us wipe leftovers after a failed transfer, so a retry
+    // never hits croc's un-overridable "file already exists!" (utils.go ZipDirectory).
+    match &work_dir {
+        Some(dir) => cmd.cwd(dir),
+        None => {
+            if let Ok(home) = std::env::var("HOME") {
+                cmd.cwd(home);
+            }
+        }
     }
 
     let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
@@ -620,6 +630,11 @@ pub fn spawn_transfer(
         parser.finalize(exit_code);
         let state = app.state::<CrocState>();
         state.transfers.lock().unwrap().remove(&transfer_id);
+        // Remove the scratch dir (and any leftover temp zip croc didn't clean up
+        // because the transfer failed) so the next send starts from a clean slate.
+        if let Some(dir) = work_dir {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
     });
 
     Ok(())

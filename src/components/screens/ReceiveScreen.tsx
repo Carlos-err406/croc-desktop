@@ -495,7 +495,18 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             <div className="mb-1 font-semibold">Couldn't receive</div>
             {recv.error && <div className="text-[13px]">{recv.error}</div>}
           </div>
-          <Button onClick={recv.reset}>Try again</Button>
+          <div className="flex gap-2.5">
+            {recv.code.trim() ? (
+              <>
+                <Button onClick={recv.retry}>Try again</Button>
+                <Button variant="outline" onClick={recv.reset}>
+                  Change code
+                </Button>
+              </>
+            ) : (
+              <Button onClick={recv.reset}>Try again</Button>
+            )}
+          </div>
         </div>
       )}
 

@@ -82,6 +82,7 @@ export interface UseSend extends SendState {
   begin: (customCode?: string) => Promise<void>;
   sendText: (text: string, customCode?: string) => Promise<void>;
   addMore: () => Promise<void>;
+  retry: () => Promise<void>;
   cancel: () => void;
   reset: () => void;
 }
@@ -248,6 +249,38 @@ export function useSend(): UseSend {
     }));
   }
 
+  // Retry a failed send WITHOUT making the user re-stage files or mint a new code:
+  // keep the staged entries and reuse the last code (so a QR/code the peer may
+  // already hold stays valid). reset(), by contrast, throws everything away.
+  async function retry() {
+    if (!state.entries.length) return;
+    const prev = state.result;
+    if (prev) croc.cancel(prev.transferId);
+    const id = crypto.randomUUID();
+    idRef.current = id;
+    setState((v) => ({ ...v, status: 'starting', result: null, progress: null, error: null }));
+    // Give the relay a moment to release the code before re-registering it.
+    await new Promise((r) => setTimeout(r, 500));
+    if (idRef.current !== id) return;
+    const [err, result] = await croc.send(
+      state.entries.map((e) => e.path),
+      id,
+      relayArg(),
+      getPrefs().zipFolders,
+      prev?.code,
+    );
+    if (idRef.current !== id) return;
+    if (err || !result) {
+      setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to restart the transfer.' }));
+      return;
+    }
+    setState((v) => ({
+      ...v,
+      result,
+      status: v.status === 'transferring' || v.status === 'done' ? v.status : 'waiting',
+    }));
+  }
+
   function cancel() {
     if (state.result) croc.cancel(state.result.transferId);
     idRef.current = null;
@@ -260,5 +293,5 @@ export function useSend(): UseSend {
     setState(INITIAL);
   }
 
-  return { ...state, stage, removeEntry, clear, begin, sendText, addMore, cancel, reset };
+  return { ...state, stage, removeEntry, clear, begin, sendText, addMore, retry, cancel, reset };
 }
