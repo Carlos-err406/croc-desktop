@@ -177,6 +177,23 @@ pub fn stat_paths(paths: Vec<String>) -> Vec<StatEntry> {
         .collect()
 }
 
+/// Percent-encode a code for safe use in a URL query value.
+fn pct(code: &str) -> String {
+    let mut s = String::new();
+    for b in code.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => s.push(b as char),
+            _ => s.push_str(&format!("%{b:02X}")),
+        }
+    }
+    s
+}
+
+/// The croc:// deep link that opens the app straight into receiving this code.
+pub fn receive_deeplink(code: &str) -> String {
+    format!("croc://receive?code={}", pct(code))
+}
+
 pub fn generate_qr_data_url(code: &str) -> Option<String> {
     use qrcode::{render::svg, QrCode};
     let qr = QrCode::new(code.as_bytes()).ok()?;

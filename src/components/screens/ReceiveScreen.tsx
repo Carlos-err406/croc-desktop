@@ -56,6 +56,28 @@ function extractCode(text: string): string | null {
   return /^\d+-[a-z]+-[a-z]+-[a-z]+$/i.test(candidate) ? candidate : null;
 }
 
+/**
+ * Turn a scanned QR value into a code. Accepts a bare code OR a deep link
+ * (croc://receive?code=…, croc://<code>, or https://…/croc/receive?code=…).
+ * Permissive because scanning is a deliberate action, unlike clipboard auto-fill.
+ */
+function parseScannedCode(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  try {
+    const u = new URL(t);
+    if (u.protocol === 'croc:' || u.protocol === 'https:' || u.protocol === 'http:') {
+      const q = u.searchParams.get('code');
+      if (q && q.trim()) return q.trim();
+      const seg = (u.hostname || u.pathname.split('/').filter(Boolean).pop() || '').trim();
+      return seg && seg !== 'receive' ? decodeURIComponent(seg) : null;
+    }
+  } catch {
+    /* not a URL — treat as a bare code */
+  }
+  return t;
+}
+
 function receiveSteps(status: string): Step[] {
   const s = (kind: Step['kind'], title: string, sub: string, line: boolean): Step => ({ kind, title, sub, line });
   if (status === 'connecting')
@@ -482,7 +504,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
           onClose={() => setScanning(false)}
           onCode={(text) => {
             setScanning(false);
-            const detected = extractCode(text) ?? text.trim();
+            const detected = parseScannedCode(text);
             if (detected) recv.setCode(detected);
           }}
         />

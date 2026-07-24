@@ -145,7 +145,7 @@ pub fn croc_send(
 
     croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone())?;
 
-    let qr = croc::generate_qr_data_url(&code);
+    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code));
     Ok(CrocSendResult {
         transfer_id,
         qr,
@@ -187,7 +187,7 @@ pub fn croc_send_text(
 
     croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone())?;
 
-    let qr = croc::generate_qr_data_url(&code);
+    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code));
     Ok(CrocSendResult {
         transfer_id,
         qr,
