@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, Download, Folder, MessageSquareText, QrCode, X } from 'lucide-react';
+import { Bookmark, Check, Copy, Download, Folder, MessageSquareText, QrCode, X } from 'lucide-react';
+import { useSavedCodes } from '@/lib/codes';
+import { CodePills } from '@/components/CodePills';
 import type { UseReceive } from '@/lib/useReceive';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
@@ -126,6 +128,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   const seen = Math.min(perFile.length, totalFiles);
   const [dir, setDir] = useState('');
   const [scanning, setScanning] = useState(false);
+  const { codes: savedCodes, save: saveCode, remove: removeCode, has: hasCode } = useSavedCodes();
 
   // Whole-download ETA, estimated from overall progress + elapsed time (croc's
   // own ETA is per-file and resets each file). Anchored at first byte, cleared
@@ -255,15 +258,31 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             <div className="max-w-[340px] text-[13px] text-muted-foreground">
               Type the code the sender shared with you — or scan their QR with this device's camera.
             </div>
-            <div className="mt-[18px] w-full text-left">
+            {savedCodes.length > 0 && (
+              <div className="mt-[18px] w-full text-left">
+                <div className="mb-1.5 text-[11px] font-medium uppercase tracking-[.05em] text-muted-foreground">
+                  Saved codes
+                </div>
+                <CodePills codes={savedCodes} onPick={recv.setCode} onRemove={removeCode} />
+              </div>
+            )}
+            <div className="mt-3 flex w-full items-center gap-2 text-left">
               <Input
                 value={code}
                 onChange={(e) => recv.setCode(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && recv.begin()}
                 placeholder="e.g. 7431-mirage-oxford"
-                className="h-12 text-base"
+                className="h-12 flex-1 text-base"
                 autoFocus
               />
+              <button
+                disabled={code.trim().length < 6}
+                onClick={() => (hasCode(code) ? removeCode(code) : saveCode(code))}
+                title={hasCode(code) ? 'Remove bookmark' : 'Bookmark this code'}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-border text-muted-foreground transition-colors hover:text-brand-deep disabled:opacity-30"
+              >
+                <Bookmark size={17} className={hasCode(code) ? 'fill-brand text-brand' : ''} />
+              </button>
             </div>
             <div className="mt-3 w-full">
               <Button className="h-11 w-full" disabled={!code.trim()} onClick={() => recv.begin()}>

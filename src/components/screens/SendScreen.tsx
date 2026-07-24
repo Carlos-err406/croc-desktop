@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
-import { Camera, Check, Copy, KeyRound, Link2, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
+import { Bookmark, Camera, Check, Copy, KeyRound, Link2, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
+import { useSavedCodes } from '@/lib/codes';
+import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
 import type { UseSend } from '@/lib/useSend';
 import { croc } from '@/lib/services/ipc';
@@ -91,6 +93,48 @@ function buildSteps(status: string): Step[] {
     { kind: 'done', title: 'Peer connected', sub: 'secure channel open', line: true },
     { kind: 'done', title: 'Transfer complete', sub: 'all bytes delivered', line: false },
   ];
+}
+
+/** Optional custom-code input with bookmark toggle + saved-code pills to autofill. */
+function CustomCodeField({
+  value,
+  onChange,
+  invalid,
+  placeholder = 'Custom code (optional) — leave blank for a random one',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  invalid: boolean;
+  placeholder?: string;
+}) {
+  const { codes, save, remove, has } = useSavedCodes();
+  const trimmed = value.trim();
+  const canSave = trimmed.length >= 6;
+  const saved = has(trimmed);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <CodePills codes={codes} onPick={onChange} onRemove={remove} />
+      <div className="flex items-center gap-2 rounded-[10px] border border-border bg-card px-3">
+        <KeyRound size={15} className="shrink-0 text-muted-foreground" />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          spellCheck={false}
+          className="min-w-0 flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-muted-foreground"
+        />
+        <button
+          disabled={!canSave}
+          onClick={() => (saved ? remove(trimmed) : save(trimmed))}
+          title={saved ? 'Remove bookmark' : 'Bookmark this code'}
+          className="shrink-0 text-muted-foreground transition-colors hover:text-brand-deep disabled:opacity-30"
+        >
+          <Bookmark size={15} className={saved ? 'fill-brand text-brand' : ''} />
+        </button>
+      </div>
+      {invalid && <span className="pl-1 text-xs text-destructive">Code must be at least 6 characters.</span>}
+    </div>
+  );
 }
 
 function CopyPill({ value, label, icon }: { value: string; label: string; icon: 'code' | 'cmd' | 'link' }) {
@@ -393,17 +437,12 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 spellCheck={false}
                 className="min-h-0 flex-1 resize-none rounded-[14px] border border-border bg-card p-4 font-mono text-[13px] leading-relaxed outline-none transition-colors focus:border-brand"
               />
-              <div className="flex items-center gap-2 rounded-[10px] border border-border bg-card px-3">
-                <KeyRound size={15} className="shrink-0 text-muted-foreground" />
-                <input
-                  value={customCode}
-                  onChange={(e) => setCustomCode(e.target.value)}
-                  placeholder="Custom code (optional)"
-                  spellCheck={false}
-                  className="min-w-0 flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-muted-foreground"
-                />
-                {codeInvalid && <span className="shrink-0 text-xs text-destructive">min 6 chars</span>}
-              </div>
+              <CustomCodeField
+                value={customCode}
+                onChange={setCustomCode}
+                invalid={codeInvalid}
+                placeholder="Custom code (optional)"
+              />
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={pasteClipboard}>Paste</Button>
                 <span className="ml-auto text-xs text-muted-foreground">{draft.length} characters</span>
@@ -455,21 +494,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               Drop more files here, or use Add
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 rounded-[10px] border border-border bg-card px-3">
-              <KeyRound size={15} className="shrink-0 text-muted-foreground" />
-              <input
-                value={customCode}
-                onChange={(e) => setCustomCode(e.target.value)}
-                placeholder="Custom code (optional) — leave blank for a random one"
-                spellCheck={false}
-                className="min-w-0 flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            {codeInvalid && (
-              <span className="pl-1 text-xs text-destructive">Code must be at least 6 characters.</span>
-            )}
-          </div>
+          <CustomCodeField value={customCode} onChange={setCustomCode} invalid={codeInvalid} />
           <div className="flex gap-2.5">
             <Button variant="outline" className="h-11 flex-1" onClick={browse}>
               <Plus /> Add more
