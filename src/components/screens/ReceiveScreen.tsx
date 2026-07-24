@@ -8,6 +8,7 @@ import { typeColor } from '@/lib/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
+import { QrScanner } from '@/components/QrScanner';
 
 function extType(name: string): string {
   const dot = name.lastIndexOf('.');
@@ -124,6 +125,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
         : (progress?.percent ?? 0);
   const seen = Math.min(perFile.length, totalFiles);
   const [dir, setDir] = useState('');
+  const [scanning, setScanning] = useState(false);
 
   // Whole-download ETA, estimated from overall progress + elapsed time (croc's
   // own ETA is per-file and resets each file). Anchored at first byte, cleared
@@ -273,9 +275,12 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               or
               <span className="h-px w-11 bg-border" />
             </div>
-            <div className="mt-1 flex items-center gap-2 text-[13px] text-muted-foreground">
-              <QrCode size={15} /> Scan a QR code (coming soon)
-            </div>
+            <button
+              onClick={() => setScanning(true)}
+              className="mt-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-brand-deep transition-colors hover:bg-brand-surface"
+            >
+              <QrCode size={15} /> Scan a QR code
+            </button>
             <div className="mt-4 flex max-w-[380px] items-center gap-1.5 text-xs text-muted-foreground">
               <Folder size={13} className="shrink-0" /> Saving to{' '}
               <span className="font-medium text-foreground">{abbrevHome(savedDir)}</span>
@@ -451,6 +456,17 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
           </div>
           <Button onClick={recv.reset}>Try again</Button>
         </div>
+      )}
+
+      {scanning && (
+        <QrScanner
+          onClose={() => setScanning(false)}
+          onCode={(text) => {
+            setScanning(false);
+            const detected = extractCode(text) ?? text.trim();
+            if (detected) recv.setCode(detected);
+          }}
+        />
       )}
     </div>
   );
