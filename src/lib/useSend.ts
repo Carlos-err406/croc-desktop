@@ -79,8 +79,8 @@ export interface UseSend extends SendState {
   stage: (paths: string[]) => Promise<void>;
   removeEntry: (path: string) => void;
   clear: () => void;
-  begin: () => Promise<void>;
-  sendText: (text: string) => Promise<void>;
+  begin: (customCode?: string) => Promise<void>;
+  sendText: (text: string, customCode?: string) => Promise<void>;
   addMore: () => Promise<void>;
   cancel: () => void;
   reset: () => void;
@@ -163,7 +163,7 @@ export function useSend(): UseSend {
     setState(INITIAL);
   }
 
-  async function begin() {
+  async function begin(customCode?: string) {
     const paths = state.entries.map((e) => e.path);
     if (!paths.length) return;
     // Stop any lingering transfer so it can't emit into this one.
@@ -175,7 +175,8 @@ export function useSend(): UseSend {
     idRef.current = id;
     setState((v) => ({ ...v, status: 'starting', result: null, progress: null, error: null }));
 
-    const [err, result] = await croc.send(paths, id, relayArg(), getPrefs().zipFolders);
+    const code = customCode?.trim() || undefined;
+    const [err, result] = await croc.send(paths, id, relayArg(), getPrefs().zipFolders, code);
     if (idRef.current !== id) return; // superseded or reset while starting
     if (err || !result) {
       setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to start croc.' }));
@@ -188,7 +189,7 @@ export function useSend(): UseSend {
     }));
   }
 
-  async function sendText(text: string) {
+  async function sendText(text: string, customCode?: string) {
     const msg = text.trim();
     if (!msg) return;
     if (state.result) croc.cancel(state.result.transferId);
@@ -196,7 +197,8 @@ export function useSend(): UseSend {
     idRef.current = id;
     setState(() => ({ ...INITIAL, isText: true, status: 'starting' }));
 
-    const [err, result] = await croc.sendText(msg, id, relayArg());
+    const code = customCode?.trim() || undefined;
+    const [err, result] = await croc.sendText(msg, id, relayArg(), code);
     if (idRef.current !== id) return;
     if (err || !result) {
       setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to start croc.' }));

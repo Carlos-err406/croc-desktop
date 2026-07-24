@@ -46,8 +46,8 @@ export const croc = {
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (paths: string[], transferId?: string, relay?: string, zip?: boolean, code?: string) =>
     call<CrocSendResult>('croc_send', { paths, transferId, relay, zip, code }),
-  sendText: (text: string, transferId?: string, relay?: string) =>
-    call<CrocSendResult>('croc_send_text', { text, transferId, relay }),
+  sendText: (text: string, transferId?: string, relay?: string, code?: string) =>
+    call<CrocSendResult>('croc_send_text', { text, transferId, relay, code }),
   receive: (
     code: string,
     opts?: { out?: string; relay?: string; autoAccept?: boolean },

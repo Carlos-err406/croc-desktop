@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
-import { Camera, Check, Copy, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
+import { Camera, Check, Copy, KeyRound, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
 import type { StatEntry } from '@/lib/services/ipc';
 import type { UseSend } from '@/lib/useSend';
 import { croc } from '@/lib/services/ipc';
@@ -118,6 +118,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const [sharedCopied, setSharedCopied] = useState(false);
   const [mode, setMode] = useState<'files' | 'text'>('files');
   const [draft, setDraft] = useState('');
+  // Optional custom transfer code (croc requires >= 6 chars); empty = random.
+  const [customCode, setCustomCode] = useState('');
+  const codeInvalid = customCode.trim().length > 0 && customCode.trim().length < 6;
   const pasteClipboard = async () => {
     try {
       const t = await navigator.clipboard.readText();
@@ -390,12 +393,23 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 spellCheck={false}
                 className="min-h-0 flex-1 resize-none rounded-[14px] border border-border bg-card p-4 font-mono text-[13px] leading-relaxed outline-none transition-colors focus:border-brand"
               />
+              <div className="flex items-center gap-2 rounded-[10px] border border-border bg-card px-3">
+                <KeyRound size={15} className="shrink-0 text-muted-foreground" />
+                <input
+                  value={customCode}
+                  onChange={(e) => setCustomCode(e.target.value)}
+                  placeholder="Custom code (optional)"
+                  spellCheck={false}
+                  className="min-w-0 flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-muted-foreground"
+                />
+                {codeInvalid && <span className="shrink-0 text-xs text-destructive">min 6 chars</span>}
+              </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={pasteClipboard}>Paste</Button>
                 <span className="ml-auto text-xs text-muted-foreground">{draft.length} characters</span>
                 <Button
-                  onClick={() => send.sendText(draft)}
-                  disabled={!draft.trim() || status === 'starting'}
+                  onClick={() => send.sendText(draft, customCode)}
+                  disabled={!draft.trim() || codeInvalid || status === 'starting'}
                 >
                   {status === 'starting' ? (
                     <><Loader2 className="size-4 animate-spin" /> Starting…</>
@@ -441,12 +455,27 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               Drop more files here, or use Add
             </div>
           </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 rounded-[10px] border border-border bg-card px-3">
+              <KeyRound size={15} className="shrink-0 text-muted-foreground" />
+              <input
+                value={customCode}
+                onChange={(e) => setCustomCode(e.target.value)}
+                placeholder="Custom code (optional) — leave blank for a random one"
+                spellCheck={false}
+                className="min-w-0 flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            {codeInvalid && (
+              <span className="pl-1 text-xs text-destructive">Code must be at least 6 characters.</span>
+            )}
+          </div>
           <div className="flex gap-2.5">
             <Button variant="outline" className="h-11 flex-1" onClick={browse}>
               <Plus /> Add more
             </Button>
-            <Button className="h-11 flex-[2]" onClick={send.begin}>
-              Generate code &amp; send
+            <Button className="h-11 flex-[2]" disabled={codeInvalid} onClick={() => send.begin(customCode)}>
+              {customCode.trim() ? 'Send with this code' : 'Generate code & send'}
             </Button>
           </div>
         </div>

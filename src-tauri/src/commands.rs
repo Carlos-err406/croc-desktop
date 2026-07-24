@@ -153,12 +153,16 @@ pub fn croc_send_text(
     text: String,
     transfer_id: Option<String>,
     relay: Option<String>,
+    code: Option<String>,
 ) -> Result<CrocSendResult, String> {
     if text.is_empty() {
         return Err("Nothing to send.".into());
     }
     let transfer_id = transfer_id.unwrap_or_else(gen_id);
-    let code = codephrase::generate_code();
+    let code = match code {
+        Some(c) if c.trim().len() >= 6 => c.trim().to_string(),
+        _ => codephrase::generate_code(),
+    };
 
     let mut args: Vec<String> = Vec::new();
     if let Some(r) = relay.filter(|s| !s.is_empty()) {
