@@ -41,6 +41,18 @@ interface Step {
   sub: string;
   line: boolean;
 }
+/**
+ * Pull a croc transfer code out of clipboard text. Matches our `NNNN-word-word-word`
+ * format (also croc's default), including when it's embedded in the "Code: …" share
+ * text. Deliberately strict so arbitrary clipboard text never auto-fills the box.
+ */
+function extractCode(text: string): string | null {
+  if (!text) return null;
+  const labeled = text.match(/code[:\s]+(\S+)/i);
+  const candidate = (labeled ? labeled[1] : text.trim()).replace(/[.,]+$/, '');
+  return /^\d+-[a-z]+-[a-z]+-[a-z]+$/i.test(candidate) ? candidate : null;
+}
+
 function receiveSteps(status: string): Step[] {
   const s = (kind: Step['kind'], title: string, sub: string, line: boolean): Step => ({ kind, title, sub, line });
   if (status === 'connecting')
@@ -130,6 +142,28 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
     const saved = getPrefs().downloadDir;
     if (saved) setDir(saved);
     else croc.defaultDir().then(([, d]) => d && setDir(d));
+  }, []);
+
+  // Auto-fill the code box from the clipboard when opening Receive (or refocusing
+  // the app), if it holds a croc code and the box is empty — never overwrites typing.
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  const codeRef = useRef(code);
+  codeRef.current = code;
+  useEffect(() => {
+    const tryFill = async () => {
+      if (statusRef.current !== 'idle' || codeRef.current.trim()) return;
+      try {
+        const detected = extractCode(await navigator.clipboard.readText());
+        if (detected && !codeRef.current.trim()) recv.setCode(detected);
+      } catch {
+        /* clipboard unavailable */
+      }
+    };
+    void tryFill();
+    window.addEventListener('focus', tryFill);
+    return () => window.removeEventListener('focus', tryFill);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const savedDir = out || dir;

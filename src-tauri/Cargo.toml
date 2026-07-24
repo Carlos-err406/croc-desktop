@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.4.1"
+version = "0.5.0"
 description = "Croc Desktop — GUI for the croc secure file transfer tool"
 authors = ["Carlos Daniel Vilaseca Illnait"]
 license = ""
