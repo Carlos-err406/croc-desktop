@@ -189,9 +189,11 @@ fn pct(code: &str) -> String {
     s
 }
 
-/// The croc:// deep link that opens the app straight into receiving this code.
-pub fn receive_deeplink(code: &str) -> String {
-    format!("croc://receive?code={}", pct(code))
+/// The shareable https link that opens the app into receiving this code — a
+/// verified Android App Link, and on desktop the page hands off to croc://.
+/// (The QR encodes this so a phone camera can open it directly.)
+pub fn receive_link(code: &str) -> String {
+    format!("https://carlos-err406.github.io/croc/receive?code={}", pct(code))
 }
 
 pub fn generate_qr_data_url(code: &str) -> Option<String> {
