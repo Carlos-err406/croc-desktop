@@ -31,7 +31,14 @@ export function AppShell() {
         <div key={screen} className="croc-screen flex min-h-0 min-w-0 flex-1 flex-col">
           {screen === 'send' && <SendScreen send={send} onViewHistory={() => setScreen('history')} />}
           {screen === 'receive' && <ReceiveScreen recv={recv} />}
-          {screen === 'history' && <HistoryScreen />}
+          {screen === 'history' && (
+            <HistoryScreen
+              onResend={(paths) => {
+                void send.stage(paths);
+                setScreen('send');
+              }}
+            />
+          )}
           {screen === 'settings' && <SettingsScreen />}
         </div>
       </div>

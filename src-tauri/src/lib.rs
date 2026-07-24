@@ -44,6 +44,7 @@ pub fn run() {
             commands::croc_show_item,
             commands::croc_history_list,
             commands::croc_history_add,
+            commands::croc_history_remove,
             commands::croc_history_clear,
         ])
         .run(tauri::generate_context!())

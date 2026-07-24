@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, History as HistoryIcon, Folder, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, History as HistoryIcon, Folder, RotateCw, Trash2, X } from 'lucide-react';
 import { croc, type HistoryEntry } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
@@ -32,7 +32,15 @@ function formatWhen(at: number): string {
   return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
 }
 
-function Row({ e }: { e: HistoryEntry }) {
+function Row({
+  e,
+  onResend,
+  onDelete,
+}: {
+  e: HistoryEntry;
+  onResend?: (paths: string[]) => void;
+  onDelete: (id: string) => void;
+}) {
   const isSend = e.kind === 'send';
   const title = e.isText ? 'Text message' : e.names[0] || 'Transfer';
   const meta = [
@@ -43,8 +51,9 @@ function Row({ e }: { e: HistoryEntry }) {
   ]
     .filter(Boolean)
     .join('  ·  ');
+  const canResend = isSend && !e.isText && !!e.paths?.length;
   return (
-    <div className="flex min-w-0 items-center gap-3.5 rounded-[14px] border border-border bg-card px-4 py-3">
+    <div className="croc-history-row flex min-w-0 items-center gap-3.5 rounded-[14px] border border-border bg-card px-4 py-3">
       <span
         className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] ${
           isSend ? 'bg-brand-surface text-brand-deep' : 'bg-info-surface text-info-text'
@@ -56,16 +65,34 @@ function Row({ e }: { e: HistoryEntry }) {
         <MiddleTruncate text={title} className="text-sm font-medium" />
         <div className="mt-0.5 text-xs text-muted-foreground">{meta}</div>
       </div>
+      {canResend && onResend && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          onClick={() => onResend(e.paths!)}
+          title="Send these files again"
+        >
+          <RotateCw /> Send again
+        </Button>
+      )}
       {e.kind === 'receive' && e.out && (
         <Button variant="ghost" size="sm" className="shrink-0" onClick={() => croc.showItem(e.out!)}>
           <Folder /> Reveal
         </Button>
       )}
+      <button
+        onClick={() => onDelete(e.id)}
+        title="Remove from history"
+        className="croc-history-del flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+      >
+        <X size={15} />
+      </button>
     </div>
   );
 }
 
-export function HistoryScreen() {
+export function HistoryScreen({ onResend }: { onResend?: (paths: string[]) => void }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
 
@@ -75,6 +102,11 @@ export function HistoryScreen() {
 
   const clearAll = async () => {
     const [, list] = await croc.historyClear();
+    setEntries(list ?? []);
+  };
+
+  const removeOne = async (id: string) => {
+    const [, list] = await croc.historyRemove(id);
     setEntries(list ?? []);
   };
 
@@ -123,7 +155,7 @@ export function HistoryScreen() {
         ) : (
           <div className="flex flex-col gap-2.5">
             {shown.map((e) => (
-              <Row key={e.id} e={e} />
+              <Row key={e.id} e={e} onResend={onResend} onDelete={removeOne} />
             ))}
           </div>
         )}

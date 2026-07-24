@@ -130,14 +130,19 @@ export function useSend(): UseSend {
       sizeHuman: state.isText || totalBytes === 0 ? undefined : humanBytes(totalBytes),
       code: state.result?.code,
       isText: state.isText || undefined,
+      // Persist source paths for file sends so the entry can be re-sent.
+      paths: state.isText ? undefined : state.entries.map((e) => e.path),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status]);
 
   async function stage(paths: string[]) {
     if (!paths.length) return;
-    const [, entries] = await croc.statPaths(paths);
-    if (!entries) return;
+    const [, all] = await croc.statPaths(paths);
+    if (!all) return;
+    // Drop paths that no longer exist (e.g. re-staging a moved/deleted history entry).
+    const entries = all.filter((e) => e.exists);
+    if (!entries.length) return;
     setState((v) => {
       const existing = v.status === 'staging' ? v.entries : [];
       const map = new Map(existing.map((e) => [e.path, e]));

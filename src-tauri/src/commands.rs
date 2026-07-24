@@ -298,6 +298,11 @@ pub fn croc_history_add(app: AppHandle, draft: HistoryDraft) -> Vec<HistoryEntry
 }
 
 #[tauri::command]
+pub fn croc_history_remove(app: AppHandle, id: String) -> Vec<HistoryEntry> {
+    history::remove(&app, &id)
+}
+
+#[tauri::command]
 pub fn croc_history_clear(app: AppHandle) -> Vec<HistoryEntry> {
     history::clear(&app)
 }

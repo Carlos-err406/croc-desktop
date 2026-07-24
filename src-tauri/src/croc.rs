@@ -37,6 +37,7 @@ pub struct StatEntry {
     #[serde(rename = "type")]
     pub kind: String,
     pub is_dir: bool,
+    pub exists: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -159,6 +160,7 @@ pub fn stat_paths(paths: Vec<String>) -> Vec<StatEntry> {
                         is_dir,
                         name,
                         path: p,
+                        exists: true,
                     }
                 }
                 Err(_) => StatEntry {
@@ -168,6 +170,7 @@ pub fn stat_paths(paths: Vec<String>) -> Vec<StatEntry> {
                     size_human: String::new(),
                     kind: "FILE".into(),
                     is_dir: false,
+                    exists: false,
                 },
             }
         })

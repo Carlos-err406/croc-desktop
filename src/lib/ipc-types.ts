@@ -27,6 +27,7 @@ export interface StatEntry {
   sizeHuman: string;
   type: string; // short extension badge, e.g. PDF / ZIP / DIR
   isDir: boolean;
+  exists: boolean; // false if the path no longer exists (e.g. a re-staged history path)
 }
 
 export interface ReceiveCommand {
@@ -58,6 +59,7 @@ export interface HistoryEntry {
   code?: string; // transfer code (sends)
   out?: string; // destination folder (receives)
   isText?: boolean; // a `croc send --text` message
+  paths?: string[]; // source paths for a file send, so it can be re-sent
 }
 
 /** What the renderer records on completion; id + timestamp are added in Rust. */

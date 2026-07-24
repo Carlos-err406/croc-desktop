@@ -66,6 +66,7 @@ export const croc = {
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   historyList: () => call<HistoryEntry[]>('croc_history_list'),
   historyAdd: (draft: HistoryDraft) => call<HistoryEntry[]>('croc_history_add', { draft }),
+  historyRemove: (id: string) => call<HistoryEntry[]>('croc_history_remove', { id }),
   historyClear: () => call<HistoryEntry[]>('croc_history_clear'),
 
   // Backend streams events over the "croc://event" Tauri event; return a sync

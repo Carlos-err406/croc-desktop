@@ -23,6 +23,10 @@ pub struct HistoryEntry {
     pub out: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub is_text: Option<bool>,
+    // Source paths for a file send, so the entry can be re-sent. Empty for
+    // receives and text sends (we deliberately don't persist sent text bodies).
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub paths: Vec<String>,
 }
 
 /// The renderer supplies everything but `id` + `at` (added here).
@@ -40,6 +44,8 @@ pub struct HistoryDraft {
     pub out: Option<String>,
     #[serde(default)]
     pub is_text: Option<bool>,
+    #[serde(default)]
+    pub paths: Vec<String>,
 }
 
 fn history_file(app: &AppHandle) -> Result<PathBuf, String> {
@@ -74,10 +80,20 @@ pub fn add(app: &AppHandle, draft: HistoryDraft) -> Vec<HistoryEntry> {
         code: draft.code,
         out: draft.out,
         is_text: draft.is_text,
+        paths: draft.paths,
     };
     let mut next = list(app);
     next.insert(0, entry);
     next.truncate(MAX_ENTRIES);
+    if let Ok(path) = history_file(app) {
+        let _ = std::fs::write(&path, serde_json::to_string(&next).unwrap_or_else(|_| "[]".into()));
+    }
+    next
+}
+
+pub fn remove(app: &AppHandle, id: &str) -> Vec<HistoryEntry> {
+    let mut next = list(app);
+    next.retain(|e| e.id != id);
     if let Ok(path) = history_file(app) {
         let _ = std::fs::write(&path, serde_json::to_string(&next).unwrap_or_else(|_| "[]".into()));
     }
