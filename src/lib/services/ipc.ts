@@ -44,8 +44,8 @@ export const croc = {
   defaultDir: () => call<string>('croc_default_dir'),
   info: () => call<CrocInfo>('croc_info'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
-  send: (paths: string[], transferId?: string, relay?: string, zip?: boolean) =>
-    call<CrocSendResult>('croc_send', { paths, transferId, relay, zip }),
+  send: (paths: string[], transferId?: string, relay?: string, zip?: boolean, code?: string) =>
+    call<CrocSendResult>('croc_send', { paths, transferId, relay, zip, code }),
   sendText: (text: string, transferId?: string, relay?: string) =>
     call<CrocSendResult>('croc_send_text', { text, transferId, relay }),
   receive: (
@@ -65,6 +65,7 @@ export const croc = {
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   clipboardFiles: () => call<string[]>('croc_clipboard_files'),
+  clipboardText: () => call<string | null>('croc_clipboard_text'),
   saveTempFile: (name: string, base64Data: string) =>
     call<string>('croc_save_temp_file', { name, base64Data }),
   historyList: () => call<HistoryEntry[]>('croc_history_list'),

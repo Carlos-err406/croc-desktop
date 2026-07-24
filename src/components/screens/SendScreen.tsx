@@ -158,10 +158,11 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   }, []);
 
   // Paste-to-send: ⌘V on the Send screen stages pasted files/images or fills the
-  // text box. The `paste` event carries images/text (best on WKWebView); a ⌘V
-  // keydown covers the idle screen where `paste` may not fire, and reads Finder
-  // file paths natively. A lock stops the two routes from double-handling one ⌘V.
-  const pasteBusy = useRef(false);
+  // text box. Split cleanly by source so nothing triggers WKWebView's paste-consent
+  // menu: the `paste` event handles image/file BLOBS (clipboardData, no prompt); a
+  // ⌘V keydown reads Finder file paths + plain text via the NATIVE pasteboard
+  // (also no prompt — navigator.clipboard.readText is what pops the menu). The two
+  // handle disjoint sources, so no lock/dedupe is needed.
   useEffect(() => {
     const ready = () => ['idle', 'starting', 'staging'].includes(statusRef.current);
     const editable = (el: Element | null) =>
@@ -184,23 +185,13 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       setMode('text');
       setDraft((d) => (d ? d + t : t));
     };
-    const withLock = async (fn: () => Promise<void>) => {
-      if (pasteBusy.current) return;
-      pasteBusy.current = true;
-      try {
-        await fn();
-      } finally {
-        setTimeout(() => (pasteBusy.current = false), 200);
-      }
-    };
 
+    // Images / file blobs come through the real paste event (no consent prompt).
     const onPaste = (e: ClipboardEvent) => {
-      if (!ready()) return;
-      const dt = e.clipboardData;
-      if (!dt) return;
+      if (!ready() || !e.clipboardData) return;
       const blobs = [
-        ...Array.from(dt.files || []),
-        ...Array.from(dt.items || [])
+        ...Array.from(e.clipboardData.files || []),
+        ...Array.from(e.clipboardData.items || [])
           .filter((it) => it.kind === 'file')
           .map((it) => it.getAsFile())
           .filter((f): f is File => !!f),
@@ -208,44 +199,27 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       const uniqueBlobs = blobs.filter((b, i) => blobs.findIndex((x) => x === b) === i);
       if (uniqueBlobs.length) {
         e.preventDefault();
-        void withLock(() => stageBlobs(uniqueBlobs));
-        return;
+        void stageBlobs(uniqueBlobs);
       }
-      const text = dt.getData('text/plain');
-      // Text paste only makes sense when composing (idle) — while staging a file
-      // batch, ignore it so it can't derail the flow into text mode.
-      const staging = statusRef.current === 'staging';
-      if (text && text.trim() && !staging && !editable(document.activeElement)) {
-        e.preventDefault();
-        void withLock(async () => fillText(text));
-        return;
-      }
-      // Nothing usable in the event — likely Finder files; read them natively.
-      if (!text) void withLock(async () => {
-        const [, paths] = await croc.clipboardFiles();
-        if (paths?.length) send.stage(paths);
-      });
+      // Text is handled by the keydown route (native read) — nothing to do here.
     };
 
+    // Finder file paths + plain text, read natively on ⌘V (no consent prompt).
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== 'v' || !(e.metaKey || e.ctrlKey)) return;
       if (!ready() || editable(document.activeElement)) return;
       const staging = statusRef.current === 'staging';
-      void withLock(async () => {
+      void (async () => {
         const [, paths] = await croc.clipboardFiles();
         if (paths?.length) {
           send.stage(paths);
           return;
         }
-        // Don't derail an in-progress file batch into text mode.
+        // While staging a file batch, don't derail into text mode.
         if (staging) return;
-        try {
-          const t = await navigator.clipboard.readText();
-          if (t && t.trim()) fillText(t);
-        } catch {
-          /* clipboard read unavailable */
-        }
-      });
+        const [, text] = await croc.clipboardText();
+        if (text && text.trim()) fillText(text);
+      })();
     };
 
     document.addEventListener('paste', onPaste);
@@ -600,7 +574,20 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   View in history
                 </Button>
               </div>
-            ) : (status === 'waiting' || inFlight) ? (
+            ) : status === 'waiting' ? (
+              // Awaiting the peer: files can still be added (re-sends with the same
+              // code). Once the download starts this whole branch is gone.
+              <div className="flex gap-2.5">
+                {!send.isText && (
+                  <Button variant="outline" className="flex-1" onClick={send.addMore}>
+                    <Plus /> Add more
+                  </Button>
+                )}
+                <Button variant="outline" className={send.isText ? 'w-full' : 'flex-1'} onClick={send.cancel}>
+                  Cancel transfer
+                </Button>
+              </div>
+            ) : inFlight ? (
               <Button variant="outline" className="w-full" onClick={send.cancel}>
                 Cancel transfer
               </Button>

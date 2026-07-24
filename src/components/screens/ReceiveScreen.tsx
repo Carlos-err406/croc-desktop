@@ -153,12 +153,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   useEffect(() => {
     const tryFill = async () => {
       if (statusRef.current !== 'idle' || codeRef.current.trim()) return;
-      try {
-        const detected = extractCode(await navigator.clipboard.readText());
-        if (detected && !codeRef.current.trim()) recv.setCode(detected);
-      } catch {
-        /* clipboard unavailable */
-      }
+      // Native read (no WKWebView paste-consent prompt, no user-gesture needed).
+      const [, text] = await croc.clipboardText();
+      const detected = extractCode(text ?? '');
+      if (detected && !codeRef.current.trim()) recv.setCode(detected);
     };
     void tryFill();
     window.addEventListener('focus', tryFill);

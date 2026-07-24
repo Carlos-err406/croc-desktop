@@ -35,3 +35,23 @@ pub fn clipboard_file_paths() -> Vec<String> {
 pub fn clipboard_file_paths() -> Vec<String> {
     Vec::new()
 }
+
+/// Plain-text on the clipboard, read natively (no WKWebView paste-consent prompt,
+/// unlike navigator.clipboard.readText). None if empty / unsupported platform.
+#[cfg(target_os = "macos")]
+pub fn clipboard_text() -> Option<String> {
+    use objc2_app_kit::NSPasteboard;
+    use objc2_foundation::NSString;
+
+    objc2::rc::autoreleasepool(|_| {
+        let pb = NSPasteboard::generalPasteboard();
+        // UTI for NSPasteboardTypeString.
+        let ty = NSString::from_str("public.utf8-plain-text");
+        pb.stringForType(&ty).map(|s| s.to_string())
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn clipboard_text() -> Option<String> {
+    None
+}

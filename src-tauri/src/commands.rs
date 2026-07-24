@@ -107,12 +107,18 @@ pub fn croc_send(
     transfer_id: Option<String>,
     relay: Option<String>,
     zip: Option<bool>,
+    code: Option<String>,
 ) -> Result<CrocSendResult, String> {
     if paths.is_empty() {
         return Err("No files selected.".into());
     }
     let transfer_id = transfer_id.unwrap_or_else(gen_id);
-    let code = codephrase::generate_code();
+    // Reuse the caller's code (e.g. re-sending with an extra file so the shared
+    // code/QR stays valid); otherwise mint a fresh one. croc requires >= 6 chars.
+    let code = match code {
+        Some(c) if c.trim().len() >= 6 => c.trim().to_string(),
+        _ => codephrase::generate_code(),
+    };
 
     let mut args: Vec<String> = Vec::new();
     if let Some(r) = relay.filter(|s| !s.is_empty()) {
@@ -291,6 +297,12 @@ pub fn croc_show_item(app: AppHandle, path: String) {
 #[tauri::command]
 pub fn croc_clipboard_files() -> Vec<String> {
     crate::clipboard::clipboard_file_paths()
+}
+
+/// Plain text on the OS clipboard, read natively (no paste-consent prompt).
+#[tauri::command]
+pub fn croc_clipboard_text() -> Option<String> {
+    crate::clipboard::clipboard_text()
 }
 
 /// Write pasted bytes (base64) to a uniquely-named temp file and return its path,

@@ -81,6 +81,7 @@ export interface UseSend extends SendState {
   clear: () => void;
   begin: () => Promise<void>;
   sendText: (text: string) => Promise<void>;
+  addMore: () => Promise<void>;
   cancel: () => void;
   reset: () => void;
 }
@@ -208,6 +209,43 @@ export function useSend(): UseSend {
     }));
   }
 
+  // Add more files while still waiting for the peer: croc can't add to a running
+  // send, so cancel it, merge the new files, and re-send with the SAME code — the
+  // shared code/QR stays valid. Only meaningful before the download starts.
+  async function addMore() {
+    if (state.status !== 'waiting') return;
+    const code = state.result?.code;
+    if (!code) return;
+    const [, picked] = await croc.pickPaths();
+    if (!picked || !picked.length) return;
+    const [, stat] = await croc.statPaths(picked);
+    const additions = (stat ?? []).filter((e) => e.exists);
+    if (!additions.length) return;
+
+    const map = new Map(state.entries.map((e) => [e.path, e]));
+    for (const e of additions) map.set(e.path, e);
+    const merged = [...map.values()];
+
+    if (state.result) croc.cancel(state.result.transferId);
+    const id = crypto.randomUUID();
+    idRef.current = id;
+    setState((v) => ({ ...v, entries: merged, result: null, progress: null, error: null, status: 'starting' }));
+    // Give the relay a moment to release the code before re-registering it.
+    await new Promise((r) => setTimeout(r, 500));
+    if (idRef.current !== id) return;
+    const [err, result] = await croc.send(merged.map((e) => e.path), id, relayArg(), getPrefs().zipFolders, code);
+    if (idRef.current !== id) return;
+    if (err || !result) {
+      setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to restart the transfer.' }));
+      return;
+    }
+    setState((v) => ({
+      ...v,
+      result,
+      status: v.status === 'transferring' || v.status === 'done' ? v.status : 'waiting',
+    }));
+  }
+
   function cancel() {
     if (state.result) croc.cancel(state.result.transferId);
     idRef.current = null;
@@ -220,5 +258,5 @@ export function useSend(): UseSend {
     setState(INITIAL);
   }
 
-  return { ...state, stage, removeEntry, clear, begin, sendText, cancel, reset };
+  return { ...state, stage, removeEntry, clear, begin, sendText, addMore, cancel, reset };
 }
