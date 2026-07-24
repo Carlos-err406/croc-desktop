@@ -220,6 +220,61 @@ pub fn croc_respond(app: AppHandle, transfer_id: String, yes: bool) {
     croc::respond(&app, &transfer_id, yes);
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayTest {
+    pub address: String,
+    pub reachable: bool,
+    pub ms: u64,
+    pub detail: String,
+}
+
+/// TCP-reachability check for the relay (custom, or croc's default). Confirms the
+/// rendezvous server is reachable before blaming a stalled transfer on the code.
+#[tauri::command]
+pub async fn croc_relay_test(relay: Option<String>) -> RelayTest {
+    use std::net::ToSocketAddrs;
+    use std::time::{Duration, Instant};
+
+    // croc's default public relay; a custom relay may omit the port.
+    let raw = relay.filter(|s| !s.trim().is_empty());
+    let address = match &raw {
+        Some(r) if r.contains(':') => r.trim().to_string(),
+        Some(r) => format!("{}:9009", r.trim()),
+        None => "croc.schollz.com:9009".to_string(),
+    };
+
+    let addr = address.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let start = Instant::now();
+        let socket_addrs = match addr.to_socket_addrs() {
+            Ok(a) => a.collect::<Vec<_>>(),
+            Err(e) => return (false, 0u64, format!("Can't resolve host: {e}")),
+        };
+        if socket_addrs.is_empty() {
+            return (false, 0, "Host resolved to no addresses.".into());
+        }
+        for sa in &socket_addrs {
+            if let Ok(stream) =
+                std::net::TcpStream::connect_timeout(sa, Duration::from_secs(5))
+            {
+                drop(stream);
+                return (true, start.elapsed().as_millis() as u64, "Relay is reachable.".into());
+            }
+        }
+        (false, start.elapsed().as_millis() as u64, "Couldn't open a connection (timed out or refused).".into())
+    })
+    .await
+    .unwrap_or((false, 0, "Test failed to run.".into()));
+
+    RelayTest {
+        address,
+        reachable: result.0,
+        ms: result.1,
+        detail: result.2,
+    }
+}
+
 #[tauri::command]
 pub fn croc_cancel(app: AppHandle, transfer_id: String) {
     croc::cancel_transfer(&app, &transfer_id);

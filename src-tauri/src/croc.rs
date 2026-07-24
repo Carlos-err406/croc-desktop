@@ -227,6 +227,14 @@ static OVERWRITE_PROMPT: LazyLock<Regex> =
 // The (Y/n)/(y/N) marker signals a prompt. Matched anywhere (not end-anchored),
 // because overwrite/resume prompts trail "(use --overwrite to omit)" after it.
 static ANY_PROMPT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\((?:Y/n|y/N)\)").unwrap());
+// Lines that carry a real failure reason worth surfacing, so a non-zero exit can
+// show croc's actual message instead of just "exited with code N".
+static ERROR_LINE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(error|failed|cannot|could not|no such|not found|refus\w+|too short|incorrect|mismatch|unreachable|timed out|connection refused|password|permission denied)\b",
+    )
+    .unwrap()
+});
 
 const MAX_LOG_EMITS: u32 = 1000;
 const MAX_TOTAL_LINES: u64 = 100_000;
@@ -243,6 +251,7 @@ struct Parser {
     text_started: bool,
     text_lines: Vec<String>,
     last_prompt: Option<String>,
+    last_error: Option<String>,
 }
 
 impl Parser {
@@ -259,6 +268,7 @@ impl Parser {
             text_started: false,
             text_lines: Vec::new(),
             last_prompt: None,
+            last_error: None,
         }
     }
 
@@ -357,6 +367,12 @@ impl Parser {
                 "log",
                 serde_json::Map::from_iter([("line".into(), line.clone().into())]),
             );
+        }
+
+        // Remember the most recent failure-looking line (ignoring benign croc
+        // hints), so a non-zero exit can report croc's real reason.
+        if ERROR_LINE.is_match(&line) && !line.contains("use --overwrite") {
+            self.last_error = Some(line.clone());
         }
 
         // Text transfer body: everything after the peer line is the message.
@@ -474,7 +490,7 @@ impl Parser {
                     "error",
                     serde_json::Map::from_iter([(
                         "message".into(),
-                        format!("croc exited with code {exit_code}.").into(),
+                        humanize_error(self.last_error.as_deref(), exit_code).into(),
                     )]),
                 );
             }
@@ -484,6 +500,37 @@ impl Parser {
             serde_json::Map::from_iter([("code".into(), exit_code.into())]),
         );
     }
+}
+
+/// Turn croc's raw failure line (or a bare exit code) into a friendly message.
+fn humanize_error(raw: Option<&str>, exit_code: i32) -> String {
+    let line = raw.unwrap_or("").trim();
+    let low = line.to_lowercase();
+    if low.contains("too short") {
+        return "That code is too short — it must be at least 6 characters.".into();
+    }
+    if low.contains("refus") {
+        return "The other side declined the transfer.".into();
+    }
+    if low.contains("incorrect") || low.contains("mismatch") || low.contains("password") {
+        return "Couldn't connect: the code didn't match. Double-check it and try again.".into();
+    }
+    if low.contains("no such") || low.contains("not found") || low.contains("permission denied") {
+        return format!("File error: {line}");
+    }
+    if low.contains("unreachable")
+        || low.contains("timed out")
+        || low.contains("connection refused")
+        || low.contains("dial")
+    {
+        return "Couldn't reach the relay. Check your connection, or try a different relay in Settings.".into();
+    }
+    if !line.is_empty() {
+        // Surface croc's own words, trimmed of any leading log prefix.
+        let msg = line.rsplit(']').next().unwrap_or(line).trim();
+        return format!("croc: {msg}");
+    }
+    format!("Transfer failed (croc exited with code {exit_code}).")
 }
 
 /// Spawn croc with the given args + CROC_SECRET, stream events, register the

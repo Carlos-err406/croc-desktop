@@ -22,6 +22,13 @@ export interface CrocInfo {
   bundled: boolean;
 }
 
+export interface RelayTest {
+  address: string;
+  reachable: boolean;
+  ms: number;
+  detail: string;
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Tuple<T> {
   try {
     return [null, await invoke<T>(cmd, args)];
@@ -54,6 +61,7 @@ export const croc = {
       autoAccept: opts?.autoAccept,
     }),
   respond: (transferId: string, yes: boolean) => call<null>('croc_respond', { transferId, yes }),
+  relayTest: (relay?: string) => call<RelayTest>('croc_relay_test', { relay }),
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   historyList: () => call<HistoryEntry[]>('croc_history_list'),

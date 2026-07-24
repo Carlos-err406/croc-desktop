@@ -39,6 +39,7 @@ pub fn run() {
             commands::croc_send_text,
             commands::croc_receive,
             commands::croc_respond,
+            commands::croc_relay_test,
             commands::croc_cancel,
             commands::croc_show_item,
             commands::croc_history_list,

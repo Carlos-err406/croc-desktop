@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Moon, RefreshCw, RotateCw, Sun } from 'lucide-react';
-import { getPrefs, setPrefs, setTheme, type Prefs, type RelayMode, type Theme } from '@/lib/prefs';
+import { Check, Moon, RefreshCw, RotateCw, Sun, X, Wifi } from 'lucide-react';
+import { getPrefs, setPrefs, setTheme, relayArg, type Prefs, type RelayMode, type Theme } from '@/lib/prefs';
 import { useUpdater } from '@/lib/updater';
 import { abbrevHome } from '@/lib/paths';
-import { croc, type CrocInfo } from '@/lib/services/ipc';
+import { croc, type CrocInfo, type RelayTest } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusChip } from '@/components/ui/status-chip';
@@ -95,6 +95,15 @@ export function SettingsScreen() {
   useEffect(() => {
     croc.info().then(([, info]) => info && setCrocInfo(info));
   }, []);
+  const [relayTest, setRelayTest] = useState<{ status: 'testing' | 'done'; result?: RelayTest } | null>(null);
+  const testRelay = async () => {
+    setRelayTest({ status: 'testing' });
+    const [, result] = await croc.relayTest(relayArg(prefs));
+    setRelayTest({ status: 'done', result: result ?? undefined });
+  };
+  // Re-test invalidates when the relay choice/value changes.
+  useEffect(() => setRelayTest(null), [prefs.relay, prefs.relayCustom]);
+
   const crocVersion = crocInfo?.version?.replace(/^croc\s+version\s+/i, '').trim();
   const crocSub = !crocInfo
     ? 'Locating croc…'
@@ -167,6 +176,37 @@ export function SettingsScreen() {
                 value={prefs.relayCustom}
                 onChange={(e) => update({ relayCustom: e.target.value })}
               />
+            </div>
+          )}
+          <Row title="Connection test" sub="Check that the relay is reachable from this device">
+            <div className="flex items-center gap-2.5">
+              {relayTest?.status === 'done' && relayTest.result && (
+                <span
+                  className={`flex items-center gap-1.5 text-xs font-medium ${
+                    relayTest.result.reachable ? 'text-success-text' : 'text-destructive'
+                  }`}
+                >
+                  {relayTest.result.reachable ? (
+                    <><Check size={13} /> Reachable · {relayTest.result.ms} ms</>
+                  ) : (
+                    <><X size={13} /> Unreachable</>
+                  )}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={relayTest?.status === 'testing'}
+                onClick={testRelay}
+              >
+                <Wifi size={14} className={relayTest?.status === 'testing' ? 'animate-pulse' : ''} />
+                {relayTest?.status === 'testing' ? 'Testing…' : 'Test'}
+              </Button>
+            </div>
+          </Row>
+          {relayTest?.status === 'done' && relayTest.result && (
+            <div className="px-5 pb-4 text-xs text-muted-foreground">
+              {relayTest.result.address} — {relayTest.result.detail}
             </div>
           )}
         </Card>
