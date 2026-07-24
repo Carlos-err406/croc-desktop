@@ -583,8 +583,14 @@ pub fn spawn_transfer(
         cmd.arg(a);
     }
     cmd.env("CROC_SECRET", &secret);
+    // Widen PATH so a PATH-resolved croc is findable (the bundled sidecar is used
+    // via an absolute path regardless). The extra dirs are Unix-only; on Windows
+    // appending them with the wrong separator would just corrupt PATH, so skip it.
     let path = std::env::var("PATH").unwrap_or_default();
+    #[cfg(not(windows))]
     cmd.env("PATH", format!("{path}:/opt/homebrew/bin:/usr/local/bin"));
+    #[cfg(windows)]
+    cmd.env("PATH", path);
     // When sending a folder, croc writes a temp `<name>.zip` into its CWD and only
     // deletes it on a clean exit. A per-send scratch dir keeps that zip out of the
     // user's home dir and lets us wipe leftovers after a failed transfer, so a retry
@@ -592,7 +598,8 @@ pub fn spawn_transfer(
     match &work_dir {
         Some(dir) => cmd.cwd(dir),
         None => {
-            if let Ok(home) = std::env::var("HOME") {
+            // HOME on Unix, USERPROFILE on Windows — a sane default working dir.
+            if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
                 cmd.cwd(home);
             }
         }

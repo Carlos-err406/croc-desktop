@@ -14,6 +14,10 @@ import { StatusChip, type ChipStatus } from '@/components/ui/status-chip';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
 import { CrocBadge } from '@/components/CrocLogo';
 
+// macOS reads the clipboard via the native pasteboard (no consent prompt);
+// other platforms fall back to the webview clipboard API.
+const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent || navigator.platform || '');
+
 const TITLE: Record<string, string> = {
   idle: 'Send files',
   staging: 'Ready to send',
@@ -264,7 +268,17 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
         }
         // While staging a file batch, don't derail into text mode.
         if (staging) return;
-        const [, text] = await croc.clipboardText();
+        let [, text] = await croc.clipboardText();
+        // The native pasteboard read is macOS-only; on Windows/Linux fall back to
+        // the webview clipboard (WebView2 / WebKitGTK don't pop WKWebView's
+        // paste-consent menu, so this is safe there — which is why macOS avoids it).
+        if (!text && !isMac) {
+          try {
+            text = await navigator.clipboard.readText();
+          } catch {
+            /* clipboard permission denied — nothing to paste */
+          }
+        }
         if (text && text.trim()) fillText(text);
       })();
     };
