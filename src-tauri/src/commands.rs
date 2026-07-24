@@ -3,9 +3,21 @@ use crate::croc::{self, CrocReceiveResult, CrocSendResult, ReceiveCommand, StatE
 use crate::history::{self, HistoryDraft, HistoryEntry};
 use crate::codephrase;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
+use std::sync::Mutex;
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
+
+/// Files handed to the app by the OS ("Open With → Croc Desktop" / drag onto the
+/// dock icon), buffered until the frontend drains them via croc_take_opened_files.
+#[derive(Default)]
+pub struct OpenedPaths(pub Mutex<Vec<String>>);
+
+/// Drain any files the OS asked us to open, so the UI can stage them to send.
+#[tauri::command]
+pub fn croc_take_opened_files(state: State<OpenedPaths>) -> Vec<String> {
+    std::mem::take(&mut *state.0.lock().unwrap())
+}
 
 fn gen_id() -> String {
     let now = std::time::SystemTime::now()

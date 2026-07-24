@@ -8,12 +8,16 @@ use croc::CrocState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[allow(unused_imports)]
+    use tauri::{Emitter, Manager};
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sharekit::init())
         .plugin(tauri_plugin_notification::init())
         .manage(CrocState::default())
+        .manage(commands::OpenedPaths::default())
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -52,7 +56,32 @@ pub fn run() {
             commands::croc_history_add,
             commands::croc_history_remove,
             commands::croc_history_clear,
+            commands::croc_take_opened_files,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app_handle, _event| {
+            // macOS: files opened via "Open With → Croc Desktop" (or dropped on the
+            // dock icon) arrive here. Buffer them and ping the UI to stage & send.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = &_event {
+                let paths: Vec<String> = urls
+                    .iter()
+                    .filter_map(|u| u.to_file_path().ok())
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .collect();
+                if !paths.is_empty() {
+                    _app_handle
+                        .state::<commands::OpenedPaths>()
+                        .0
+                        .lock()
+                        .unwrap()
+                        .extend(paths);
+                    let _ = _app_handle.emit("croc://open-files", ());
+                    if let Some(w) = _app_handle.get_webview_window("main") {
+                        let _ = w.set_focus();
+                    }
+                }
+            }
+        });
 }

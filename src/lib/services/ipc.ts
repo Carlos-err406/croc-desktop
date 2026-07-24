@@ -65,6 +65,7 @@ export const croc = {
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   openUrl: (url: string) => call<null>('croc_open_url', { url }),
+  takeOpenedFiles: () => call<string[]>('croc_take_opened_files'),
   clipboardFiles: () => call<string[]>('croc_clipboard_files'),
   clipboardText: () => call<string | null>('croc_clipboard_text'),
   setProgress: (progress: number | null) =>
@@ -80,6 +81,15 @@ export const croc = {
   // unsubscribe for the React effect cleanup.
   onEvent: (cb: (e: CrocEvent) => void): (() => void) => {
     const unlisten = listen<CrocEvent>('croc://event', (event) => cb(event.payload));
+    return () => {
+      void unlisten.then((f) => f());
+    };
+  },
+
+  // Fired when the OS hands us files to open ("Open With → Croc Desktop") while
+  // the app is already running; drain them with takeOpenedFiles().
+  onOpenFiles: (cb: () => void): (() => void) => {
+    const unlisten = listen('croc://open-files', () => cb());
     return () => {
       void unlisten.then((f) => f());
     };

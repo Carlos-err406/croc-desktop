@@ -23,6 +23,22 @@ export function AppShell() {
     primeNotifications();
   }, []);
 
+  // "Open With → Croc Desktop" (or files dropped on the dock icon): stage them to
+  // send. Drain on launch (cold open) and whenever the OS pings while running.
+  useEffect(() => {
+    const drainAndStage = async () => {
+      const [, paths] = await croc.takeOpenedFiles();
+      if (paths && paths.length) {
+        void send.stage(paths);
+        setScreen('send');
+      }
+    };
+    void drainAndStage();
+    const unsub = croc.onOpenFiles(() => void drainAndStage());
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Mirror the active transfer's progress onto the OS Dock/taskbar. Determinate
   // during byte transfer; cleared otherwise. Deduped so we only cross to the
   // backend when the rounded percent actually changes.
