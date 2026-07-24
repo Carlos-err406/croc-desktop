@@ -305,6 +305,26 @@ pub fn croc_clipboard_text() -> Option<String> {
     crate::clipboard::clipboard_text()
 }
 
+/// Drive the OS progress indicator (macOS Dock / Windows taskbar / Linux Unity).
+/// `progress` is 0–100; `None` clears it. One cross-platform Tauri API.
+#[tauri::command]
+pub fn croc_set_progress(app: AppHandle, progress: Option<u64>) {
+    use tauri::window::{ProgressBarState, ProgressBarStatus};
+    if let Some(win) = app.get_webview_window("main") {
+        let state = match progress {
+            Some(p) => ProgressBarState {
+                status: Some(ProgressBarStatus::Normal),
+                progress: Some(p.min(100)),
+            },
+            None => ProgressBarState {
+                status: Some(ProgressBarStatus::None),
+                progress: None,
+            },
+        };
+        let _ = win.set_progress_bar(state);
+    }
+}
+
 /// Write pasted bytes (base64) to a uniquely-named temp file and return its path,
 /// so a pasted image or file can be handed to croc as a normal file to send.
 #[tauri::command]

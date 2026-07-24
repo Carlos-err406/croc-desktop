@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { primeNotifications } from '@/lib/notify';
+import { croc } from '@/lib/services/ipc';
 import { useSend } from '@/lib/useSend';
 import { useReceive } from '@/lib/useReceive';
 import { Sidebar } from './Sidebar';
@@ -20,6 +21,32 @@ export function AppShell() {
   useEffect(() => {
     primeNotifications();
   }, []);
+
+  // Mirror the active transfer's progress onto the OS Dock/taskbar. Determinate
+  // during byte transfer; cleared otherwise. Deduped so we only cross to the
+  // backend when the rounded percent actually changes.
+  const lastProgress = useRef<number | null>(null);
+  useEffect(() => {
+    let value: number | null = null;
+    if (recv.status === 'receiving') {
+      value = recv.perFile.length
+        ? Math.min(100, Math.round(recv.perFile.reduce((a, f) => a + f.percent, 0) / Math.max(1, recv.totalFiles)))
+        : (recv.progress?.percent ?? 0);
+    } else if (send.status === 'transferring') {
+      value = send.progress?.percent ?? 0;
+    }
+    if (value !== lastProgress.current) {
+      lastProgress.current = value;
+      void croc.setProgress(value);
+    }
+  }, [
+    recv.status,
+    recv.perFile,
+    recv.totalFiles,
+    recv.progress,
+    send.status,
+    send.progress,
+  ]);
 
   return (
     <div className="flex h-full bg-background text-foreground">

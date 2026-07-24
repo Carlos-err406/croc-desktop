@@ -45,6 +45,7 @@ pub fn run() {
             commands::croc_show_item,
             commands::croc_clipboard_files,
             commands::croc_clipboard_text,
+            commands::croc_set_progress,
             commands::croc_save_temp_file,
             commands::croc_history_list,
             commands::croc_history_add,

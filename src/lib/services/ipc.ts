@@ -66,6 +66,8 @@ export const croc = {
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   clipboardFiles: () => call<string[]>('croc_clipboard_files'),
   clipboardText: () => call<string | null>('croc_clipboard_text'),
+  setProgress: (progress: number | null) =>
+    call<null>('croc_set_progress', { progress: progress == null ? null : Math.round(progress) }),
   saveTempFile: (name: string, base64Data: string) =>
     call<string>('croc_save_temp_file', { name, base64Data }),
   historyList: () => call<HistoryEntry[]>('croc_history_list'),
