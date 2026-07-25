@@ -4,6 +4,7 @@ import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import { MAX_AUTO_RECONNECT, type UseReceive } from '@/lib/useReceive';
 import { ConnectionHint } from '@/components/ConnectionHint';
+import { OfflineToggle } from '@/components/OfflineToggle';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
 import { abbrevHome } from '@/lib/paths';
@@ -204,25 +205,29 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="px-8 pt-[26px]">
-        <div className="font-heading text-[26px] font-semibold tracking-[.01em]">
-          {reconnecting
-            ? 'Reconnecting…'
-            : isText ? (status === 'done' ? 'Received text' : 'Receiving text') : status === 'done' ? 'Received' : 'Receive files'}
+      <div className="flex items-start justify-between gap-4 px-8 pt-[26px]">
+        <div>
+          <div className="font-heading text-[26px] font-semibold tracking-[.01em]">
+            {reconnecting
+              ? 'Reconnecting…'
+              : isText ? (status === 'done' ? 'Received text' : 'Receiving text') : status === 'done' ? 'Received' : 'Receive files'}
+          </div>
+          <div className="mt-[3px] text-[13px] text-muted-foreground">
+            {reconnecting
+              ? 'The transfer dropped — retrying automatically.'
+              : isText
+                ? status === 'done'
+                  ? 'A text message from your peer.'
+                  : 'Receiving a text message from your peer.'
+                : status === 'done'
+                  ? `Saved to ${abbrevHome(savedDir)}`
+                  : status === 'receiving'
+                    ? 'Downloading securely from your peer.'
+                    : 'Get files someone is sending you.'}
+          </div>
         </div>
-        <div className="mt-[3px] text-[13px] text-muted-foreground">
-          {reconnecting
-            ? 'The transfer dropped — retrying automatically.'
-            : isText
-              ? status === 'done'
-                ? 'A text message from your peer.'
-                : 'Receiving a text message from your peer.'
-              : status === 'done'
-                ? `Saved to ${abbrevHome(savedDir)}`
-                : status === 'receiving'
-                  ? 'Downloading securely from your peer.'
-                  : 'Get files someone is sending you.'}
-        </div>
+        {/* Offline-mode shortcut — actionable before a receive starts. */}
+        {status === 'idle' && <OfflineToggle />}
       </div>
 
       {/* Interactive prompt: croc is blocked waiting for the user to accept /
@@ -517,7 +522,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             <div className="mb-1 font-semibold">Couldn't receive</div>
             {recv.error && <div className="text-[13px]">{recv.error}</div>}
           </div>
-          <ConnectionHint error={recv.error} />
+          <ConnectionHint error={recv.error} local={getPrefs().localMode} />
           <div className="flex gap-2.5">
             {recv.code.trim() ? (
               <>

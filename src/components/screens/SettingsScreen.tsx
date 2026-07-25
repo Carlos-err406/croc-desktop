@@ -165,7 +165,7 @@ export function SettingsScreen() {
         <Card title="Network">
           <Row
             title="Offline mode (same network)"
-            sub="Transfer over local Wi-Fi only, no internet or relay. Both devices must turn this on and be on the same network. Not all networks allow it (some hotspots block local discovery)."
+            sub="Transfer over a local Wi-Fi network only — no internet or relay. Both devices must turn this on and be on the same Wi-Fi. Won't work over most phone hotspots — they isolate devices and block the local discovery this needs; use a real Wi-Fi router (it can be one with no internet)."
           >
             <Toggle on={prefs.localMode} onClick={() => update({ localMode: !prefs.localMode })} />
           </Row>

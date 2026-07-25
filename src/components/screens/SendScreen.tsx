@@ -7,6 +7,8 @@ import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
 import { MAX_AUTO_RECONNECT, type UseSend } from '@/lib/useSend';
 import { ConnectionHint } from '@/components/ConnectionHint';
+import { OfflineToggle } from '@/components/OfflineToggle';
+import { getPrefs } from '@/lib/prefs';
 import { croc } from '@/lib/services/ipc';
 import { typeColor } from '@/lib/badge';
 import { copyText } from '@/lib/clipboard';
@@ -414,7 +416,11 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           <div className="font-heading text-[26px] font-semibold tracking-[.01em]">{heading}</div>
           <div className="mt-[3px] text-[13px] text-muted-foreground">{subtitle}</div>
         </div>
-        {chip && <StatusChip status={chip.s}>{chip.l}</StatusChip>}
+        <div className="flex shrink-0 items-center gap-2.5">
+          {/* Offline-mode shortcut — actionable before a transfer starts. */}
+          {(status === 'idle' || status === 'staging') && <OfflineToggle />}
+          {chip && <StatusChip status={chip.s}>{chip.l}</StatusChip>}
+        </div>
       </div>
 
       {/* reconnecting — auto-retry after a dropped transfer (keeps the same code) */}
@@ -755,7 +761,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             {error && <div className="text-[13px]">{error}</div>}
           </div>
           <div className="mt-3">
-            <ConnectionHint error={error} />
+            <ConnectionHint error={error} local={getPrefs().localMode} />
           </div>
           <div className="mt-3.5 flex gap-2.5">
             {!send.isText && send.entries.length > 0 ? (
