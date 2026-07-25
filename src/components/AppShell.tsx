@@ -118,8 +118,8 @@ export function AppShell() {
           {screen === 'receive' && <ReceiveScreen recv={recv} />}
           {screen === 'history' && (
             <HistoryScreen
-              onResend={(paths) => {
-                void send.stage(paths);
+              onResend={(paths, code) => {
+                void send.stage(paths, code);
                 setScreen('send');
               }}
             />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Moon, RefreshCw, RotateCw, Sun, X, Wifi } from 'lucide-react';
 import { getPrefs, setPrefs, setTheme, relayArg, type Prefs, type RelayMode, type Theme } from '@/lib/prefs';
 import { useUpdater } from '@/lib/updater';
+import { formatBytes } from '@/lib/utils';
 import { abbrevHome } from '@/lib/paths';
 import { croc, type CrocInfo, type RelayTest } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
@@ -77,12 +78,13 @@ export function SettingsScreen() {
   const update = (patch: Partial<Prefs>) => setLocal(setPrefs(patch));
   const updater = useUpdater();
 
+  const size = updater.totalBytes ? formatBytes(updater.totalBytes) : null;
   const updateStatus: string = {
     idle: `You're on v${__APP_VERSION__}`,
     checking: 'Checking for updates…',
     uptodate: `You're on the latest version (v${__APP_VERSION__})`,
-    available: `Version ${updater.version} is available`,
-    downloading: `Downloading update… ${Math.round(updater.progress * 100)}%`,
+    available: `Version ${updater.version} is available${size ? ` · ${size} download` : ''}`,
+    downloading: `Downloading update… ${Math.round(updater.progress * 100)}%${size ? ` · ${size}` : ''}`,
     ready: `Version ${updater.version} downloaded — restart to apply`,
     error: 'Could not check for updates',
   }[updater.status];
@@ -123,7 +125,9 @@ export function SettingsScreen() {
   const chooseRelay = (r: RelayMode) => update({ relay: r });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Whole screen scrolls (header included) so it blends into the gradient wash,
+    // rather than a fixed header over a scrolling body.
+    <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="px-8 pt-[26px]">
         <div className="font-heading text-[26px] font-semibold tracking-[.01em]">Settings</div>
         <div className="mt-[3px] text-[13px] text-muted-foreground">
@@ -131,7 +135,7 @@ export function SettingsScreen() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-8 pb-8 pt-5">
+      <div className="flex flex-col gap-[18px] px-8 pb-8 pt-5">
         <Card title="General">
           <Row title="Download folder" sub="Where received files are saved">
             <div className="flex min-w-0 items-center gap-2.5">

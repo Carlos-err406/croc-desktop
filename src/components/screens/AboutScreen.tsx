@@ -20,19 +20,19 @@ export function AboutScreen() {
   const updater = useUpdater();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="px-8 pt-[26px]">
-        <div className="font-heading text-[26px] font-semibold tracking-[.01em]">About</div>
-        <div className="mt-[3px] text-[13px] text-muted-foreground">
-          Croc Desktop and the tools it's built on.
+    // Whole screen scrolls (header included) so it blends into the gradient wash.
+    // `min-h-full` + `my-auto` centers the content when it fits and scrolls it
+    // (without clipping the top, which justify-center would) when it doesn't.
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-full flex-col px-8 pb-10">
+        <div className="pt-[26px]">
+          <div className="font-heading text-[26px] font-semibold tracking-[.01em]">About</div>
+          <div className="mt-[3px] text-[13px] text-muted-foreground">
+            Croc Desktop and the tools it's built on.
+          </div>
         </div>
-      </div>
 
-      {/* Scrollable so the content never gets cropped at the default window height
-          (esp. with both banners + the companion card showing); still vertically
-          centered when it does fit. */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-10 pt-6">
-        <div className="flex min-h-full flex-col items-center justify-center gap-6">
+        <div className="my-auto flex flex-col items-center gap-6 pt-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <CrocBadge size={72} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
           <div>

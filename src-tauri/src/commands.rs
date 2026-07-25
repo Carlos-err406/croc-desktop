@@ -63,16 +63,41 @@ pub async fn croc_update_size() -> Option<u64> {
         "linux"
     };
     let key = format!("{}-{}", os, std::env::consts::ARCH); // e.g. darwin-aarch64, linux-x86_64
-    let client = reqwest::Client::builder().build().ok()?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .ok()?;
     let body = client.get(MANIFEST).send().await.ok()?.text().await.ok()?;
     let manifest: serde_json::Value = serde_json::from_str(&body).ok()?;
     let url = manifest
         .get("platforms")?
         .get(&key)?
         .get("url")?
-        .as_str()?;
-    let resp = client.head(url).send().await.ok()?;
-    resp.content_length()
+        .as_str()?
+        .to_string();
+
+    // Prefer HEAD's Content-Length. But reqwest's content_length() can return None
+    // for a HEAD (it reads the empty body, not the header), so fall back to a ranged
+    // GET and parse the total out of `Content-Range: bytes 0-0/<total>` — 1 byte,
+    // rock-solid on GitHub's asset CDN.
+    if let Ok(resp) = client.head(&url).send().await {
+        if let Some(n) = resp.content_length().filter(|n| *n > 0) {
+            return Some(n);
+        }
+    }
+    let resp = client
+        .get(&url)
+        .header("Range", "bytes=0-0")
+        .send()
+        .await
+        .ok()?;
+    let total = resp
+        .headers()
+        .get("content-range")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.rsplit('/').next())
+        .and_then(|n| n.trim().parse::<u64>().ok());
+    total.or_else(|| resp.content_length().filter(|n| *n > 0))
 }
 
 #[derive(serde::Serialize)]

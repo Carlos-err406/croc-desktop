@@ -38,7 +38,7 @@ function Row({
   onDelete,
 }: {
   e: HistoryEntry;
-  onResend?: (paths: string[]) => void;
+  onResend?: (paths: string[], code?: string) => void;
   onDelete: (id: string) => void;
 }) {
   const isSend = e.kind === 'send';
@@ -70,8 +70,8 @@ function Row({
           variant="ghost"
           size="sm"
           className="shrink-0"
-          onClick={() => onResend(e.paths!)}
-          title="Send these files again"
+          onClick={() => onResend(e.paths!, e.code)}
+          title={e.code ? 'Send these files again with the same code' : 'Send these files again'}
         >
           <RotateCw /> Send again
         </Button>
@@ -92,7 +92,7 @@ function Row({
   );
 }
 
-export function HistoryScreen({ onResend }: { onResend?: (paths: string[]) => void }) {
+export function HistoryScreen({ onResend }: { onResend?: (paths: string[], code?: string) => void }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
 
@@ -115,7 +115,9 @@ export function HistoryScreen({ onResend }: { onResend?: (paths: string[]) => vo
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Whole screen scrolls (header + filter bar included) so it blends into the
+    // gradient wash, rather than a fixed header over a scrolling list.
+    <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="px-8 pt-[26px]">
         <div className="font-heading text-[26px] font-semibold tracking-[.01em]">History</div>
         <div className="mt-[3px] text-[13px] text-muted-foreground">
@@ -139,7 +141,7 @@ export function HistoryScreen({ onResend }: { onResend?: (paths: string[]) => vo
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 pb-7 pt-4">
+      <div className="px-8 pb-7 pt-4">
         {shown.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed border-border px-6 py-14 text-center">
             <div className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-secondary text-muted-foreground">

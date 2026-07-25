@@ -86,7 +86,7 @@ function reduce(v: SendState, e: CrocEvent): SendState {
 }
 
 export interface UseSend extends SendState {
-  stage: (paths: string[]) => Promise<void>;
+  stage: (paths: string[], code?: string) => Promise<void>;
   removeEntry: (path: string) => void;
   clear: () => void;
   begin: (customCode?: string) => Promise<void>;
@@ -95,6 +95,9 @@ export interface UseSend extends SendState {
   retry: () => Promise<void>;
   cancel: () => void;
   reset: () => void;
+  // One-shot: the code to prefill the custom-code field with (e.g. a history
+  // "Send again" reusing its original code). Returns it once, then clears.
+  takePresetCode: () => string | undefined;
 }
 
 export function useSend(): UseSend {
@@ -104,6 +107,7 @@ export function useSend(): UseSend {
   const autoAttemptRef = useRef(0); // auto-reconnect attempts used for the current transfer
   const reconnectTimerRef = useRef<number | null>(null);
   const failedNotifiedRef = useRef<string | null>(null); // transfer id we've already notified failure for
+  const presetCodeRef = useRef<string | undefined>(undefined); // code to prefill on next stage (history resend)
 
   function clearReconnect() {
     if (reconnectTimerRef.current !== null) {
@@ -187,10 +191,14 @@ export function useSend(): UseSend {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status]);
 
-  async function stage(paths: string[]) {
+  async function stage(paths: string[], code?: string) {
     if (!paths.length) return;
     clearReconnect();
     autoAttemptRef.current = 0;
+    // Remember a code to reuse (history "Send again"); the Send screen reads it via
+    // takePresetCode() when it mounts. Set synchronously (before any await) so it's
+    // ready by the time the screen re-renders.
+    if (code && code.trim().length >= 6) presetCodeRef.current = code.trim();
     const [, all] = await croc.statPaths(paths);
     if (!all) return;
     // Drop paths that no longer exist (e.g. re-staging a moved/deleted history entry).
@@ -376,5 +384,23 @@ export function useSend(): UseSend {
     setState(INITIAL);
   }
 
-  return { ...state, stage, removeEntry, clear, begin, sendText, addMore, retry, cancel, reset };
+  function takePresetCode(): string | undefined {
+    const c = presetCodeRef.current;
+    presetCodeRef.current = undefined;
+    return c;
+  }
+
+  return {
+    ...state,
+    stage,
+    removeEntry,
+    clear,
+    begin,
+    sendText,
+    addMore,
+    retry,
+    cancel,
+    reset,
+    takePresetCode,
+  };
 }

@@ -169,6 +169,15 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const [draft, setDraft] = useState('');
   // Optional custom transfer code (croc requires >= 6 chars); empty = random.
   const [customCode, setCustomCode] = useState('');
+  // Seed from a history "Send again" that wants to reuse its original code. Done in
+  // an effect (not the useState initializer) because takePresetCode() has a side
+  // effect (one-shot clear); StrictMode double-invokes initializers but preserves
+  // state across the double-mount, so consuming here stays correct.
+  useEffect(() => {
+    const preset = send.takePresetCode();
+    if (preset) setCustomCode(preset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const codeInvalid = customCode.trim().length > 0 && customCode.trim().length < 6;
   const pasteClipboard = async () => {
     try {
