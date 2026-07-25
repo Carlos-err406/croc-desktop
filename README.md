@@ -88,3 +88,7 @@ Releases are cut by pushing a `v*` tag: CI builds, signs, and auto-publishes the
 ## Credits
 
 Built on [schollz/croc](https://github.com/schollz/croc). Croc Desktop is an independent GUI and is not affiliated with the croc project.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
