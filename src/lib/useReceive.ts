@@ -271,7 +271,12 @@ export function useReceive(): UseReceive {
     const prefs = getPrefs();
     const [err, result] = await croc.receive(
       c,
-      { out: prefs.downloadDir || undefined, relay: relayArg(prefs), autoAccept: prefs.autoAccept },
+      {
+        out: prefs.downloadDir || undefined,
+        relay: relayArg(prefs),
+        autoAccept: prefs.autoAccept,
+        local: prefs.localMode,
+      },
       id
     );
     if (idRef.current !== id) return;

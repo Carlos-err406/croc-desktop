@@ -186,6 +186,7 @@ pub fn croc_send(
     relay: Option<String>,
     zip: Option<bool>,
     code: Option<String>,
+    local: Option<bool>,
 ) -> Result<CrocSendResult, String> {
     if paths.is_empty() {
         return Err("No files selected.".into());
@@ -199,7 +200,13 @@ pub fn croc_send(
     };
 
     let mut args: Vec<String> = Vec::new();
-    if let Some(r) = relay.filter(|s| !s.is_empty()) {
+    // Offline mode: `--local` (a global flag → before the subcommand) makes croc use
+    // only a LAN relay + mDNS discovery, no public relay/internet. It ignores --relay,
+    // so we skip it. Both peers must have this on and be on the same network.
+    let local = local.unwrap_or(false);
+    if local {
+        args.push("--local".into());
+    } else if let Some(r) = relay.filter(|s| !s.is_empty()) {
         args.push("--relay".into());
         args.push(r);
     }
@@ -244,6 +251,7 @@ pub fn croc_send_text(
     transfer_id: Option<String>,
     relay: Option<String>,
     code: Option<String>,
+    local: Option<bool>,
 ) -> Result<CrocSendResult, String> {
     if text.is_empty() {
         return Err("Nothing to send.".into());
@@ -255,7 +263,10 @@ pub fn croc_send_text(
     };
 
     let mut args: Vec<String> = Vec::new();
-    if let Some(r) = relay.filter(|s| !s.is_empty()) {
+    // Offline mode: LAN-only, ignores --relay (see croc_send).
+    if local.unwrap_or(false) {
+        args.push("--local".into());
+    } else if let Some(r) = relay.filter(|s| !s.is_empty()) {
         args.push("--relay".into());
         args.push(r);
     }
@@ -286,6 +297,7 @@ pub fn croc_receive(
     relay: Option<String>,
     transfer_id: Option<String>,
     auto_accept: Option<bool>,
+    local: Option<bool>,
 ) -> Result<CrocReceiveResult, String> {
     let trimmed = code.trim().to_string();
     if trimmed.is_empty() {
@@ -297,7 +309,11 @@ pub fn croc_receive(
         .unwrap_or_else(|| default_download_dir(&app));
 
     let mut args: Vec<String> = Vec::new();
-    if let Some(r) = relay.filter(|s| !s.is_empty()) {
+    // Offline mode: `--local` → discover the sender via mDNS on the LAN, no public
+    // relay. Ignores --relay (see croc_send). Both peers must be on the same network.
+    if local.unwrap_or(false) {
+        args.push("--local".into());
+    } else if let Some(r) = relay.filter(|s| !s.is_empty()) {
         args.push("--relay".into());
         args.push(r);
     }

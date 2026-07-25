@@ -239,7 +239,7 @@ export function useSend(): UseSend {
     }));
 
     const code = customCode?.trim() || undefined;
-    const [err, result] = await croc.send(paths, id, relayArg(), getPrefs().zipFolders, code);
+    const [err, result] = await croc.send(paths, id, relayArg(), getPrefs().zipFolders, code, getPrefs().localMode);
     if (idRef.current !== id) return; // superseded or reset while starting
     if (err || !result) {
       setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to start croc.' }));
@@ -264,7 +264,7 @@ export function useSend(): UseSend {
     setState(() => ({ ...INITIAL, isText: true, status: 'starting' }));
 
     const code = customCode?.trim() || undefined;
-    const [err, result] = await croc.sendText(msg, id, relayArg(), code);
+    const [err, result] = await croc.sendText(msg, id, relayArg(), code, getPrefs().localMode);
     if (idRef.current !== id) return;
     if (err || !result) {
       setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to start croc.' }));
@@ -303,7 +303,7 @@ export function useSend(): UseSend {
     // Give the relay a moment to release the code before re-registering it.
     await new Promise((r) => setTimeout(r, 500));
     if (idRef.current !== id) return;
-    const [err, result] = await croc.send(merged.map((e) => e.path), id, relayArg(), getPrefs().zipFolders, code);
+    const [err, result] = await croc.send(merged.map((e) => e.path), id, relayArg(), getPrefs().zipFolders, code, getPrefs().localMode);
     if (idRef.current !== id) return;
     if (err || !result) {
       setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to restart the transfer.' }));
@@ -335,6 +335,7 @@ export function useSend(): UseSend {
       relayArg(),
       getPrefs().zipFolders,
       prev?.code,
+      getPrefs().localMode,
     );
     if (idRef.current !== id) return;
     if (err || !result) {

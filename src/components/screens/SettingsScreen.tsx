@@ -159,16 +159,24 @@ export function SettingsScreen() {
         </Card>
 
         <Card title="Network">
-          <Row title="Relay" sub="Rendezvous server used to pair devices">
-            <div className="flex gap-2">
-              <RelayChoice active={prefs.relay === 'default'} onClick={() => chooseRelay('default')}>
-                Default (croc.schollz.com)
-              </RelayChoice>
-              <RelayChoice active={prefs.relay === 'custom'} onClick={() => chooseRelay('custom')}>
-                Custom…
-              </RelayChoice>
-            </div>
+          <Row
+            title="Offline mode (same network)"
+            sub="Transfer over local Wi-Fi only, no internet or relay. Both devices must turn this on and be on the same network. Not all networks allow it (some hotspots block local discovery)."
+          >
+            <Toggle on={prefs.localMode} onClick={() => update({ localMode: !prefs.localMode })} />
           </Row>
+          {/* The relay is unused in offline mode (croc --local bypasses it), so dim it. */}
+          <div className={prefs.localMode ? 'pointer-events-none opacity-40' : ''}>
+            <Row title="Relay" sub="Rendezvous server used to pair devices">
+              <div className="flex gap-2">
+                <RelayChoice active={prefs.relay === 'default'} onClick={() => chooseRelay('default')}>
+                  Default (croc.schollz.com)
+                </RelayChoice>
+                <RelayChoice active={prefs.relay === 'custom'} onClick={() => chooseRelay('custom')}>
+                  Custom…
+                </RelayChoice>
+              </div>
+            </Row>
           {prefs.relay === 'custom' && (
             <div className="px-5 pb-4">
               <Input
@@ -209,6 +217,7 @@ export function SettingsScreen() {
               {relayTest.result.address} — {relayTest.result.detail}
             </div>
           )}
+          </div>
         </Card>
 
         <Card title="Appearance">

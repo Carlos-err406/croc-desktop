@@ -49,13 +49,19 @@ export const croc = {
   info: () => call<CrocInfo>('croc_info'),
   updateSize: () => call<number | null>('croc_update_size'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
-  send: (paths: string[], transferId?: string, relay?: string, zip?: boolean, code?: string) =>
-    call<CrocSendResult>('croc_send', { paths, transferId, relay, zip, code }),
-  sendText: (text: string, transferId?: string, relay?: string, code?: string) =>
-    call<CrocSendResult>('croc_send_text', { text, transferId, relay, code }),
+  send: (
+    paths: string[],
+    transferId?: string,
+    relay?: string,
+    zip?: boolean,
+    code?: string,
+    local?: boolean
+  ) => call<CrocSendResult>('croc_send', { paths, transferId, relay, zip, code, local }),
+  sendText: (text: string, transferId?: string, relay?: string, code?: string, local?: boolean) =>
+    call<CrocSendResult>('croc_send_text', { text, transferId, relay, code, local }),
   receive: (
     code: string,
-    opts?: { out?: string; relay?: string; autoAccept?: boolean },
+    opts?: { out?: string; relay?: string; autoAccept?: boolean; local?: boolean },
     transferId?: string
   ) =>
     call<CrocReceiveResult>('croc_receive', {
@@ -64,6 +70,7 @@ export const croc = {
       relay: opts?.relay,
       transferId,
       autoAccept: opts?.autoAccept,
+      local: opts?.local,
     }),
   respond: (transferId: string, yes: boolean) => call<null>('croc_respond', { transferId, yes }),
   relayTest: (relay?: string) => call<RelayTest>('croc_relay_test', { relay }),
