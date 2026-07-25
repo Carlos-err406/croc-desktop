@@ -46,10 +46,17 @@ pub fn croc_default_dir(app: AppHandle) -> String {
 }
 
 #[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CrocInfo {
     pub path: Option<String>,
     pub version: Option<String>,
     pub bundled: bool,
+    /// The croc version the app expects to bundle (for the UI to flag a mismatch).
+    pub expected_version: String,
+    /// True when the resolved croc looks compatible with peers on the bundled
+    /// version: it's the bundled sidecar, or its version string contains the
+    /// expected version. False → likely a system croc that may break transfers.
+    pub compatible: bool,
 }
 
 /// Which croc binary the app resolved, whether it's the bundled sidecar, and its version.
@@ -70,10 +77,20 @@ pub fn croc_info() -> CrocInfo {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
     });
+    // Compatible if it's the bundled sidecar, or its reported version matches what
+    // we expect to bundle. A resolved-but-unknown version is treated as compatible
+    // (don't cry wolf when `--version` simply couldn't be read).
+    let compatible = bundled
+        || version
+            .as_deref()
+            .map(|v| v.contains(croc::EXPECTED_CROC_VERSION))
+            .unwrap_or(true);
     CrocInfo {
         path: resolved.map(|p| p.to_string_lossy().into_owned()),
         version,
         bundled,
+        expected_version: croc::EXPECTED_CROC_VERSION.to_string(),
+        compatible,
     }
 }
 

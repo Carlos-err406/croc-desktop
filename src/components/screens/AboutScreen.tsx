@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpCircle, Check, ExternalLink, Github, Lock, RotateCw, Smartphone } from 'lucide-react';
+import { AlertTriangle, ArrowUpCircle, Check, ExternalLink, Github, Lock, RotateCw, Smartphone } from 'lucide-react';
 import { croc, type CrocInfo } from '@/lib/services/ipc';
 import { useUpdater } from '@/lib/updater';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,25 @@ export function AboutScreen() {
             and text to any device with a one-time code, encrypted end-to-end, peer-to-peer.
           </p>
         </div>
+
+        {/* croc engine compatibility warning: the app resolved a croc that is NOT
+            the bundled one and whose version differs — transfers with peers on the
+            bundled version can fail. This is the key Linux "can't send" diagnostic. */}
+        {info && !info.compatible && (
+          <div className="flex w-[360px] items-start gap-2.5 rounded-[12px] border border-warning-text/50 bg-warning-surface px-4 py-3 text-[12px] text-warning-text">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <div>
+              <div className="font-semibold">Using a non-bundled croc</div>
+              <div className="mt-0.5 leading-relaxed">
+                This app is running{' '}
+                <span className="font-medium">{crocVersion || 'a system croc'}</span> from{' '}
+                <span className="break-all font-mono">{info.path ?? 'PATH'}</span>, not the bundled{' '}
+                {info.expectedVersion}. Transfers may fail with peers on the bundled version. Remove or
+                update the system croc so versions match.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Update status */}
         {updater.status === 'available' || updater.status === 'downloading' || updater.status === 'ready' ? (

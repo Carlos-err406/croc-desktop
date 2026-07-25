@@ -65,6 +65,13 @@ pub struct CrocReceiveResult {
 }
 
 // ── binary resolution + humanization ──────────────────────────────────────
+/// The croc version we bundle as the sidecar. MUST match `CROC_VERSION` in
+/// scripts/fetch-croc.mjs. Surfaced to the UI so it can warn when the app is
+/// running a *different* croc (a system croc on PATH), which breaks transfers
+/// with peers on the bundled version (croc is protocol-incompatible across the
+/// 10.4 → 10.5 line). Compared loosely (substring) against `croc --version`.
+pub const EXPECTED_CROC_VERSION: &str = "v10.4.14";
+
 fn croc_exe() -> &'static str {
     if cfg!(windows) {
         "croc.exe"
@@ -74,10 +81,26 @@ fn croc_exe() -> &'static str {
 }
 
 /// The croc binary bundled next to the app executable (Tauri externalBin sidecar).
+/// Tauri places it next to the main binary (/usr/bin on Linux .deb, usr/bin inside
+/// the AppImage mount, Contents/MacOS in the .app, alongside the .exe on Windows).
+/// We check the exe dir AND its symlink-resolved form (some Linux launchers exec
+/// through a symlink, which would otherwise make `parent()` point where the sidecar
+/// isn't) so we don't silently fall through to a possibly-incompatible system croc.
 pub fn bundled_croc_binary() -> Option<PathBuf> {
-    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-    let candidate = dir.join(croc_exe());
-    candidate.exists().then_some(candidate)
+    let exe = std::env::current_exe().ok()?;
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    if let Some(d) = exe.parent() {
+        dirs.push(d.to_path_buf());
+    }
+    if let Ok(real) = std::fs::canonicalize(&exe) {
+        if let Some(d) = real.parent().map(|p| p.to_path_buf()) {
+            if !dirs.contains(&d) {
+                dirs.push(d);
+            }
+        }
+    }
+    let name = croc_exe();
+    dirs.into_iter().map(|d| d.join(name)).find(|c| c.exists())
 }
 
 pub fn find_croc_binary() -> Option<PathBuf> {

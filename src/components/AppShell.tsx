@@ -11,6 +11,7 @@ import { HistoryScreen } from './screens/HistoryScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { AboutScreen } from './screens/AboutScreen';
 import { UpdateBanner } from './UpdateBanner';
+import { CrocCompatBanner } from './CrocCompatBanner';
 
 export type Screen = 'send' | 'receive' | 'history' | 'settings' | 'about';
 
@@ -109,6 +110,7 @@ export function AppShell() {
       <Sidebar screen={screen} onNavigate={setScreen} />
       <div className="croc-canvas flex min-h-0 min-w-0 flex-1 flex-col">
         <UpdateBanner />
+        <CrocCompatBanner />
         {/* Keyed so the screen re-plays its entrance on each navigation.
             min-h-0 lets inner overflow-y-auto regions (e.g. Settings) scroll. */}
         <div key={screen} className="croc-screen flex min-h-0 min-w-0 flex-1 flex-col">

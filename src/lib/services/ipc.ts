@@ -20,6 +20,9 @@ export interface CrocInfo {
   path: string | null;
   version: string | null;
   bundled: boolean;
+  expectedVersion: string;
+  /** False → a system croc that may be protocol-incompatible with peers on the bundled version. */
+  compatible: boolean;
 }
 
 export interface RelayTest {
