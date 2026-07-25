@@ -3,6 +3,7 @@ import { Bookmark, Check, Copy, Download, Folder, Loader2, MessageSquareText, Qr
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import { MAX_AUTO_RECONNECT, type UseReceive } from '@/lib/useReceive';
+import { ConnectionHint } from '@/components/ConnectionHint';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
 import { abbrevHome } from '@/lib/paths';
@@ -516,6 +517,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             <div className="mb-1 font-semibold">Couldn't receive</div>
             {recv.error && <div className="text-[13px]">{recv.error}</div>}
           </div>
+          <ConnectionHint error={recv.error} />
           <div className="flex gap-2.5">
             {recv.code.trim() ? (
               <>

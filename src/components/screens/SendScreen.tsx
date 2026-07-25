@@ -6,6 +6,7 @@ import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
 import { MAX_AUTO_RECONNECT, type UseSend } from '@/lib/useSend';
+import { ConnectionHint } from '@/components/ConnectionHint';
 import { croc } from '@/lib/services/ipc';
 import { typeColor } from '@/lib/badge';
 import { copyText } from '@/lib/clipboard';
@@ -743,6 +744,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           <div className="rounded-[14px] border border-error-text bg-error-surface p-4 text-error-text">
             <div className="mb-1 font-semibold">Transfer failed</div>
             {error && <div className="text-[13px]">{error}</div>}
+          </div>
+          <div className="mt-3">
+            <ConnectionHint error={error} />
           </div>
           <div className="mt-3.5 flex gap-2.5">
             {!send.isText && send.entries.length > 0 ? (
