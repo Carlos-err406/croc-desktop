@@ -45,6 +45,36 @@ pub fn croc_default_dir(app: AppHandle) -> String {
     default_download_dir(&app)
 }
 
+/// Size in bytes of the pending update's download for THIS platform, so the UI can
+/// show it before the user commits. Reads the updater manifest, picks the platform
+/// key (Rust knows os+arch exactly), and HEADs the asset. Best-effort → None on any
+/// failure (GitHub asset responses have no CORS headers, so this can't be done from
+/// the webview with fetch; hence a Rust request). Content-Length survives the 302.
+#[tauri::command]
+pub async fn croc_update_size() -> Option<u64> {
+    // Same manifest as plugins.updater.endpoints in tauri.conf.json.
+    const MANIFEST: &str =
+        "https://github.com/Carlos-err406/croc-desktop/releases/latest/download/latest.json";
+    let os = if cfg!(target_os = "macos") {
+        "darwin"
+    } else if cfg!(target_os = "windows") {
+        "windows"
+    } else {
+        "linux"
+    };
+    let key = format!("{}-{}", os, std::env::consts::ARCH); // e.g. darwin-aarch64, linux-x86_64
+    let client = reqwest::Client::builder().build().ok()?;
+    let body = client.get(MANIFEST).send().await.ok()?.text().await.ok()?;
+    let manifest: serde_json::Value = serde_json::from_str(&body).ok()?;
+    let url = manifest
+        .get("platforms")?
+        .get(&key)?
+        .get("url")?
+        .as_str()?;
+    let resp = client.head(url).send().await.ok()?;
+    resp.content_length()
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CrocInfo {
@@ -193,7 +223,7 @@ pub fn croc_send(
         false,
     )?;
 
-    let qr = croc::generate_qr_data_url(&croc::receive_link(&code));
+    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code));
     Ok(CrocSendResult {
         transfer_id,
         qr,
@@ -235,7 +265,7 @@ pub fn croc_send_text(
 
     croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone(), None, false)?;
 
-    let qr = croc::generate_qr_data_url(&croc::receive_link(&code));
+    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code));
     Ok(CrocSendResult {
         transfer_id,
         qr,

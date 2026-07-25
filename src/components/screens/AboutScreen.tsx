@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowUpCircle, Check, ExternalLink, Github, Lock, RotateCw, Smartphone } from 'lucide-react';
 import { croc, type CrocInfo } from '@/lib/services/ipc';
 import { useUpdater } from '@/lib/updater';
+import { formatBytes } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CrocBadge } from '@/components/CrocLogo';
 
@@ -27,7 +28,11 @@ export function AboutScreen() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 pb-10">
+      {/* Scrollable so the content never gets cropped at the default window height
+          (esp. with both banners + the companion card showing); still vertically
+          centered when it does fit. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-10 pt-6">
+        <div className="flex min-h-full flex-col items-center justify-center gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <CrocBadge size={72} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
           <div>
@@ -73,7 +78,10 @@ export function AboutScreen() {
           <div className="flex w-[300px] items-center gap-2.5 rounded-[12px] border border-brand/40 bg-brand-surface px-4 py-2.5 text-[13px] text-brand-deep">
             <ArrowUpCircle size={16} className="shrink-0" />
             {updater.status === 'downloading' ? (
-              <span className="flex-1">Downloading update… {Math.round(updater.progress * 100)}%</span>
+              <span className="flex-1">
+                Downloading update… {Math.round(updater.progress * 100)}%
+                {updater.totalBytes ? ` · ${formatBytes(updater.totalBytes)}` : ''}
+              </span>
             ) : updater.status === 'ready' ? (
               <>
                 <span className="flex-1">Update{updater.version ? ` v${updater.version}` : ''} ready</span>
@@ -83,7 +91,10 @@ export function AboutScreen() {
               </>
             ) : (
               <>
-                <span className="flex-1">Version {updater.version} available</span>
+                <span className="flex-1">
+                  Version {updater.version} available
+                  {updater.totalBytes ? ` · ${formatBytes(updater.totalBytes)}` : ''}
+                </span>
                 <Button size="sm" onClick={() => void updater.install()}>Update now</Button>
               </>
             )}
@@ -121,6 +132,7 @@ export function AboutScreen() {
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Lock size={12} className="text-success-text" /> End-to-end encrypted · nothing stored in the cloud
+        </div>
         </div>
       </div>
     </div>

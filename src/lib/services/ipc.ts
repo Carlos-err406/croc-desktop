@@ -47,6 +47,7 @@ export const croc = {
   pickFolder: () => call<string>('croc_pick_folder'),
   defaultDir: () => call<string>('croc_default_dir'),
   info: () => call<CrocInfo>('croc_info'),
+  updateSize: () => call<number | null>('croc_update_size'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (paths: string[], transferId?: string, relay?: string, zip?: boolean, code?: string) =>
     call<CrocSendResult>('croc_send', { paths, transferId, relay, zip, code }),

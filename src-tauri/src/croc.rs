@@ -212,11 +212,15 @@ fn pct(code: &str) -> String {
     s
 }
 
-/// The shareable https link that opens the app into receiving this code — a
-/// verified Android App Link, and on desktop the page hands off to croc://.
-/// (The QR encodes this so a phone camera can open it directly.)
-pub fn receive_link(code: &str) -> String {
-    format!("https://carlos-err406.github.io/croc/receive?code={}", pct(code))
+// The shareable https App Link ("Copy link") is built on the frontend
+// (SendScreen), so there's no backend helper for it — only the QR's deep link.
+
+/// The `croc://` deep link for a code. The QR encodes THIS (not the https link):
+/// scanning it with a phone camera / QR app opens the installed app directly via
+/// the custom scheme, whereas a scanned https App Link doesn't reliably hand off.
+/// Every scanner (Android app, Croc Desktop) still parses the code out of it.
+pub fn receive_deeplink(code: &str) -> String {
+    format!("croc://receive?code={}", pct(code))
 }
 
 pub fn generate_qr_data_url(code: &str) -> Option<String> {

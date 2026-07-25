@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { croc } from './services/ipc';
 import { getPrefs } from './prefs';
 
 export type UpdateStatus =
@@ -16,6 +17,7 @@ interface UpdaterCtx {
   status: UpdateStatus;
   version: string | null; // the available / installed update version
   progress: number; // 0..1 while downloading
+  totalBytes: number | null; // download size, if known (prefetched, or from the download)
   error: string | null;
   check: (opts?: { manual?: boolean }) => Promise<void>;
   install: () => Promise<void>;
@@ -39,6 +41,7 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [version, setVersion] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [totalBytes, setTotalBytes] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const updateRef = useRef<Update | null>(null);
   const started = useRef(false);
@@ -52,8 +55,10 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
       let total = 0;
       let received = 0;
       await update.downloadAndInstall((e) => {
-        if (e.event === 'Started') total = e.data.contentLength ?? 0;
-        else if (e.event === 'Progress') {
+        if (e.event === 'Started') {
+          total = e.data.contentLength ?? 0;
+          if (total) setTotalBytes(total); // authoritative once the download starts
+        } else if (e.event === 'Progress') {
           received += e.data.chunkLength;
           setProgress(total ? Math.min(1, received / total) : 0);
         } else if (e.event === 'Finished') setProgress(1);
@@ -77,6 +82,9 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
       if (update) {
         updateRef.current = update;
         setVersion(update.version);
+        // Best-effort: learn the download size so the "available" prompt can show it
+        // (the actual download later confirms it via contentLength).
+        void croc.updateSize().then(([, size]) => size && setTotalBytes(size));
         if (getPrefs().autoUpdate) await install();
         else setStatus('available');
       } else {
@@ -105,7 +113,7 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ status, version, progress, error, check: runCheck, install, restart, dismiss }}
+      value={{ status, version, progress, totalBytes, error, check: runCheck, install, restart, dismiss }}
     >
       {children}
     </Ctx.Provider>
