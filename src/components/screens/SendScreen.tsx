@@ -7,7 +7,7 @@ import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
 import { MAX_AUTO_RECONNECT, type UseSend } from '@/lib/useSend';
 import { ConnectionHint } from '@/components/ConnectionHint';
-import { OfflineToggle } from '@/components/OfflineToggle';
+import { LocalToggle } from '@/components/LocalToggle';
 import { getPrefs } from '@/lib/prefs';
 import { croc } from '@/lib/services/ipc';
 import { typeColor } from '@/lib/badge';
@@ -417,8 +417,8 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           <div className="mt-[3px] text-[13px] text-muted-foreground">{subtitle}</div>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
-          {/* Offline-mode shortcut — actionable before a transfer starts. */}
-          {(status === 'idle' || status === 'staging') && <OfflineToggle />}
+          {/* Local-only shortcut — actionable before a transfer starts. */}
+          {(status === 'idle' || status === 'staging') && <LocalToggle />}
           {chip && <StatusChip status={chip.s}>{chip.l}</StatusChip>}
         </div>
       </div>

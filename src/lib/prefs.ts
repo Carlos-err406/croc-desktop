@@ -11,7 +11,7 @@ export interface Prefs {
   autoUpdate: boolean; // automatically download & install updates on launch
   notify: boolean; // OS notification when a transfer finishes (while app is unfocused)
   autoAccept: boolean; // receive files without prompting to accept/overwrite
-  localMode: boolean; // offline: LAN-only (croc --local), no public relay/internet
+  localMode: boolean; // local-only: LAN-only (croc --local), no public relay/internet
 }
 
 const KEY = 'croc.prefs';

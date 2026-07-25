@@ -164,12 +164,12 @@ export function SettingsScreen() {
 
         <Card title="Network">
           <Row
-            title="Offline mode (same network)"
+            title="Local-only mode (same network)"
             sub="Transfer over a local Wi-Fi network only — no internet or relay. Both devices must turn this on and be on the same Wi-Fi. Won't work over most phone hotspots — they isolate devices and block the local discovery this needs; use a real Wi-Fi router (it can be one with no internet)."
           >
             <Toggle on={prefs.localMode} onClick={() => update({ localMode: !prefs.localMode })} />
           </Row>
-          {/* The relay is unused in offline mode (croc --local bypasses it), so dim it. */}
+          {/* The relay is unused in local-only mode (croc --local bypasses it), so dim it. */}
           <div className={prefs.localMode ? 'pointer-events-none opacity-40' : ''}>
             <Row title="Relay" sub="Rendezvous server used to pair devices">
               <div className="flex gap-2">

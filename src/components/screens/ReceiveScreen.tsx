@@ -4,7 +4,7 @@ import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import { MAX_AUTO_RECONNECT, type UseReceive } from '@/lib/useReceive';
 import { ConnectionHint } from '@/components/ConnectionHint';
-import { OfflineToggle } from '@/components/OfflineToggle';
+import { LocalToggle } from '@/components/LocalToggle';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
 import { abbrevHome } from '@/lib/paths';
@@ -226,8 +226,8 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                     : 'Get files someone is sending you.'}
           </div>
         </div>
-        {/* Offline-mode shortcut — actionable before a receive starts. */}
-        {status === 'idle' && <OfflineToggle />}
+        {/* Local-only shortcut — actionable before a receive starts. */}
+        {status === 'idle' && <LocalToggle />}
       </div>
 
       {/* Interactive prompt: croc is blocked waiting for the user to accept /

@@ -20,7 +20,7 @@ export function looksLikeConnectionIssue(error: string | null | undefined): bool
 /**
  * Actionable guidance shown under a failed transfer when it looks like a
  * connection problem. Two flavors:
- *  - Offline mode on (or a "no peer found" error): the LAN discovery came up empty
+ *  - Local-only mode on (or a "no peer found" error): the LAN discovery came up empty
  *    — almost always because a phone hotspot blocks it; point to a Wi-Fi router.
  *  - Otherwise: a VPN is the most common cause (it breaks croc's peer handshake
  *    even when the relay is reachable), then restricted networks.
@@ -43,7 +43,7 @@ export function ConnectionHint({
           <Wifi size={14} className="shrink-0" /> No device found on the local network
         </div>
         <p className="mt-1 leading-relaxed">
-          Offline mode looks for the other device over the local network — but{' '}
+          Local-only mode looks for the other device over the local network — but{' '}
           <span className="font-medium text-foreground">phone hotspots block this</span> (they isolate the
           devices connected to them).
         </p>
@@ -53,10 +53,10 @@ export function ConnectionHint({
             network — it can even be one with no internet), not a phone hotspot.
           </li>
           <li>
-            Make sure <span className="italic">both</span> devices have offline mode on and are on the same
-            Wi-Fi.
+            Make sure <span className="italic">both</span> devices have local-only mode on and are on the
+            same Wi-Fi.
           </li>
-          <li>Or turn offline mode off on both to pair over the internet instead.</li>
+          <li>Or turn local-only mode off on both to pair over the internet instead.</li>
         </ul>
       </div>
     );
