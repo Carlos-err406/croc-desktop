@@ -1,69 +1,90 @@
 # Croc Desktop
 
-A cross-platform (macOS / Windows / Linux) desktop GUI for [**croc**](https://github.com/schollz/croc), schollz's secure peer-to-peer file transfer tool.
+A friendly, cross-platform (**macOS · Windows · Linux**) desktop app for [**croc**](https://github.com/schollz/croc) — schollz's secure peer-to-peer file transfer tool.
 
-Drag in a file or folder → get a code → share it. The receiver runs `croc`, enters the code, and the transfer runs end-to-end encrypted through croc's PAKE relay. No account, no cloud storage.
+Drop in a file, folder, or some text → get a one-time code (and a QR) → share it. The other device enters the code and the transfer runs **end-to-end encrypted, straight between the two machines**. No account, no cloud storage, nothing kept on a server.
 
-> **v1 is send-only** (drag & drop → code + QR → live progress). Receive, transfer history, and relay/settings are planned.
+<p align="center">
+  <img src="screenshots/send.png" alt="Sharing a transfer: one-time code, QR, and live connection status" width="820">
+</p>
+
+## Features
+
+- **Send files, folders, or text** — drag & drop, a file/folder picker, or paste (⌘/Ctrl-V) images, text, or copied files.
+- **One-time code + QR** — share the code, or let the peer scan the QR. The QR encodes a `croc://` deep link, so a phone camera opens the companion app straight into receiving.
+- **Receive** — type or paste a code, or scan a QR with your camera. Auto-fills a code from the clipboard.
+- **Live progress** on a per-file timeline, mirrored onto the Dock/taskbar.
+- **Self-healing transfers** — a dropped transfer **auto-reconnects** (both ends retry the same code), and interrupted downloads **resume** from where they left off instead of restarting.
+- **Auto-accept or review** incoming files, with desktop notifications when a transfer finishes or needs you.
+- **Transfer history** — re-send or reveal past transfers; nothing leaves the device.
+- **Custom & bookmarked codes**, a relay picker + reachability test, and light/dark themes.
+- **Deep links** — `croc://` and shareable `https://` links open the app straight into receiving.
+- **Self-contained** — the correct `croc` binary is **bundled**, so there's nothing to install. It **auto-updates** itself, signed.
+
+## Screenshots
+
+| Receive | History |
+| --- | --- |
+| ![Receive](screenshots/receive.png) | ![History](screenshots/history.png) |
+
+| Settings | About |
+| --- | --- |
+| ![Settings](screenshots/settings.png) | ![About](screenshots/about.png) |
+
+## Install
+
+Grab the latest build from the [**Releases**](https://github.com/Carlos-err406/croc-desktop/releases/latest) page:
+
+- **macOS** — `.dmg` (universal). The app is not notarized, so on first launch right-click → **Open** (or *System Settings → Privacy & Security → Open Anyway*).
+- **Windows** — `.exe` installer.
+- **Linux** — `.AppImage` (portable) or `.deb`.
+
+The app updates itself automatically from then on (toggleable in Settings).
+
+## Android companion
+
+Pair with your phone using the recommended companion app, [**croc-app**](https://github.com/Dking08/croc-app) — scan the desktop QR to receive, or send from the phone to the desktop. There's a link to it on the **About** screen.
 
 ## How it works
 
-Croc Desktop does **not** reimplement the croc protocol — it drives the real, battle-tested `croc` CLI and parses its output.
+Croc Desktop does **not** reimplement the croc protocol — it drives the real `croc` CLI and parses its output.
 
-- **`croc`'s progress output is TTY-gated** (it prints nothing to a plain pipe), so transfers are spawned through a **pseudo-terminal** ([`node-pty`](https://github.com/microsoft/node-pty)). This is the only reliable way to capture the live progress bar cross-platform.
-- We generate the code phrase ourselves and pass it via `croc send --code <code>`, so there's no fragile stdout parsing for the code.
-- Progress/status is streamed from the main process to the renderer over a `croc:event` IPC channel and rendered with a shadcn/ui progress bar.
-
-`croc` must be available at runtime — found via `CROC_BIN`, a bundled binary in the packaged app, or on `PATH` (e.g. `brew install croc`).
+- **`croc`'s progress output is TTY-gated** (it prints nothing to a plain pipe), so transfers run through a **pseudo-terminal** ([`portable-pty`](https://crates.io/crates/portable-pty)) — the only reliable way to capture the live progress bar cross-platform.
+- The code phrase is generated app-side and passed via the `CROC_SECRET` env var (croc v10 refuses a code as a plain CLI arg), so there's no fragile stdout parsing for the code.
+- Status/progress is parsed in Rust and **streamed to the UI over a Tauri event channel**, then rendered with the app's own progress timeline.
+- The matching `croc` binary is **bundled as a sidecar** (pinned to a version compatible with the Android app), preferred over any system `croc`.
 
 ## Stack
 
-- **Electron** + [`vite-plugin-electron`](https://github.com/electron-vite/vite-plugin-electron) (Vite 5)
-- **React 18 + TypeScript**
+- **[Tauri v2](https://tauri.app)** — Rust backend, native webview (no bundled Chromium)
+- **React 18 + TypeScript**, **Vite**
 - **Tailwind CSS v4** + **shadcn/ui** (new-york)
-- `node-pty` (pseudo-terminal), `qrcode` (receiver QR)
-
-## Project layout
-
-```
-electron/
-  main.ts                 app entry: window + IPC registration
-  preload.ts              exposes window.ipc via contextBridge
-  lib/
-    croc.ts               CrocSend: spawns croc via node-pty, parses events
-    codephrase.ts         human-friendly code generator
-    window.ts, config.ts  window creation + paths
-  ipc/croc/               feature IPC module
-    channels.ts           channel names + streamed event types
-    main.ts               handlers (send, cancel, pick, show) + $try
-    preload.ts            invoker factory (+ onCrocEvent stream, pathForFile)
-src/
-  app.tsx, main.tsx
-  components/app/          Dropzone, SendApp (state machine), SendPanel
-  components/ui/           shadcn components
-  lib/services/ipc.ts      typed wrapper over window.ipc
-utils/try.ts               Go-style [error, result] helper
-```
+- Rust: `portable-pty` (pseudo-terminal), `qrcode` (QR), `reqwest`; Tauri plugins for updater, deep-link, single-instance, notifications, dialog, opener
 
 ## Develop
 
-```bash
-npm install        # also rebuilds node-pty for Electron's ABI (install-app-deps)
-npm run dev        # Vite dev server + Electron with HMR
-```
-
-## Build installers
+Prerequisites: **Node.js**, **Rust** (stable), and the [Tauri v2 system prerequisites](https://tauri.app/start/prerequisites/) for your OS. The bundled `croc` binary is fetched automatically (`scripts/fetch-croc.mjs`) — no Go toolchain needed for the desktop build.
 
 ```bash
-npm run build          # current OS
-npm run build:mac      # dmg + zip (x64 + arm64)
-npm run build:win      # nsis
-npm run build:linux    # AppImage + deb
+npm install
+npm run dev        # Tauri dev: fetches croc, starts Vite + the app with HMR
 ```
 
-Output lands in `dist-release/`.
+Useful checks:
 
-## Notes
+```bash
+npm run typecheck  # tsc --noEmit
+npm run build:vite # type-check + build the frontend only
+```
 
-- The dev-only "Insecure Content-Security-Policy" console warning is expected; Electron suppresses it in packaged builds. A production CSP is a planned hardening step.
-- To bundle a `croc` binary with the installer, drop platform binaries under `vendor/croc/<os>/<arch>/` and wire them into `electron-builder.json5` `extraResources`. Otherwise the app uses `croc` from `PATH`.
+## Build
+
+```bash
+npm run build      # tauri build → .dmg / .exe / .AppImage / .deb for the current OS
+```
+
+Releases are cut by pushing a `v*` tag: CI builds, signs, and auto-publishes the installers plus the updater manifest for all three platforms.
+
+## Credits
+
+Built on [schollz/croc](https://github.com/schollz/croc). Croc Desktop is an independent GUI and is not affiliated with the croc project.
