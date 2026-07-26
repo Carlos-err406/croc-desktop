@@ -19,6 +19,20 @@ pub fn croc_take_opened_files(state: State<OpenedPaths>) -> Vec<String> {
     std::mem::take(&mut *state.0.lock().unwrap())
 }
 
+/// The extra croc flags a CLI receiver needs to match this send's embedded
+/// settings — appended to the copyable `CROC_SECRET=… croc` command so a terminal
+/// user lines up with the QR/link. `--local` (LAN-only) ignores the relay, mirroring
+/// how the app builds its own args.
+fn recv_flags(local: bool, relay: &Option<String>) -> String {
+    if local {
+        " --local".into()
+    } else if let Some(r) = relay.as_deref().filter(|s| !s.is_empty()) {
+        format!(" --relay {r}")
+    } else {
+        String::new()
+    }
+}
+
 fn gen_id() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -229,11 +243,12 @@ pub fn croc_send(
     // only a LAN relay + mDNS discovery, no public relay/internet. It ignores --relay,
     // so we skip it. Both peers must have this on and be on the same network.
     let local = local.unwrap_or(false);
+    let custom_relay = relay.filter(|s| !s.is_empty()); // kept for the copy command too
     if local {
         args.push("--local".into());
-    } else if let Some(r) = relay.filter(|s| !s.is_empty()) {
+    } else if let Some(r) = &custom_relay {
         args.push("--relay".into());
-        args.push(r);
+        args.push(r.clone());
     }
     args.push("send".into());
     if zip.unwrap_or(false) {
@@ -262,7 +277,7 @@ pub fn croc_send(
         qr,
         receive_command: ReceiveCommand {
             code: code.clone(),
-            posix: format!("CROC_SECRET={code} croc"),
+            posix: format!("CROC_SECRET={code} croc{}", recv_flags(local, &custom_relay)),
             interactive: "croc   # then paste the code when prompted".into(),
         },
         receive_link: croc::receive_link(&code, local),
@@ -291,11 +306,13 @@ pub fn croc_send_text(
 
     let mut args: Vec<String> = Vec::new();
     // Offline mode: LAN-only, ignores --relay (see croc_send).
-    if local.unwrap_or(false) {
+    let local = local.unwrap_or(false);
+    let custom_relay = relay.filter(|s| !s.is_empty());
+    if local {
         args.push("--local".into());
-    } else if let Some(r) = relay.filter(|s| !s.is_empty()) {
+    } else if let Some(r) = &custom_relay {
         args.push("--relay".into());
-        args.push(r);
+        args.push(r.clone());
     }
     args.push("send".into());
     args.push("--text".into());
@@ -304,16 +321,16 @@ pub fn croc_send_text(
     croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone(), None, false)?;
 
     // Embed the send's local-only setting so the receiver auto-applies it.
-    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code, local.unwrap_or(false)));
+    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code, local));
     Ok(CrocSendResult {
         transfer_id,
         qr,
         receive_command: ReceiveCommand {
             code: code.clone(),
-            posix: format!("CROC_SECRET={code} croc"),
+            posix: format!("CROC_SECRET={code} croc{}", recv_flags(local, &custom_relay)),
             interactive: "croc   # then paste the code when prompted".into(),
         },
-        receive_link: croc::receive_link(&code, local.unwrap_or(false)),
+        receive_link: croc::receive_link(&code, local),
         code,
     })
 }
