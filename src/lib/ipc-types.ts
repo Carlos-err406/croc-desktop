@@ -41,6 +41,7 @@ export interface CrocSendResult {
   code: string;
   qr: string | null;
   receiveCommand: ReceiveCommand;
+  receiveLink: string;
 }
 
 export interface CrocReceiveResult {

@@ -265,6 +265,7 @@ pub fn croc_send(
             posix: format!("CROC_SECRET={code} croc"),
             interactive: "croc   # then paste the code when prompted".into(),
         },
+        receive_link: croc::receive_link(&code, local),
         code,
     })
 }
@@ -312,6 +313,7 @@ pub fn croc_send_text(
             posix: format!("CROC_SECRET={code} croc"),
             interactive: "croc   # then paste the code when prompted".into(),
         },
+        receive_link: croc::receive_link(&code, local.unwrap_or(false)),
         code,
     })
 }

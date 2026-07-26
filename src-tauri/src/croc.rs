@@ -55,6 +55,7 @@ pub struct CrocSendResult {
     pub code: String,
     pub qr: Option<String>,
     pub receive_command: ReceiveCommand,
+    pub receive_link: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -225,6 +226,17 @@ fn pct(code: &str) -> String {
 /// as further `&key=value` params, which the parser already tolerates.
 pub fn receive_deeplink(code: &str, local: bool) -> String {
     let mut s = format!("croc://receive?code={}", pct(code));
+    if local {
+        s.push_str("&local=1");
+    }
+    s
+}
+
+/// The shareable https App Link ("Copy link") for a code. Mirrors the deep link
+/// above, embedding the sender's local-only setting so the receiver auto-applies
+/// it, and keeping the link consistent with what the QR already encodes.
+pub fn receive_link(code: &str, local: bool) -> String {
+    let mut s = format!("https://carlos-err406.github.io/croc/receive?code={}", pct(code));
     if local {
         s.push_str("&local=1");
     }

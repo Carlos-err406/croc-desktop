@@ -596,7 +596,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   </Button>
                   <div className="flex justify-center gap-2.5">
                     <CopyPill value={result.code} label="Copy code" icon="code" />
-                    <CopyPill value={`https://carlos-err406.github.io/croc/receive?code=${encodeURIComponent(result.code)}`} label="Copy link" icon="link" />
+                    <CopyPill value={result.receiveLink} label="Copy link" icon="link" />
                     <CopyPill value={result.receiveCommand.posix} label="Copy command" icon="cmd" />
                   </div>
                   <div className="flex items-center justify-center gap-[7px] text-xs text-muted-foreground">
