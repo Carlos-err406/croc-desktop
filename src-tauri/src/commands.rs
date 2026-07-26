@@ -114,6 +114,53 @@ pub async fn croc_update_size() -> Option<u64> {
     total.or_else(|| resp.content_length().filter(|n| *n > 0))
 }
 
+/// Deep links are emitted to EVERY window (`app.emit` broadcasts), so with more than
+/// one window open they'd each start the same receive — and croc rooms are 1:1, so the
+/// losers fail with "room full". This lets exactly one window claim a URL: the first
+/// caller gets `true`, repeats of the same URL within a short window get `false`.
+/// Time-boxed rather than permanent so genuinely re-clicking a link later still works.
+#[derive(Default)]
+pub struct ClaimedUrls(pub Mutex<Option<(String, std::time::Instant)>>);
+
+#[tauri::command]
+pub fn croc_claim_url(state: State<ClaimedUrls>, url: String) -> bool {
+    const DEDUPE_WINDOW: std::time::Duration = std::time::Duration::from_secs(3);
+    let mut last = state.0.lock().unwrap();
+    if let Some((prev, at)) = last.as_ref() {
+        if prev == &url && at.elapsed() < DEDUPE_WINDOW {
+            return false; // another window already took this one
+        }
+    }
+    *last = Some((url, std::time::Instant::now()));
+    true
+}
+
+/// Open another app window in THIS instance, so several transfers can run at once
+/// (the app tracks one send + one receive per window). Built in Rust rather than
+/// from JS so it needs no window-creation permission; the new label matches the
+/// `win-*` pattern in capabilities/default.json, which is what grants the new
+/// window its IPC permissions — without that it would load but every call would fail.
+#[tauri::command]
+pub fn croc_new_window(app: AppHandle) -> Result<String, String> {
+    use tauri::{WebviewUrl, WebviewWindowBuilder};
+    // Unique, capability-matching label.
+    let label = format!(
+        "win-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    );
+    WebviewWindowBuilder::new(&app, &label, WebviewUrl::default())
+        .title("Croc Desktop")
+        .inner_size(1120.0, 720.0)
+        .min_inner_size(940.0, 640.0)
+        .resizable(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(label)
+}
+
 /// A "send to me" invite: the code the receiver will wait on, plus the QR and links
 /// that put a scanner straight into its Send screen (reverse pairing).
 #[derive(serde::Serialize)]

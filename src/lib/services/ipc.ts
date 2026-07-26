@@ -56,6 +56,10 @@ export const croc = {
   info: () => call<CrocInfo>('croc_info'),
   /** Mint (or reuse) a code + build the "send to me" QR/links (reverse pairing). */
   invite: (code?: string) => call<CrocInvite>('croc_invite', { code }),
+  /** Open another window in this instance (parallel transfers). */
+  newWindow: () => call<string>('croc_new_window'),
+  /** Claim a deep-link URL so only one window acts on it (events broadcast). */
+  claimUrl: (url: string) => call<boolean>('croc_claim_url', { url }),
   updateSize: () => call<number | null>('croc_update_size'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (

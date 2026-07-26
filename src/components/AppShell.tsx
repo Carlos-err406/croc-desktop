@@ -26,6 +26,7 @@ export function AppShell() {
     primeNotifications();
   }, []);
 
+
   // "Open With → Croc Desktop" (or files dropped on the dock icon): stage them to
   // send. Drain on launch (cold open) and whenever the OS pings while running.
   useEffect(() => {
@@ -45,12 +46,16 @@ export function AppShell() {
   // Deep links: a croc:// link (or scanned QR of one) opens the app and starts
   // receiving that code. Handles cold launch (getCurrent) and while-running.
   useEffect(() => {
-    const handleUrls = (urls: string[] | null) => {
+    const handleUrls = async (urls: string[] | null) => {
       for (const u of urls ?? []) {
         // Only croc:// links open the app while running (the OS routes them here).
         if (!u.startsWith('croc://')) continue;
         const target = parseReceiveTarget(u);
         if (!target) continue;
+        // Deep links broadcast to EVERY window; claim so exactly one acts on it
+        // (two windows receiving the same code would collide — croc rooms are 1:1).
+        const [, mine] = await croc.claimUrl(u);
+        if (mine === false) break;
         if (target.action === 'send') {
           // Reverse pairing: they published "send to me with this code". Land on
           // Send with the code pre-filled; the user picks files and hits send.
@@ -65,9 +70,9 @@ export function AppShell() {
         break;
       }
     };
-    getCurrentDeepLink().then(handleUrls).catch(() => {});
+    getCurrentDeepLink().then((u) => void handleUrls(u)).catch(() => {});
     let unsub: (() => void) | undefined;
-    onOpenUrl((urls) => handleUrls(urls))
+    onOpenUrl((urls) => void handleUrls(urls))
       .then((f) => (unsub = f))
       .catch(() => {});
     return () => unsub?.();

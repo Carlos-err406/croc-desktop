@@ -20,7 +20,13 @@ fn stage_opened_paths(app: &tauri::AppHandle, paths: Vec<String>) {
         .unwrap()
         .extend(paths);
     let _ = app.emit("croc://open-files", ());
-    if let Some(w) = app.get_webview_window("main") {
+    // takeOpenedFiles() drains the buffer, so with several windows open only the
+    // first responder actually stages them. Focus main if it's still around,
+    // otherwise any window (main can be closed once multi-window is in play).
+    if let Some(w) = app
+        .get_webview_window("main")
+        .or_else(|| app.webview_windows().into_values().next())
+    {
         let _ = w.set_focus();
     }
 }
@@ -73,6 +79,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(CrocState::default())
         .manage(commands::OpenedPaths::default())
+        .manage(commands::ClaimedUrls::default())
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -87,6 +94,36 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            // Native menu: keep Tauri's defaults (the standard macOS app/Edit/Window
+            // menus come from there — rebuilding by hand would drop them) and inject
+            // "New Window" into the existing File submenu. The accelerator lives here
+            // rather than a JS keydown handler, so there's exactly one ⌘N path.
+            {
+                use tauri::menu::{Menu, MenuItem};
+                let menu = Menu::default(app.handle())?;
+                let new_window = MenuItem::with_id(
+                    app.handle(),
+                    "new_window",
+                    "New Window",
+                    true,
+                    Some("CmdOrCtrl+N"),
+                )?;
+                for item in menu.items()? {
+                    if let Some(sub) = item.as_submenu() {
+                        if sub.text().unwrap_or_default() == "File" {
+                            sub.prepend(&new_window)?;
+                            break;
+                        }
+                    }
+                }
+                app.set_menu(menu)?;
+                app.on_menu_event(|app, event| {
+                    if event.id() == "new_window" {
+                        let _ = commands::croc_new_window(app.clone());
+                    }
+                });
+            }
+
             // Cold-start Open-With on Windows/Linux: the file arrives in argv
             // (macOS delivers it via RunEvent::Opened instead). Buffer it now; the
             // frontend drains OpenedPaths via takeOpenedFiles() on launch.
@@ -108,6 +145,8 @@ pub fn run() {
             commands::croc_default_dir,
             commands::croc_info,
             commands::croc_invite,
+            commands::croc_new_window,
+            commands::croc_claim_url,
             commands::croc_update_size,
             commands::croc_stat_paths,
             commands::croc_pick_paths,
