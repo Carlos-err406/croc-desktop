@@ -255,6 +255,26 @@ fn croc_version_param() -> String {
     format!("&v={}", pct(EXPECTED_CROC_VERSION.trim_start_matches('v')))
 }
 
+// ── reverse pairing: "send to me" ─────────────────────────────────────────
+// The mirror of the links above. A RECEIVER publishes one of these ("scan to send
+// me a file"); the scanner sees action=send and opens its Send screen pre-filled
+// with the code, instead of trying to receive. Same `&v=` version hint applies.
+
+/// `croc://send?code=…` — deep link asking the opener to SEND to this code.
+pub fn send_deeplink(code: &str) -> String {
+    format!("croc://send?code={}{}", pct(code), croc_version_param())
+}
+
+/// The https twin of [`send_deeplink`], for sharing the request in chat. The Pages
+/// `/croc/send` route hands off to the `croc://send` deep link.
+pub fn send_link(code: &str) -> String {
+    format!(
+        "https://carlos-err406.github.io/croc/send?code={}{}",
+        pct(code),
+        croc_version_param()
+    )
+}
+
 pub fn generate_qr_data_url(code: &str) -> Option<String> {
     use qrcode::{render::svg, QrCode};
     let qr = QrCode::new(code.as_bytes()).ok()?;

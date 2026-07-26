@@ -8,21 +8,18 @@ carlos-err406.github.io). Feasibility notes call out croc's own constraints.
 
 ## Next up (flagged 2026-07-25)
 
-### 1. Reverse pairing — "Receive with QR" / *send to me*
-- **What:** On the Receive screen, generate a code + QR + link that means "scan to send
-  me a file." The other person scans/clicks → their app opens the **Send** screen
-  pre-filled with that code → they pick files and send. Completes the QR-ecosystem
-  symmetry (today only senders can be scanned).
-- **Why:** Nails the "hey, just send that to me" flow without the receiver reading a code aloud.
-- **Approach:** A `croc://send?code=<code>` (and https `…/send?code=`) intent. The
-  scanner/deep-link handler routes `send` intents to the Send screen with the code
-  pre-set (`customCode`) and waits for file selection; `receive` intents keep today's
-  behavior. Receiver side just runs a normal `croc` receive on that code. Reuse
-  `parseReceiveTarget` → generalize to `parseCrocIntent` returning `{action, code, …}`.
-- **Feasibility:** Clean. croc codes are symmetric (whoever sets the code first is fine),
-  so no protocol issue. The Pages page needs a `/send` route (or a `?action=send` param)
-  to hand off `croc://send?code=`.
-- **Effort:** Medium. **Repos:** desktop, fork, pages.
+### ~~1. Reverse pairing — "Receive with QR" / *send to me*~~ — SHIPPED (desktop, v2.2.0)
+- Desktop: the Receive screen's "Or have them send to you" mints a code and shows a
+  QR + copy-link encoding `croc://send?code=…`; the opener lands on **Send** with the
+  code pre-filled. Send gained a "Scan their code" button. Pages serves `/croc/send`.
+- **DEFERRED — croc-app parity:** the Android fork does NOT yet emit or handle `send`
+  intents. To reach parity it needs: `sendDeepLink`/`sendLink` builders, an `action`
+  field on `ReceiveTarget` (its parser currently assumes receive), routing a scanned /
+  OS-opened `send` intent to the Send screen with the code pre-filled, and a
+  "have them send to you" invite panel with a QR. Until then, a desktop invite scanned
+  by the phone app will be read as a plain code (it extracts `?code=` regardless), so
+  the phone would try to *receive* rather than send — worth fixing before advertising
+  the feature cross-platform.
 
 ### 2. Nearby peers — codeless LAN send ("AirDrop for croc")
 - **What:** List other croc devices on the same network and send with one tap, no code.

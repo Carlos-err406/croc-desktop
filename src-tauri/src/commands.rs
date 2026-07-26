@@ -114,6 +114,35 @@ pub async fn croc_update_size() -> Option<u64> {
     total.or_else(|| resp.content_length().filter(|n| *n > 0))
 }
 
+/// A "send to me" invite: the code the receiver will wait on, plus the QR and links
+/// that put a scanner straight into its Send screen (reverse pairing).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CrocInvite {
+    pub code: String,
+    pub qr: Option<String>,
+    pub deeplink: String,
+    pub link: String,
+}
+
+/// Mint (or reuse) a code and build the "send to me" QR + links for it. Reusing the
+/// caller's code keeps a code the user already typed/bookmarked, so the invite and
+/// the receive they start are the same transfer.
+#[tauri::command]
+pub fn croc_invite(code: Option<String>) -> CrocInvite {
+    let code = match code {
+        Some(c) if c.trim().len() >= 6 => c.trim().to_string(),
+        _ => codephrase::generate_code(),
+    };
+    let deeplink = croc::send_deeplink(&code);
+    CrocInvite {
+        qr: croc::generate_qr_data_url(&deeplink),
+        link: croc::send_link(&code),
+        deeplink,
+        code,
+    }
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CrocInfo {

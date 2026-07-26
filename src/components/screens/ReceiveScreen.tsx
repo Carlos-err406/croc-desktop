@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bookmark, Check, Copy, Download, Folder, Loader2, MessageSquareText, QrCode, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, Bookmark, Check, Copy, Download, Folder, Link2, Loader2, MessageSquareText, QrCode, Send, WifiOff, X } from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import { MAX_AUTO_RECONNECT, type ReceiveOverrides, type UseReceive } from '@/lib/useReceive';
 import { ConnectionHint } from '@/components/ConnectionHint';
 import { LocalToggle } from '@/components/LocalToggle';
 import { parseReceiveTarget, versionMismatch } from '@/lib/deeplink';
-import { croc } from '@/lib/services/ipc';
+import { croc, type CrocInvite } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
 import { abbrevHome } from '@/lib/paths';
 import { typeColor } from '@/lib/badge';
@@ -137,6 +137,18 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   // The croc version the sender embedded in the link (`&v=`), plus our own bundled
   // version — compared to warn about a protocol mismatch before we even try.
   const [senderCroc, setSenderCroc] = useState<string | null>(null);
+  // Reverse pairing: an invite the OTHER side scans to send files TO us. Built from
+  // the code currently in the box (or a fresh one), so hitting "Receive files"
+  // afterwards waits on exactly the code we published.
+  const [invite, setInvite] = useState<CrocInvite | null>(null);
+  const showInvite = async () => {
+    const [, inv] = await croc.invite(code.trim() || undefined);
+    if (inv) {
+      setInvite(inv);
+      recv.setCode(inv.code); // so "Receive files" waits on the published code
+      setSenderCroc(null);
+    }
+  };
   const [ourCroc, setOurCroc] = useState<string | null>(null);
   useEffect(() => {
     croc.info().then(([, i]) => i && setOurCroc(i.expectedVersion));
@@ -271,8 +283,11 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* IDLE: enter code */}
       {status === 'idle' && (
-        <div className="flex flex-1 items-center justify-center px-8 pb-8 pt-6">
-          <div className="flex w-full max-w-[440px] flex-col items-center gap-2 text-center">
+        // Scrolls when it has to (e.g. the "send to me" invite panel open), and
+        // stays vertically centered when it fits — my-auto, not justify-center,
+        // so an overflowing panel isn't clipped at the top.
+        <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-6">
+          <div className="my-auto flex w-full max-w-[440px] flex-col items-center gap-2 text-center mx-auto">
             <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-[18px] bg-brand-surface text-brand-deep">
               <Download size={30} />
             </div>
@@ -360,6 +375,41 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             >
               <QrCode size={15} /> Scan a QR code
             </button>
+
+            {/* Reverse pairing — publish a code for THEM to send to. */}
+            {!invite ? (
+              <button
+                onClick={showInvite}
+                className="mt-2.5 flex cursor-pointer items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+              >
+                <Send size={14} /> Or have them send to you
+              </button>
+            ) : (
+              <div className="mt-3.5 w-full max-w-[400px] rounded-[14px] border border-border bg-card px-4 py-4 text-center">
+                <div className="text-[13px] font-medium">Have them scan this to send you files</div>
+                {invite.qr && (
+                  <div className="mx-auto mt-3 w-fit rounded-[10px] bg-white p-2">
+                    <img src={invite.qr} alt="Send-to-me QR" width={132} height={132} className="block" draggable={false} />
+                  </div>
+                )}
+                <div className="mt-3 font-heading text-[19px] font-semibold tracking-[.02em]">{invite.code}</div>
+                <div className="mt-2.5 flex justify-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(invite.code)}>
+                    <Copy size={13} /> Code
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(invite.link)}>
+                    <Link2 size={13} /> Link
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setInvite(null)}>
+                    Hide
+                  </Button>
+                </div>
+                <p className="mt-2.5 text-xs text-muted-foreground">
+                  Then hit <span className="font-medium text-foreground">Receive files</span> to start waiting.
+                </p>
+              </div>
+            )}
+
             <div className="mt-4 flex max-w-[380px] items-center gap-1.5 text-xs text-muted-foreground">
               <Folder size={13} className="shrink-0" /> Saving to{' '}
               <span className="font-medium text-foreground">{abbrevHome(savedDir)}</span>

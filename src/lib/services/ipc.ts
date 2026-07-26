@@ -16,6 +16,13 @@ type TryOk<T> = [null, T];
 type TryErr = [{ message: string; stack?: string }, null];
 type Tuple<T> = Promise<TryOk<T> | TryErr>;
 
+export interface CrocInvite {
+  code: string;
+  qr: string | null;
+  deeplink: string;
+  link: string;
+}
+
 export interface CrocInfo {
   path: string | null;
   version: string | null;
@@ -47,6 +54,8 @@ export const croc = {
   pickFolder: () => call<string>('croc_pick_folder'),
   defaultDir: () => call<string>('croc_default_dir'),
   info: () => call<CrocInfo>('croc_info'),
+  /** Mint (or reuse) a code + build the "send to me" QR/links (reverse pairing). */
+  invite: (code?: string) => call<CrocInvite>('croc_invite', { code }),
   updateSize: () => call<number | null>('croc_update_size'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (

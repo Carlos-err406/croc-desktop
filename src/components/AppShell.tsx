@@ -50,13 +50,19 @@ export function AppShell() {
         // Only croc:// links open the app while running (the OS routes them here).
         if (!u.startsWith('croc://')) continue;
         const target = parseReceiveTarget(u);
-        if (target) {
+        if (!target) continue;
+        if (target.action === 'send') {
+          // Reverse pairing: they published "send to me with this code". Land on
+          // Send with the code pre-filled; the user picks files and hits send.
+          send.setPresetCode(target.code);
+          setScreen('send');
+        } else {
           recv.setCode(target.code);
           setScreen('receive');
           // Apply any connection settings the sender embedded for this receive.
           void recv.begin(target.code, { local: target.local, relay: target.relay });
-          break;
         }
+        break;
       }
     };
     getCurrentDeepLink().then(handleUrls).catch(() => {});

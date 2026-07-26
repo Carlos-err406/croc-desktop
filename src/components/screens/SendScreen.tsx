@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
-import { Bookmark, Camera, Check, Copy, FolderPlus, KeyRound, Link2, Loader2, Lock, Plus, Share2, Terminal, X } from 'lucide-react';
+import { Bookmark, Camera, Check, Copy, FolderPlus, KeyRound, Link2, Loader2, Lock, Plus, QrCode, Share2, Terminal, X } from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
 import { MAX_AUTO_RECONNECT, type UseSend } from '@/lib/useSend';
 import { ConnectionHint } from '@/components/ConnectionHint';
 import { LocalToggle } from '@/components/LocalToggle';
+import { QrScanner } from '@/components/QrScanner';
+import { parseReceiveTarget } from '@/lib/deeplink';
 import { getPrefs } from '@/lib/prefs';
 import { croc } from '@/lib/services/ipc';
 import { typeColor } from '@/lib/badge';
@@ -171,6 +173,8 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const [draft, setDraft] = useState('');
   // Optional custom transfer code (croc requires >= 6 chars); empty = random.
   const [customCode, setCustomCode] = useState('');
+  // Scan a receiver's "send to me" QR (reverse pairing) → adopt their code.
+  const [scanning, setScanning] = useState(false);
   // Seed from a history "Send again" that wants to reuse its original code. Done in
   // an effect (not the useState initializer) because takePresetCode() has a side
   // effect (one-shot clear); StrictMode double-invokes initializers but preserves
@@ -481,6 +485,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 <Button variant="outline" onClick={browseFolders}>
                   <FolderPlus /> Add folder
                 </Button>
+                <Button variant="outline" onClick={() => setScanning(true)} title="Scan someone's “send to me” QR">
+                  <QrCode /> Scan their code
+                </Button>
               </div>
               {status === 'starting' && (
                 <div className="mt-[18px] flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -752,6 +759,19 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             ) : null}
           </div>
         </div>
+      )}
+
+      {scanning && (
+        <QrScanner
+          onClose={() => setScanning(false)}
+          onCode={(text) => {
+            setScanning(false);
+            const target = parseReceiveTarget(text);
+            // Either direction is useful here: a "send to me" invite gives us the
+            // code to send with; a plain code/receive link works the same way.
+            if (target?.code) setCustomCode(target.code);
+          }}
+        />
       )}
 
       {status === 'error' && !reconnecting && (

@@ -96,8 +96,11 @@ export interface UseSend extends SendState {
   cancel: () => void;
   reset: () => void;
   // One-shot: the code to prefill the custom-code field with (e.g. a history
-  // "Send again" reusing its original code). Returns it once, then clears.
+  // "Send again" reusing its original code, or a scanned "send to me" invite).
+  // Returns it once, then clears.
   takePresetCode: () => string | undefined;
+  /** Queue a code for the Send screen to prefill (reverse pairing / deep link). */
+  setPresetCode: (code: string) => void;
 }
 
 export function useSend(): UseSend {
@@ -384,6 +387,10 @@ export function useSend(): UseSend {
     setState(INITIAL);
   }
 
+  function setPresetCode(code: string) {
+    if (code.trim().length >= 6) presetCodeRef.current = code.trim();
+  }
+
   function takePresetCode(): string | undefined {
     const c = presetCodeRef.current;
     presetCodeRef.current = undefined;
@@ -402,5 +409,6 @@ export function useSend(): UseSend {
     cancel,
     reset,
     takePresetCode,
+    setPresetCode,
   };
 }
