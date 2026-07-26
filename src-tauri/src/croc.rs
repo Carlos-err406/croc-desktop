@@ -67,11 +67,13 @@ pub struct CrocReceiveResult {
 
 // ── binary resolution + humanization ──────────────────────────────────────
 /// The croc version we bundle as the sidecar. MUST match `CROC_VERSION` in
-/// scripts/fetch-croc.mjs. Surfaced to the UI so it can warn when the app is
-/// running a *different* croc (a system croc on PATH), which breaks transfers
-/// with peers on the bundled version (croc is protocol-incompatible across the
-/// 10.4 → 10.5 line). Compared loosely (substring) against `croc --version`.
-pub const EXPECTED_CROC_VERSION: &str = "v10.4.14";
+/// scripts/fetch-croc.mjs, and should track the version the companion Android app
+/// vendors (croc-app v5.1.0 → 10.6.0) since croc is protocol-sensitive across
+/// minor lines (10.4 ↔ 10.6 don't interoperate reliably). Surfaced to the UI so it
+/// can warn when the app is running a *different* croc (a system one on PATH).
+/// Compared as a substring against `croc --version`, ignoring the leading "v"
+/// (croc prints it inconsistently between releases).
+pub const EXPECTED_CROC_VERSION: &str = "v10.6.0";
 
 fn croc_exe() -> &'static str {
     if cfg!(windows) {

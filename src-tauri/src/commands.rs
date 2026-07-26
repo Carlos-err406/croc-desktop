@@ -149,11 +149,12 @@ pub fn croc_info() -> CrocInfo {
     // Compatible if it's the bundled sidecar, or its reported version matches what
     // we expect to bundle. A resolved-but-unknown version is treated as compatible
     // (don't cry wolf when `--version` simply couldn't be read).
-    let compatible = bundled
-        || version
-            .as_deref()
-            .map(|v| v.contains(croc::EXPECTED_CROC_VERSION))
-            .unwrap_or(true);
+    //
+    // Compare WITHOUT the leading "v": croc is inconsistent about it — 10.4.14
+    // printed "croc version v10.4.14" but 10.6.0 prints "croc version 10.6.0" — so a
+    // literal substring match on "v10.6.0" would wrongly flag a matching system croc.
+    let want = croc::EXPECTED_CROC_VERSION.trim_start_matches('v');
+    let compatible = bundled || version.as_deref().map(|v| v.contains(want)).unwrap_or(true);
     CrocInfo {
         path: resolved.map(|p| p.to_string_lossy().into_owned()),
         version,
