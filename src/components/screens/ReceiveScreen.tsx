@@ -332,11 +332,11 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                   {mismatch.senderIsNewer ? 'Sender is on a newer croc' : 'Sender is on an older croc'}
                 </div>
                 <p className="mt-1 leading-relaxed">
-                  They're sending with croc <b>{mismatch.sender}</b>, you have <b>{mismatch.ours}</b> — these
-                  don't transfer to each other reliably.{' '}
+                  They're sending with croc <b>{mismatch.sender}</b>, you have <b>{mismatch.ours}</b>. The
+                  transfer might fail if both ends don't have the same bundled croc version —{' '}
                   {mismatch.senderIsNewer
-                    ? 'Update Croc Desktop (Settings → Updates), then try again.'
-                    : 'Ask them to update their Croc app, then try again.'}
+                    ? 'update Croc Desktop (Settings → Updates), then try again.'
+                    : 'ask them to update their Croc app, then try again.'}
                 </p>
               </div>
             )}
