@@ -9,6 +9,7 @@ import { MAX_AUTO_RECONNECT, type UseSend } from '@/lib/useSend';
 import { ConnectionHint } from '@/components/ConnectionHint';
 import { LocalToggle } from '@/components/LocalToggle';
 import { QrScanner } from '@/components/QrScanner';
+import { NearbyPeers } from '@/components/NearbyPeers';
 import { parseReceiveTarget } from '@/lib/deeplink';
 import { getPrefs } from '@/lib/prefs';
 import { croc } from '@/lib/services/ipc';
@@ -175,6 +176,10 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const [customCode, setCustomCode] = useState('');
   // Scan a receiver's "send to me" QR (reverse pairing) → adopt their code.
   const [scanning, setScanning] = useState(false);
+  const [ourCroc, setOurCroc] = useState<string | null>(null);
+  useEffect(() => {
+    croc.info().then(([, i]) => i && setOurCroc(i.expectedVersion));
+  }, []);
   // Seed from a history "Send again" that wants to reuse its original code. Done in
   // an effect (not the useState initializer) because takePresetCode() has a side
   // effect (one-shot clear); StrictMode double-invokes initializers but preserves
@@ -532,7 +537,10 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       {/* staging */}
       {status === 'staging' && (
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-7 pt-[22px]">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-border">
+          {/* Two columns: staged files on the left, nearby devices alongside — the
+              code field + actions stay full-width below since they apply to both. */}
+          <div className="flex min-h-0 flex-1 gap-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-border">
             <div className="flex items-center justify-between border-b border-border px-[18px] py-3.5">
               <span className="text-sm font-semibold">{countLabel} ready to send</span>
               <span onClick={send.clear} className="cursor-pointer text-[13px] text-muted-foreground">
@@ -560,6 +568,11 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             <div className="border-t border-border p-[11px] text-center text-xs text-muted-foreground">
               Drop more files here, or use Add
             </div>
+          </div>
+          {/* Nearby: adopt a discoverable peer's advertised code — no code exchange. */}
+          <div className="w-[268px] shrink-0 overflow-y-auto">
+            <NearbyPeers ourCroc={ourCroc} onPick={(p) => p.code && setCustomCode(p.code)} />
+          </div>
           </div>
           <CustomCodeField value={customCode} onChange={setCustomCode} invalid={codeInvalid} />
           <div className="flex gap-2.5">

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bookmark, Check, Copy, Download, Folder, Link2, Loader2, MessageSquareText, QrCode, Send, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, Bookmark, Check, Copy, Download, Folder, Link2, Loader2, MessageSquareText, QrCode, Radio, Send, WifiOff, X } from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import { MAX_AUTO_RECONNECT, type ReceiveOverrides, type UseReceive } from '@/lib/useReceive';
@@ -141,6 +141,37 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   // the code currently in the box (or a fresh one), so hitting "Receive files"
   // afterwards waits on exactly the code we published.
   const [invite, setInvite] = useState<CrocInvite | null>(null);
+  // Discoverable: advertise this device + a one-time code over mDNS so a nearby
+  // sender can pick us with no code exchange. Being discoverable IS the consent
+  // step — while it's on, anyone on this network can see the code and send to it.
+  const [discoverable, setDiscoverable] = useState(false);
+  const toggleDiscoverable = async () => {
+    if (discoverable) {
+      await croc.nearbyDiscoverable(null);
+      setDiscoverable(false);
+      return;
+    }
+    // Reuse the invite machinery to mint (or keep) the code we'll wait on.
+    const [, inv] = await croc.invite(code.trim() || undefined);
+    if (!inv) return;
+    const [, on] = await croc.nearbyDiscoverable(inv.code);
+    if (on) {
+      recv.setCode(inv.code); // "Receive files" then waits on the advertised code
+      setSenderCroc(null);
+      setDiscoverable(true);
+    }
+  };
+  // Stop advertising when we leave the idle screen or unmount — the code is spent
+  // once a transfer starts, and a stale advert would invite a doomed second sender.
+  useEffect(() => {
+    if (status !== 'idle' && discoverable) {
+      void croc.nearbyDiscoverable(null);
+      setDiscoverable(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+  useEffect(() => () => void croc.nearbyDiscoverable(null), []);
+
   const showInvite = async () => {
     const [, inv] = await croc.invite(code.trim() || undefined);
     if (inv) {
@@ -377,6 +408,24 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             </button>
 
             {/* Reverse pairing — publish a code for THEM to send to. */}
+            <button
+              onClick={() => void toggleDiscoverable()}
+              className={`mt-2.5 flex cursor-pointer items-center gap-1.5 text-[13px] font-medium ${
+                discoverable ? 'text-brand-deep' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title="Let nearby devices on this network send to you without sharing a code"
+            >
+              <Radio size={14} className={discoverable ? 'text-brand' : ''} />
+              {discoverable ? 'Discoverable to nearby devices — tap to stop' : 'Or let a nearby device find you'}
+            </button>
+            {discoverable && (
+              <p className="mt-1.5 max-w-[400px] text-xs leading-relaxed text-muted-foreground">
+                Visible on this network as a device ready to receive. Hit{' '}
+                <span className="font-medium text-foreground">Receive files</span> to start waiting.
+                Anyone here can see the code while this is on.
+              </p>
+            )}
+
             {!invite ? (
               <button
                 onClick={showInvite}

@@ -3,6 +3,7 @@ mod codephrase;
 mod commands;
 mod croc;
 mod history;
+mod nearby;
 
 use croc::CrocState;
 
@@ -80,6 +81,7 @@ pub fn run() {
         .manage(CrocState::default())
         .manage(commands::OpenedPaths::default())
         .manage(commands::ClaimedUrls::default())
+        .manage(nearby::NearbyState::default())
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -146,6 +148,9 @@ pub fn run() {
             commands::croc_info,
             commands::croc_invite,
             commands::croc_new_window,
+            commands::croc_nearby_start,
+            commands::croc_nearby_peers,
+            commands::croc_nearby_discoverable,
             commands::croc_claim_url,
             commands::croc_update_size,
             commands::croc_stat_paths,

@@ -21,18 +21,24 @@ carlos-err406.github.io). Feasibility notes call out croc's own constraints.
   the phone would try to *receive* rather than send — worth fixing before advertising
   the feature cross-platform.
 
-### 2. Nearby peers — codeless LAN send ("AirDrop for croc")
-- **What:** List other croc devices on the same network and send with one tap, no code.
-- **Why:** Biggest "wow"; leverages the local-mode infra.
-- **Approach / feasibility — HAS REAL UNKNOWNS:** croc pairs by **code**, not by
-  browsing peers, so this needs a discovery + auto-handshake layer *on top of* croc:
-  each app advertises an mDNS service (name + an auto-generated one-time code); the
-  sender browses, picks a peer, and both sides transfer on that auto-code (ideally in
-  `--local` mode). Requires: an mDNS advertise/browse implementation (croc's
-  `peerdiscovery` is internal to a transfer, not a general browse), a small pairing
-  handshake, and UI for the peer list. Only works where mDNS/multicast is allowed
-  (same limitation as local mode — not phone hotspots).
-- **Effort:** Large / spike first. **Repos:** desktop, fork.
+### ~~2. Nearby peers — codeless LAN send~~ — SHIPPED (desktop, v2.4.0)
+- **Model chosen (after a spike): advertise-a-code, NO listener.** A receiver toggling
+  *Discoverable* mints a one-time code and advertises it in its mDNS TXT record
+  (`_croc._tcp.local.`, with device name + croc version); a sender browses, picks the
+  peer, and adopts the advertised code. That's the whole handshake — no custom protocol
+  and no always-on LAN service to harden. Being discoverable IS the consent step.
+- **Spike findings (verified live, two processes):** advertise + browse works on macOS
+  and TXT survives intact. mDNS returns an *unordered* address set including loopback
+  and `fe80::` link-locals, so addresses must be ranked (routable IPv4 first) — taking
+  any one can hand back `127.0.0.1`. Peers also re-resolve repeatedly as more addresses
+  are learned, so key them by fullname and update rather than append.
+- **`--local` is NOT needed** for nearby transfers: croc already does LAN discovery in
+  parallel by default, so adopting the code is sufficient.
+- **DEFERRED — croc-app parity:** the phone app neither advertises nor browses, so
+  nearby only works desktop↔desktop today.
+- **Known limits:** needs multicast, so it won't work over most phone hotspots (same as
+  local-only mode); while discoverable, anyone on the network can read the code and send
+  to you (the auto-accept/review setting still gates whether files land unattended).
 
 ### 3. Send to multiple recipients at once
 - **What:** Share one code with several people; show "3 of 5 received."

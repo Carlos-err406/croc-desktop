@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "2.3.0"
+version = "2.4.0"
 description = "Croc Desktop — GUI for the croc secure file transfer tool"
 authors = ["Carlos Daniel Vilaseca Illnait"]
 license = "MIT"
@@ -39,6 +39,7 @@ rand = "0.8"
 # features to the reqwest the updater plugin already compiles (union unchanged),
 # so this reuses that build (incl. its TLS backend) rather than pulling anything new.
 reqwest = { version = "0.13", default-features = false }
+mdns-sd = "0.20.2"
 
 # Read file paths off the native pasteboard (Finder "Copy" → in-app paste).
 [target.'cfg(target_os = "macos")'.dependencies]

@@ -16,6 +16,17 @@ type TryOk<T> = [null, T];
 type TryErr = [{ message: string; stack?: string }, null];
 type Tuple<T> = Promise<TryOk<T> | TryErr>;
 
+export interface NearbyPeer {
+  id: string;
+  name: string;
+  address: string;
+  port: number;
+  crocVersion: string | null;
+  /** The one-time code this peer is waiting on; null = visible but not accepting. */
+  code: string | null;
+  isSelf: boolean;
+}
+
 export interface CrocInvite {
   code: string;
   qr: string | null;
@@ -60,6 +71,13 @@ export const croc = {
   newWindow: () => call<string>('croc_new_window'),
   /** Claim a deep-link URL so only one window acts on it (events broadcast). */
   claimUrl: (url: string) => call<boolean>('croc_claim_url', { url }),
+  /** Start browsing for nearby croc devices (browse-only; does not advertise us). */
+  nearbyStart: () => call<null>('croc_nearby_start'),
+  /** Nearby devices seen so far (self excluded). */
+  nearbyPeers: () => call<NearbyPeer[]>('croc_nearby_peers'),
+  /** Advertise this device with a one-time code, or pass null to stop. */
+  nearbyDiscoverable: (code: string | null) =>
+    call<boolean>('croc_nearby_discoverable', { code }),
   updateSize: () => call<number | null>('croc_update_size'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (

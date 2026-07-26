@@ -606,3 +606,49 @@ pub fn croc_history_remove(app: AppHandle, id: String) -> Vec<HistoryEntry> {
 pub fn croc_history_clear(app: AppHandle) -> Vec<HistoryEntry> {
     history::clear(&app)
 }
+
+// ── nearby peers (LAN discovery, no listener) ─────────────────────────────
+/// Start browsing for nearby croc devices. Browse-only: this does NOT advertise us,
+/// so joining a network never broadcasts the device name by itself.
+#[tauri::command]
+pub fn croc_nearby_start(state: State<crate::nearby::NearbyState>) -> Result<(), String> {
+    state.start_browsing()
+}
+
+/// Nearby devices currently accepting (self excluded). A peer with `code: null` is
+/// visible but not accepting — nothing to send to.
+#[tauri::command]
+pub fn croc_nearby_peers(state: State<crate::nearby::NearbyState>) -> Vec<crate::nearby::Peer> {
+    state.peers()
+}
+
+/// Become discoverable with a one-time `code`, or stop. While discoverable, anyone on
+/// this network can see the code and send to it — which is why it's an explicit,
+/// revocable choice rather than a default.
+#[tauri::command]
+pub fn croc_nearby_discoverable(
+    state: State<crate::nearby::NearbyState>,
+    code: Option<String>,
+) -> Result<bool, String> {
+    match code.filter(|c| c.trim().len() >= 6) {
+        Some(code) => {
+            state.set_discoverable(&hostname_or_default(), croc::EXPECTED_CROC_VERSION, code.trim())?;
+            Ok(true)
+        }
+        None => {
+            state.stop_discoverable()?;
+            Ok(false)
+        }
+    }
+}
+
+/// A friendly device name for the advertisement — the machine's hostname.
+fn hostname_or_default() -> String {
+    std::process::Command::new("hostname")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().trim_end_matches(".local").to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "Croc Desktop".to_string())
+}
