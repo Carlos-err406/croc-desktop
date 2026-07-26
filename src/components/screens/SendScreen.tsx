@@ -571,7 +571,11 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           </div>
           {/* Nearby: adopt a discoverable peer's advertised code — no code exchange. */}
           <div className="w-[268px] shrink-0 overflow-y-auto">
-            <NearbyPeers ourCroc={ourCroc} onPick={(p) => p.code && setCustomCode(p.code)} />
+            <NearbyPeers
+              ourCroc={ourCroc}
+              selectedCode={customCode}
+              onPick={(p) => p.code && setCustomCode(p.code)}
+            />
           </div>
           </div>
           <CustomCodeField value={customCode} onChange={setCustomCode} invalid={codeInvalid} />

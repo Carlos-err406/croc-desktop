@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Radio, Wifi } from 'lucide-react';
+import { AlertTriangle, Check, Radio, Wifi } from 'lucide-react';
 import { croc, type NearbyPeer } from '@/lib/services/ipc';
 import { versionMismatch } from '@/lib/deeplink';
 
@@ -13,9 +13,14 @@ import { versionMismatch } from '@/lib/deeplink';
  */
 export function NearbyPeers({
   ourCroc,
+  selectedCode,
   onPick,
 }: {
   ourCroc: string | null;
+  /** The code currently staged to send with. A peer whose advertised code matches is
+   *  shown as selected — derived rather than tracked, so editing the code by hand
+   *  clears the selection on its own. */
+  selectedCode?: string | null;
   onPick: (peer: NearbyPeer) => void;
 }) {
   const [peers, setPeers] = useState<NearbyPeer[]>([]);
@@ -59,16 +64,32 @@ export function NearbyPeers({
         <ul className="mt-2.5 flex flex-col gap-1.5">
           {peers.map((p) => {
             const mm = versionMismatch(p.crocVersion, ourCroc);
+            const selected = !!p.code && !!selectedCode && p.code === selectedCode.trim();
             return (
               <li key={p.id}>
                 <button
                   onClick={() => onPick(p)}
-                  className="flex w-full items-center gap-2.5 rounded-[10px] border border-border px-3 py-2 text-left transition-colors hover:border-brand/50 hover:bg-brand-surface/40"
+                  aria-pressed={selected}
+                  className={`flex w-full items-center gap-2.5 rounded-[10px] border px-3 py-2 text-left transition-colors ${
+                    selected
+                      ? 'border-brand bg-brand-surface'
+                      : 'border-border hover:border-brand/50 hover:bg-brand-surface/40'
+                  }`}
                 >
-                  <Wifi size={14} className="shrink-0 text-brand" />
+                  {selected ? (
+                    <Check size={14} className="shrink-0 text-brand-deep" strokeWidth={3} />
+                  ) : (
+                    <Wifi size={14} className="shrink-0 text-brand" />
+                  )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium">{p.name}</span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
+                    <span
+                      className={`block truncate text-[13px] font-medium ${selected ? 'text-brand-deep' : ''}`}
+                    >
+                      {p.name}
+                    </span>
+                    <span
+                      className={`block truncate text-[11px] ${selected ? 'text-brand-deep/75' : 'text-muted-foreground'}`}
+                    >
                       {p.address}
                       {p.crocVersion ? ` · croc ${p.crocVersion}` : ''}
                     </span>
