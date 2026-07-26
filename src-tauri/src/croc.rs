@@ -231,6 +231,7 @@ pub fn receive_deeplink(code: &str, local: bool) -> String {
     if local {
         s.push_str("&local=1");
     }
+    s.push_str(&croc_version_param());
     s
 }
 
@@ -242,7 +243,16 @@ pub fn receive_link(code: &str, local: bool) -> String {
     if local {
         s.push_str("&local=1");
     }
+    s.push_str(&croc_version_param());
     s
+}
+
+/// `&v=<croc version>` — the croc version this sender transfers with. The receiver
+/// compares its major.minor against its own bundled croc and warns on a mismatch
+/// (croc doesn't interoperate across minor lines), turning an otherwise cryptic
+/// handshake failure into "update first". Readers that don't know `v` ignore it.
+fn croc_version_param() -> String {
+    format!("&v={}", pct(EXPECTED_CROC_VERSION.trim_start_matches('v')))
 }
 
 pub fn generate_qr_data_url(code: &str) -> Option<String> {

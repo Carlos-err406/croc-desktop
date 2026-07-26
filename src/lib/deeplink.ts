@@ -14,6 +14,32 @@ export interface ReceiveTarget {
   local?: boolean;
   relay?: string;
   ip?: string;
+  /** The croc version the SENDER transfers with (`&v=`), e.g. "10.6.0". */
+  crocVersion?: string;
+}
+
+/** major.minor of a croc version string ("10.6.0" / "v10.6.0" → "10.6"), or null. */
+export function crocMinor(v: string | null | undefined): string | null {
+  const m = (v ?? '').trim().replace(/^v/i, '').match(/^(\d+)\.(\d+)/);
+  return m ? `${m[1]}.${m[2]}` : null;
+}
+
+/**
+ * Compare a sender's croc version against ours. croc doesn't interoperate across
+ * minor lines, so a differing major.minor means the transfer will very likely fail
+ * — worth warning about BEFORE trying. Returns null when either side is unknown
+ * (never cry wolf on a hand-typed code or a link with no `v`).
+ */
+export function versionMismatch(
+  senderVersion: string | null | undefined,
+  ourVersion: string | null | undefined
+): { sender: string; ours: string; senderIsNewer: boolean } | null {
+  const s = crocMinor(senderVersion);
+  const o = crocMinor(ourVersion);
+  if (!s || !o || s === o) return null;
+  const [sMaj, sMin] = s.split('.').map(Number);
+  const [oMaj, oMin] = o.split('.').map(Number);
+  return { sender: s, ours: o, senderIsNewer: sMaj > oMaj || (sMaj === oMaj && sMin > oMin) };
 }
 
 export function parseReceiveTarget(raw: string): ReceiveTarget | null {
@@ -33,7 +59,8 @@ export function parseReceiveTarget(raw: string): ReceiveTarget | null {
       const local = ['1', 'true', 'yes'].includes((u.searchParams.get('local') ?? '').toLowerCase());
       const relay = u.searchParams.get('relay')?.trim() || undefined;
       const ip = u.searchParams.get('ip')?.trim() || undefined;
-      return { code, local: local || undefined, relay, ip };
+      const crocVersion = u.searchParams.get('v')?.trim() || undefined;
+      return { code, local: local || undefined, relay, ip, crocVersion };
     }
   } catch {
     /* not a URL — fall through to bare code */

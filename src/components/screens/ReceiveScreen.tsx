@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Check, Copy, Download, Folder, Loader2, MessageSquareText, QrCode, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, Bookmark, Check, Copy, Download, Folder, Loader2, MessageSquareText, QrCode, WifiOff, X } from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import { MAX_AUTO_RECONNECT, type ReceiveOverrides, type UseReceive } from '@/lib/useReceive';
 import { ConnectionHint } from '@/components/ConnectionHint';
 import { LocalToggle } from '@/components/LocalToggle';
-import { parseReceiveTarget } from '@/lib/deeplink';
+import { parseReceiveTarget, versionMismatch } from '@/lib/deeplink';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
 import { abbrevHome } from '@/lib/paths';
@@ -134,6 +134,14 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   // Connection settings carried by a scanned QR / link, applied to this receive
   // only. Cleared when the user edits the code by hand (a plain code has none).
   const [linkOverrides, setLinkOverrides] = useState<ReceiveOverrides | null>(null);
+  // The croc version the sender embedded in the link (`&v=`), plus our own bundled
+  // version — compared to warn about a protocol mismatch before we even try.
+  const [senderCroc, setSenderCroc] = useState<string | null>(null);
+  const [ourCroc, setOurCroc] = useState<string | null>(null);
+  useEffect(() => {
+    croc.info().then(([, i]) => i && setOurCroc(i.expectedVersion));
+  }, []);
+  const mismatch = versionMismatch(senderCroc, ourCroc);
   const { codes: savedCodes, save: saveCode, remove: removeCode, has: hasCode } = useSavedCodes();
 
   // Whole-download ETA, estimated from overall progress + elapsed time (croc's
@@ -282,6 +290,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                   onPick={(c) => {
                     recv.setCode(c);
                     setLinkOverrides(null);
+                    setSenderCroc(null);
                   }}
                   onRemove={removeCode}
                 />
@@ -293,6 +302,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 onChange={(e) => {
                   recv.setCode(e.target.value);
                   setLinkOverrides(null); // manual edit → a plain code, drop any link settings
+                  setSenderCroc(null);
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && recv.begin(undefined, linkOverrides ?? undefined)}
                 placeholder="e.g. 7431-mirage-oxford"
@@ -311,6 +321,23 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             {linkOverrides?.local && (
               <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-brand-deep">
                 <WifiOff size={13} /> This link uses local-only mode
+              </div>
+            )}
+            {/* croc version mismatch: croc doesn't interoperate across minor lines,
+                so warn before attempting rather than failing on the handshake. */}
+            {mismatch && (
+              <div className="mt-2.5 w-full max-w-[420px] rounded-[12px] border border-warning-text/40 bg-warning-surface px-4 py-3 text-left text-[12px] text-warning-text">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  {mismatch.senderIsNewer ? 'Sender is on a newer croc' : 'Sender is on an older croc'}
+                </div>
+                <p className="mt-1 leading-relaxed">
+                  They're sending with croc <b>{mismatch.sender}</b>, you have <b>{mismatch.ours}</b> — these
+                  don't transfer to each other reliably.{' '}
+                  {mismatch.senderIsNewer
+                    ? 'Update Croc Desktop (Settings → Updates), then try again.'
+                    : 'Ask them to update their Croc app, then try again.'}
+                </p>
               </div>
             )}
             <div className="mt-3 w-full">
@@ -551,6 +578,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             setLinkOverrides(
               target.local || target.relay ? { local: target.local, relay: target.relay } : null
             );
+            setSenderCroc(target.crocVersion ?? null);
           }}
         />
       )}
