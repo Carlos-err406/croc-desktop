@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Croc Desktop",
-  "version": "1.21.0",
+  "version": "1.21.1",
   "identifier": "dev.carlosd.crocdesktop",
   "build": {
     "frontendDist": "../dist",
@@ -49,16 +49,16 @@
       "dmg": {
         "background": "dmg-background.png",
         "windowSize": {
-          "width": 600,
-          "height": 420
+          "width": 640,
+          "height": 480
         },
         "appPosition": {
-          "x": 160,
-          "y": 205
+          "x": 152,
+          "y": 300
         },
         "applicationFolderPosition": {
-          "x": 440,
-          "y": 205
+          "x": 488,
+          "y": 300
         }
       }
     },
