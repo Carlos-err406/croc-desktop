@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Check, Copy, Download, Folder, Loader2, MessageSquareText, QrCode, X } from 'lucide-react';
+import { Bookmark, Check, Copy, Download, Folder, Loader2, MessageSquareText, QrCode, WifiOff, X } from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
-import { MAX_AUTO_RECONNECT, type UseReceive } from '@/lib/useReceive';
+import { MAX_AUTO_RECONNECT, type ReceiveOverrides, type UseReceive } from '@/lib/useReceive';
 import { ConnectionHint } from '@/components/ConnectionHint';
 import { LocalToggle } from '@/components/LocalToggle';
+import { parseReceiveTarget } from '@/lib/deeplink';
 import { croc } from '@/lib/services/ipc';
 import { getPrefs } from '@/lib/prefs';
 import { abbrevHome } from '@/lib/paths';
@@ -56,28 +57,6 @@ function extractCode(text: string): string | null {
   const labeled = text.match(/code[:\s]+(\S+)/i);
   const candidate = (labeled ? labeled[1] : text.trim()).replace(/[.,]+$/, '');
   return /^\d+-[a-z]+-[a-z]+-[a-z]+$/i.test(candidate) ? candidate : null;
-}
-
-/**
- * Turn a scanned QR value into a code. Accepts a bare code OR a deep link
- * (croc://receive?code=…, croc://<code>, or https://…/croc/receive?code=…).
- * Permissive because scanning is a deliberate action, unlike clipboard auto-fill.
- */
-function parseScannedCode(raw: string): string | null {
-  const t = raw.trim();
-  if (!t) return null;
-  try {
-    const u = new URL(t);
-    if (u.protocol === 'croc:' || u.protocol === 'https:' || u.protocol === 'http:') {
-      const q = u.searchParams.get('code');
-      if (q && q.trim()) return q.trim();
-      const seg = (u.hostname || u.pathname.split('/').filter(Boolean).pop() || '').trim();
-      return seg && seg !== 'receive' ? decodeURIComponent(seg) : null;
-    }
-  } catch {
-    /* not a URL — treat as a bare code */
-  }
-  return t;
 }
 
 function receiveSteps(status: string): Step[] {
@@ -152,6 +131,9 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   const seen = Math.min(perFile.length, totalFiles);
   const [dir, setDir] = useState('');
   const [scanning, setScanning] = useState(false);
+  // Connection settings carried by a scanned QR / link, applied to this receive
+  // only. Cleared when the user edits the code by hand (a plain code has none).
+  const [linkOverrides, setLinkOverrides] = useState<ReceiveOverrides | null>(null);
   const { codes: savedCodes, save: saveCode, remove: removeCode, has: hasCode } = useSavedCodes();
 
   // Whole-download ETA, estimated from overall progress + elapsed time (croc's
@@ -295,14 +277,24 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 <div className="mb-1.5 text-[11px] font-medium uppercase tracking-[.05em] text-muted-foreground">
                   Saved codes
                 </div>
-                <CodePills codes={savedCodes} onPick={recv.setCode} onRemove={removeCode} />
+                <CodePills
+                  codes={savedCodes}
+                  onPick={(c) => {
+                    recv.setCode(c);
+                    setLinkOverrides(null);
+                  }}
+                  onRemove={removeCode}
+                />
               </div>
             )}
             <div className="mt-3 flex w-full items-center gap-2 text-left">
               <Input
                 value={code}
-                onChange={(e) => recv.setCode(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && recv.begin()}
+                onChange={(e) => {
+                  recv.setCode(e.target.value);
+                  setLinkOverrides(null); // manual edit → a plain code, drop any link settings
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && recv.begin(undefined, linkOverrides ?? undefined)}
                 placeholder="e.g. 7431-mirage-oxford"
                 className="h-12 flex-1 text-base"
                 autoFocus
@@ -316,8 +308,17 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 <Bookmark size={17} className={hasCode(code) ? 'fill-brand text-brand' : ''} />
               </button>
             </div>
+            {linkOverrides?.local && (
+              <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-brand-deep">
+                <WifiOff size={13} /> This link uses local-only mode
+              </div>
+            )}
             <div className="mt-3 w-full">
-              <Button className="h-11 w-full" disabled={!code.trim()} onClick={() => recv.begin()}>
+              <Button
+                className="h-11 w-full"
+                disabled={!code.trim()}
+                onClick={() => recv.begin(undefined, linkOverrides ?? undefined)}
+              >
                 Receive files
               </Button>
             </div>
@@ -543,8 +544,13 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
           onClose={() => setScanning(false)}
           onCode={(text) => {
             setScanning(false);
-            const detected = parseScannedCode(text);
-            if (detected) recv.setCode(detected);
+            const target = parseReceiveTarget(text);
+            if (!target) return;
+            recv.setCode(target.code);
+            // Carry the link's connection settings into the pending receive.
+            setLinkOverrides(
+              target.local || target.relay ? { local: target.local, relay: target.relay } : null
+            );
           }}
         />
       )}

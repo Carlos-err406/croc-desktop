@@ -12,23 +12,9 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { AboutScreen } from './screens/AboutScreen';
 import { UpdateBanner } from './UpdateBanner';
 import { CrocCompatBanner } from './CrocCompatBanner';
+import { parseReceiveTarget } from '@/lib/deeplink';
 
 export type Screen = 'send' | 'receive' | 'history' | 'settings' | 'about';
-
-/** Pull the transfer code out of a croc:// deep link (croc://receive?code=…,
- * or croc://<code>). Returns null if it isn't a croc link. */
-function parseCrocUrl(raw: string): string | null {
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== 'croc:') return null;
-    const q = url.searchParams.get('code');
-    if (q && q.trim()) return q.trim();
-    const fallback = (url.hostname || url.pathname.replace(/^\/+/, '')).trim();
-    return fallback ? decodeURIComponent(fallback) : null;
-  } catch {
-    return null;
-  }
-}
 
 export function AppShell() {
   const [screen, setScreen] = useState<Screen>('send');
@@ -61,11 +47,14 @@ export function AppShell() {
   useEffect(() => {
     const handleUrls = (urls: string[] | null) => {
       for (const u of urls ?? []) {
-        const code = parseCrocUrl(u);
-        if (code) {
-          recv.setCode(code);
+        // Only croc:// links open the app while running (the OS routes them here).
+        if (!u.startsWith('croc://')) continue;
+        const target = parseReceiveTarget(u);
+        if (target) {
+          recv.setCode(target.code);
           setScreen('receive');
-          void recv.begin(code);
+          // Apply any connection settings the sender embedded for this receive.
+          void recv.begin(target.code, { local: target.local, relay: target.relay });
           break;
         }
       }

@@ -255,7 +255,8 @@ pub fn croc_send(
         false,
     )?;
 
-    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code));
+    // Embed the send's local-only setting so the receiver auto-applies it.
+    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code, local));
     Ok(CrocSendResult {
         transfer_id,
         qr,
@@ -301,7 +302,8 @@ pub fn croc_send_text(
 
     croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone(), None, false)?;
 
-    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code));
+    // Embed the send's local-only setting so the receiver auto-applies it.
+    let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code, local.unwrap_or(false)));
     Ok(CrocSendResult {
         transfer_id,
         qr,

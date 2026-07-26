@@ -144,9 +144,16 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
   }
 }
 
+/** Per-transfer connection overrides embedded in a scanned/clicked link — applied
+ *  to that receive only, without changing the user's saved prefs. */
+export interface ReceiveOverrides {
+  local?: boolean;
+  relay?: string;
+}
+
 export interface UseReceive extends ReceiveState {
   setCode: (code: string) => void;
-  begin: (codeArg?: string) => Promise<void>;
+  begin: (codeArg?: string, overrides?: ReceiveOverrides) => Promise<void>;
   respond: (yes: boolean) => void;
   retry: () => Promise<void>;
   cancel: () => void;
@@ -161,6 +168,7 @@ export function useReceive(): UseReceive {
   const autoAttemptRef = useRef(0); // auto-reconnect attempts used for the current receive
   const reconnectTimerRef = useRef<number | null>(null);
   const failedNotifiedRef = useRef<string | null>(null); // transfer id we've already notified failure for
+  const overridesRef = useRef<ReceiveOverrides | undefined>(undefined); // per-transfer settings from a link
 
   function clearReconnect() {
     if (reconnectTimerRef.current !== null) {
@@ -269,13 +277,15 @@ export function useReceive(): UseReceive {
     setState((v) => ({ ...v, code: c, status: 'connecting', progress: null, error: null, fileInfo: null }));
 
     const prefs = getPrefs();
+    // A link can embed connection settings for this transfer only; fall back to prefs.
+    const ov = overridesRef.current;
     const [err, result] = await croc.receive(
       c,
       {
         out: prefs.downloadDir || undefined,
-        relay: relayArg(prefs),
+        relay: ov?.relay ?? relayArg(prefs),
         autoAccept: prefs.autoAccept,
-        local: prefs.localMode,
+        local: ov?.local ?? prefs.localMode,
       },
       id
     );
@@ -288,12 +298,14 @@ export function useReceive(): UseReceive {
     setState((v) => ({ ...v, out: result.out }));
   }
 
-  async function begin(codeArg?: string) {
+  async function begin(codeArg?: string, overrides?: ReceiveOverrides) {
     const code = (codeArg ?? state.code).trim();
     if (!code) return;
     clearReconnect();
     autoAttemptRef.current = 0;
     failedNotifiedRef.current = null;
+    // Remember the link's settings so retry/auto-reconnect reuse them too.
+    overridesRef.current = overrides;
     setState((v) => ({ ...v, reconnecting: false, reconnectAttempt: 0 }));
     await connect(code);
   }
@@ -329,6 +341,7 @@ export function useReceive(): UseReceive {
   function reset() {
     clearReconnect();
     autoAttemptRef.current = 0;
+    overridesRef.current = undefined;
     if (idRef.current) croc.cancel(idRef.current);
     idRef.current = null;
     setState(INITIAL);
