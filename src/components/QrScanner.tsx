@@ -12,6 +12,10 @@ import { Button } from '@/components/ui/button';
 export function QrScanner({ onCode, onClose }: { onCode: (text: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
+  // An empty <video> renders the WebView's default poster — a play button — for the
+  // second or two between opening the scanner and the camera stream arriving (longer
+  // if the permission prompt shows). Cover it until there are real frames.
+  const [streaming, setStreaming] = useState(false);
   const doneRef = useRef(false);
 
   useEffect(() => {
@@ -88,8 +92,23 @@ export function QrScanner({ onCode, onClose }: { onCode: (text: string) => void;
         </div>
       ) : (
         <>
-          <div className="relative overflow-hidden rounded-[18px] shadow-2xl">
-            <video ref={videoRef} playsInline muted className="block h-[340px] w-[340px] object-cover" />
+          {/* Square, but never wider than the screen: 340px overflowed a 360dp phone
+              once the surrounding padding was counted. */}
+          <div className="relative aspect-square w-full max-w-[340px] overflow-hidden rounded-[18px] bg-black shadow-2xl">
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              autoPlay
+              onPlaying={() => setStreaming(true)}
+              className="block h-full w-full object-cover"
+            />
+            {!streaming && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black text-white/70">
+                <Camera size={22} className="animate-pulse" />
+                <span className="text-[13px]">Starting camera…</span>
+              </div>
+            )}
             {/* Framing reticle */}
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute inset-8 rounded-[14px] border-2 border-white/80" />

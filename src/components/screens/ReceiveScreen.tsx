@@ -353,8 +353,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && recv.begin(undefined, linkOverrides ?? undefined)}
                 placeholder="e.g. 7431-mirage-oxford"
+                /* autoFocus is desktop-only: on a phone it throws the keyboard up the
+                   moment the tab opens, before the user has chosen to type. */
                 className="h-12 flex-1 text-base"
-                autoFocus
+                autoFocus={CAN_USE_FILE_PATHS}
               />
               <button
                 disabled={code.trim().length < 6}
@@ -465,9 +467,15 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               </div>
             )}
 
-            <div className="mt-4 flex max-w-[380px] items-center gap-1.5 text-xs text-muted-foreground">
-              <Folder size={13} className="shrink-0" /> Saving to{' '}
-              <span className="font-medium text-foreground">{abbrevHome(savedDir)}</span>
+            {/* An Android receive path is long enough to push the row off-screen and
+                break "Saving to" across two lines, so the label is kept whole and the
+                path is the part allowed to shrink. */}
+            <div className="mt-4 flex w-full max-w-[380px] items-center gap-1.5 text-xs text-muted-foreground">
+              <Folder size={13} className="shrink-0" />
+              <span className="shrink-0">Saving to</span>
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground" title={savedDir}>
+                {abbrevHome(savedDir)}
+              </span>
             </div>
           </div>
         </div>

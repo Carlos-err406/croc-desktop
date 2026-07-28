@@ -11,5 +11,6 @@
       "minSdkVersion": 26,
       "debugApplicationIdSuffix": ".debug"
     }
-  }
+  },
+  "productName": "Croc"
 }

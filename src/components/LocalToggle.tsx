@@ -32,7 +32,9 @@ export function LocalToggle() {
       }`}
     >
       {on ? <WifiOff size={13} /> : <Wifi size={13} />}
-      {on ? 'Local only' : 'Local off'}
+      {/* Spell out the state: "Local off" read as a verb ("turn local off") rather
+          than as the current setting. */}
+      <span className="whitespace-nowrap">Local Only: {on ? 'ON' : 'OFF'}</span>
     </button>
   );
 }

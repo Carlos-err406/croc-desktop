@@ -42,4 +42,4 @@ export const CAN_USE_WINDOWS = !IS_MOBILE;
  * leaked into the About screen, the Settings footer and the update banner — so it
  * lives here rather than being spelled out per screen.
  */
-export const APP_NAME = IS_MOBILE ? 'Croc' : 'Croc Desktop';
+export const APP_NAME = IS_MOBILE ? 'Croc Mobile' : 'Croc Desktop';

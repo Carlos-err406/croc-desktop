@@ -32,7 +32,11 @@ function Row({ title, sub, children }: { title: string; sub: string; children: R
         <div className="text-sm font-medium">{title}</div>
         <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
       </div>
-      <div className="w-full shrink-0 sm:w-auto">{children}</div>
+      {/* Full width so a wrapped control can use the row, but the control keeps its
+          natural size — otherwise the Light/Dark switch stretches edge to edge. */}
+      <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+        {children}
+      </div>
     </div>
   );
 }
@@ -161,27 +165,27 @@ export function SettingsScreen() {
               <Toggle on={prefs.revealOnDone} onClick={() => update({ revealOnDone: !prefs.revealOnDone })} />
             </Row>
           )}
-          <Row title="Notify when transfers finish" sub="Show a system notification when a send or receive completes and the app is in the background">
+          <Row title="Notify when transfers finish" sub="A system notification when the app is in the background">
             <Toggle on={prefs.notify} onClick={() => update({ notify: !prefs.notify })} />
           </Row>
-          <Row title="Auto-accept incoming files" sub="When off, review and approve incoming files (and confirm overwrites) before they download">
+          <Row title="Auto-accept incoming files" sub="When off, approve each file before it downloads">
             <Toggle on={prefs.autoAccept} onClick={() => update({ autoAccept: !prefs.autoAccept })} />
           </Row>
-          <Row title="Bundle folders into one transfer" sub="Much faster for folders with many files — the other side still receives the extracted folder">
+          <Row title="Bundle folders into one transfer" sub="Faster for many files; the peer still gets a folder">
             <Toggle on={prefs.zipFolders} onClick={() => update({ zipFolders: !prefs.zipFolders })} />
           </Row>
         </Card>
 
         <Card title="Network">
           <Row
-            title="Local-only mode (same network)"
-            sub="Transfer over a local Wi-Fi network only — no internet or relay. Both devices must turn this on and be on the same Wi-Fi. Won't work over most phone hotspots — they isolate devices and block the local discovery this needs; use a real Wi-Fi router (it can be one with no internet)."
+            title="Local-only mode"
+            sub="LAN only, no internet or relay. Both devices need it on, on the same Wi-Fi (most phone hotspots block this)."
           >
             <Toggle on={prefs.localMode} onClick={() => update({ localMode: !prefs.localMode })} />
           </Row>
           {/* The relay is unused in local-only mode (croc --local bypasses it), so dim it. */}
           <div className={prefs.localMode ? 'pointer-events-none opacity-40' : ''}>
-            <Row title="Relay" sub="Rendezvous server used to pair devices">
+            <Row title="Relay" sub="Server used to pair devices">
               <div className="flex flex-wrap gap-2">
                 <RelayChoice active={prefs.relay === 'default'} onClick={() => chooseRelay('default')}>
                   Default (croc.schollz.com)
@@ -200,7 +204,7 @@ export function SettingsScreen() {
               />
             </div>
           )}
-          <Row title="Connection test" sub="Check that the relay is reachable from this device">
+          <Row title="Connection test" sub="Is the relay reachable?">
             <div className="flex items-center gap-2.5">
               {relayTest?.status === 'done' && relayTest.result && (
                 <span
@@ -249,7 +253,7 @@ export function SettingsScreen() {
 
         {CAN_USE_FILE_PATHS && (
         <Card title="Updates">
-          <Row title="Automatic updates" sub="Download and install new versions automatically on launch">
+          <Row title="Automatic updates" sub="Install new versions on launch">
             <Toggle on={prefs.autoUpdate} onClick={() => update({ autoUpdate: !prefs.autoUpdate })} />
           </Row>
           <Row title="Software update" sub={updateStatus}>
