@@ -46,8 +46,8 @@ fn gen_id() -> String {
 /// On Android there is no user-writable Downloads path an exec'd binary can use:
 /// public storage is mediated by MediaStore/SAF, which croc knows nothing about.
 /// Receives therefore land in the app's own data dir — writable with no permission
-/// and removed on uninstall — and the UI offers "Save to Downloads" / "Share"
-/// afterwards to get files out.
+/// and removed on uninstall — and `croc_export_received` republishes them to
+/// `Download/Croc` once the transfer finishes, so nothing is stranded there.
 #[cfg(desktop)]
 fn default_download_dir(app: &AppHandle) -> String {
     let base = app
@@ -531,6 +531,110 @@ pub async fn croc_take_shared(app: AppHandle) -> Result<SharedPayload, String> {
 #[tauri::command]
 pub async fn croc_take_shared(_app: AppHandle) -> Result<SharedPayload, String> {
     Ok(SharedPayload::default())
+}
+
+/// What happened to a finished receive's files.
+#[derive(Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResult {
+    /// How many files were published to Downloads.
+    pub saved: usize,
+    /// Where they went, for the UI to show ("Download/Croc"). `None` when nothing
+    /// moved — the files are still at the receive path the UI already knows.
+    pub location: Option<String>,
+}
+
+/// Publish a finished receive's files to `Download/Croc` and drop the private
+/// copies, so what arrived is reachable from the Files app and the gallery.
+///
+/// The whole receive directory is swept rather than a list of names: it holds
+/// nothing but received files, so sweeping also picks up anything a previous run
+/// failed to export instead of stranding it forever.
+///
+/// One file failing doesn't fail the batch — the rest still get out, and whatever
+/// stayed behind is retried after the next receive.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn croc_export_received(out: String) -> Result<ExportResult, String> {
+    use crate::android_media::{export_to_downloads, Exported};
+
+    let root = PathBuf::from(&out);
+    if !root.is_dir() {
+        return Ok(ExportResult::default());
+    }
+
+    let mut saved = 0usize;
+    let mut first_error: Option<String> = None;
+    for (path, sub_dir) in files_under(&root) {
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        match export_to_downloads(&path, &sub_dir, name) {
+            // Only remove the private copy once the bytes are safely published.
+            Ok(Exported::Saved) => {
+                saved += 1;
+                let _ = std::fs::remove_file(&path);
+            }
+            Ok(Exported::Unsupported) => return Ok(ExportResult::default()),
+            Err(e) => {
+                first_error.get_or_insert(format!("{name}: {e}"));
+            }
+        }
+    }
+
+    // Tidy the now-empty folders a received directory left behind.
+    let _ = prune_empty_dirs(&root);
+
+    match (saved, first_error) {
+        (0, Some(e)) => Err(e),
+        (_, _) => Ok(ExportResult {
+            saved,
+            location: (saved > 0).then(|| "Download/Croc".to_string()),
+        }),
+    }
+}
+
+/// Every file under `root`, paired with its directory path relative to `root`.
+#[cfg(target_os = "android")]
+fn files_under(root: &std::path::Path) -> Vec<(PathBuf, String)> {
+    fn walk(dir: &std::path::Path, rel: &str, out: &mut Vec<(PathBuf, String)>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let child = if rel.is_empty() { name } else { format!("{rel}/{name}") };
+                walk(&path, &child, out);
+            } else if path.is_file() {
+                out.push((path, rel.to_string()));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, "", &mut out);
+    out
+}
+
+/// Remove directories left empty by the export, deepest first. `root` itself stays:
+/// it's the receive destination and croc expects it to exist.
+#[cfg(target_os = "android")]
+fn prune_empty_dirs(root: &std::path::Path) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(root)?.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let _ = prune_empty_dirs(&path);
+            let _ = std::fs::remove_dir(&path); // fails harmlessly if not empty
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+pub async fn croc_export_received(_out: String) -> Result<ExportResult, String> {
+    Ok(ExportResult::default())
 }
 
 /// Drop everything staged for sending. Called when a send finishes or resets; the

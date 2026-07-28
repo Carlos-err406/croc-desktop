@@ -48,6 +48,17 @@ pub extern "system" fn Java_dev_carlosd_crocdesktop_MainActivity_nativeInit(
     }
 }
 
+/// The JavaVM captured from Kotlin, for anything else that needs JNI
+/// (android_media.rs). `None` until `nativeInit` has run.
+pub fn vm() -> Option<&'static JavaVM> {
+    VM.get()
+}
+
+/// The app Context captured from Kotlin. `None` until `nativeInit` has run.
+pub fn context() -> Option<&'static GlobalRef> {
+    CONTEXT.get()
+}
+
 /// The user-facing filename for a `content://` URI, via
 /// `ContentResolver.query(uri, [DISPLAY_NAME], …)`.
 ///

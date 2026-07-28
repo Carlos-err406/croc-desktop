@@ -19,6 +19,7 @@ Galaxy S23 FE (SM-S711U1), **Android 16**, arm64, debug APK built from this tree
 | `croc://receive?code=…` deep link | Cold-launches onto Receive and completes the transfer |
 | Share sheet → a PNG | Staged **byte-identical**, listed as `croc-share-test.png` with a PNG badge |
 | Share sheet → text | Lands on Send in text mode with the message filled in |
+| Receive a folder → Downloads | `Download/Croc/album/{photo-one.jpg,notes.txt}`, **SHA-256 identical**, private copy gone |
 
 Sharing was driven with `am start`, which only grants a URI that's in the intent's
 `data` or `ClipData` — pass `-d <uri>` as well as `--eu android.intent.extra.STREAM`,
@@ -167,6 +168,20 @@ subprocess can write to. `HOME` and `TMPDIR` are pointed at app-private storage,
 croc writes config (including the `--internal-dns` marker) and temp zips relative to
 them.
 
+That would strand the result — app-private storage is invisible to the Files app, the
+gallery and every share sheet, so a received photo could be received and then never
+seen again. `croc_export_received` republishes each finished receive into
+`Download/Croc/` through MediaStore (`android_media.rs`) and deletes the private copy,
+which needs no permission at all on API 29+. It sweeps the whole receive directory
+rather than a list of names, so anything a previous run failed to export gets another
+chance instead of being stranded forever. Sub-directories are preserved, so a received
+folder doesn't flatten.
+
+The insert is marked `IS_PENDING` while the bytes are written, so nothing else sees a
+half-written file. API 26–28 have no `RELATIVE_PATH`/`IS_PENDING` and would need
+WRITE_EXTERNAL_STORAGE plus a runtime prompt; there the export reports "unsupported"
+and files stay in the app dir.
+
 ## What's different from desktop
 
 | Feature | On Android |
@@ -175,7 +190,7 @@ them.
 | Review-mode prompts (accept / overwrite / resume) | Same code, over a stdin pipe |
 | File picking | SAF picker, staged through the cache |
 | Getting files in from other apps | Share sheet (`ACTION_SEND`), not "Open With" |
-| Receive location | App data dir (no path-returning folder picker exists) |
+| Receive location | App data dir, then published to `Download/Croc` via MediaStore |
 | Folder sends | Off — SAF gives tree URIs, not paths |
 | Drag-drop, paste-to-send, reveal in folder, ⌘N, multi-window, menus | Off |
 | Dock/taskbar progress | Off (foreground-service notification instead) |
@@ -203,10 +218,9 @@ is a change of default rather than a second refactor.
 - **Foreground service + wake lock** for background transfers. The permissions are
   declared but the service isn't implemented, so a transfer will likely die when the app
   is backgrounded. This is the biggest remaining gap.
-- **Save-to-Downloads / Share** for received files (MediaStore + FileProvider). Files
-  land in the app's data dir, so getting them out again means going through the app.
-- **Progress while staging.** A pick is copied into the cache before croc starts, and
-  a multi-GB video makes that a visible wait with no feedback.
+- **Progress while copying.** A pick is copied into the cache before croc starts, and a
+  finished receive is copied out to Downloads afterwards. Both are silent, so a multi-GB
+  video is a visible wait with no feedback at either end.
 - **In-app update check + install intent.** `REQUEST_INSTALL_PACKAGES` is declared;
   `useUpdater()` is a context and `UpdateBanner` only reads from it, so reimplementing
   its three plugin calls as Rust commands would carry the UI over unchanged. Android

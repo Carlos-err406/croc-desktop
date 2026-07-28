@@ -108,7 +108,7 @@ function TimelineStep({ step }: { step: Step }) {
 }
 
 export function ReceiveScreen({ recv }: { recv: UseReceive }) {
-  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, isText, text, prompt, reconnecting, reconnectAttempt } = recv;
+  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, savedTo, saveError, isText, text, prompt, reconnecting, reconnectAttempt } = recv;
 
   const [copied, setCopied] = useState(false);
   const copyText = async () => {
@@ -227,7 +227,9 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const savedDir = out || dir;
+  // On Android the files are published to Downloads once the transfer finishes;
+  // until then the private receive path is where they really are.
+  const savedDir = savedTo || out || dir;
 
   const fileRows = perFile.map((f) => ({
     name: f.name,
@@ -638,6 +640,14 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 </div>
               ))}
             </div>
+            {/* The transfer succeeded but publishing to Downloads didn't, so the
+                files are still in app-private storage — say so rather than showing
+                a path the user can't reach and calling it done. */}
+            {status === 'done' && saveError && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                Received, but couldn't save to Downloads: {saveError}
+              </div>
+            )}
             {status === 'done' ? (
               <div className="flex gap-2.5">
                 {/* No file manager to reveal into on Android, and croc_show_item is a

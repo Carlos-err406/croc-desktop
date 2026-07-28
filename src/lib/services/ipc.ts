@@ -43,6 +43,13 @@ export interface CrocInfo {
   compatible: boolean;
 }
 
+/** Outcome of publishing a receive to Downloads. See croc.exportReceived(). */
+export interface ExportResult {
+  saved: number;
+  /** Where the files went ("Download/Croc"), or null if none moved. */
+  location: string | null;
+}
+
 /** A delivery from Android's share sheet. See croc.takeShared(). */
 export interface SharedPayload {
   paths: string[];
@@ -127,6 +134,12 @@ export const croc = {
    * Always empty on desktop, which has "Open With" instead.
    */
   takeShared: () => call<SharedPayload>('croc_take_shared'),
+  /**
+   * Publish a finished receive's files to the phone's Downloads folder and drop the
+   * private copies. Android only: everything else receives straight into a real
+   * folder, so this reports nothing saved and changes nothing.
+   */
+  exportReceived: (out: string) => call<ExportResult>('croc_export_received', { out }),
   clipboardFiles: () => call<string[]>('croc_clipboard_files'),
   clipboardText: () => call<string | null>('croc_clipboard_text'),
   setProgress: (progress: number | null) =>

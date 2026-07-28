@@ -1,4 +1,6 @@
 #[cfg(target_os = "android")]
+mod android_media;
+#[cfg(target_os = "android")]
 mod android_saf;
 #[cfg(target_os = "android")]
 mod android_share;
@@ -196,6 +198,7 @@ pub fn run() {
             commands::croc_history_clear,
             commands::croc_take_opened_files,
             commands::croc_take_shared,
+            commands::croc_export_received,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

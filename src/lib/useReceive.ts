@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CrocFileInfo, CrocProgress, CrocPrompt } from '@/lib/ipc-types';
-import { CAN_USE_FILE_PATHS } from '@/lib/platform';
+import { CAN_USE_FILE_PATHS, IS_ANDROID } from '@/lib/platform';
 import { croc, type CrocEvent } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
 import { notify, useTransferNotification } from '@/lib/notify';
@@ -30,6 +30,10 @@ export interface ReceiveState {
   text: string | null; // the received text body
   error: string | null;
   out: string;
+  // Android publishes finished receives to Downloads, since the app's own data dir
+  // is invisible to every other app. Where they ended up, once that's done.
+  savedTo: string | null;
+  saveError: string | null;
   logLines: string[];
   prompt: CrocPrompt | null; // pending accept/overwrite prompt awaiting the user
   reconnecting: boolean; // auto-retrying a dropped receive with the same code
@@ -48,6 +52,8 @@ const INITIAL: ReceiveState = {
   text: null,
   error: null,
   out: '',
+  savedTo: null,
+  saveError: null,
   logLines: [],
   prompt: null,
   reconnecting: false,
@@ -224,20 +230,39 @@ export function useReceive(): UseReceive {
     return unsub;
   }, []);
 
-  // Record a completed receive in the local history, once per transfer.
+  // Publish to Downloads (Android), then record the receive in the local history —
+  // once per transfer, and in that order so history points at where the files
+  // actually ended up rather than the private dir they passed through.
   useEffect(() => {
     if (state.status !== 'done') return;
     const id = idRef.current;
     if (!id || recordedRef.current === id) return;
     recordedRef.current = id;
-    croc.historyAdd({
-      kind: 'receive',
-      names: state.isText ? ['Text message'] : state.perFile.map((f) => f.name),
-      count: state.isText ? 1 : Math.max(state.perFile.length, state.totalFiles > 1 ? state.totalFiles : 1),
-      sizeHuman: state.progress?.totalHuman ?? undefined,
-      out: state.out || undefined,
-      isText: state.isText || undefined,
-    });
+
+    const record = (out?: string) =>
+      croc.historyAdd({
+        kind: 'receive',
+        names: state.isText ? ['Text message'] : state.perFile.map((f) => f.name),
+        count: state.isText ? 1 : Math.max(state.perFile.length, state.totalFiles > 1 ? state.totalFiles : 1),
+        sizeHuman: state.progress?.totalHuman ?? undefined,
+        out,
+        isText: state.isText || undefined,
+      });
+
+    // A text message has no files to publish.
+    if (!IS_ANDROID || state.isText) {
+      record(state.out || undefined);
+      return;
+    }
+    void (async () => {
+      const [err, result] = await croc.exportReceived(state.out);
+      // A failed export leaves the files where croc put them, so the receive still
+      // succeeded — say what went wrong and keep showing the private path.
+      if (err) setState((v) => ({ ...v, saveError: err.message }));
+      const where = result?.location ?? null;
+      if (where) setState((v) => ({ ...v, savedTo: where }));
+      record(where ?? state.out ?? undefined);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status]);
 
