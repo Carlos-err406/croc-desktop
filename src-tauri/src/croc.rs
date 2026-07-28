@@ -941,7 +941,7 @@ pub fn spawn_transfer(
     // deletes it on a clean exit. A per-send scratch dir keeps that zip out of the
     // user's home dir and lets us wipe leftovers after a failed transfer, so a retry
     // never hits croc's un-overridable "file already exists!" (utils.go ZipDirectory).
-    let cwd = work_dir.clone().or_else(default_cwd);
+    let cwd = work_dir.clone().or_else(|| fallback_cwd(&app));
     let transport::Spawned { mut reader, writer, killer, wait } =
         transport::spawn(bin, &args, &env, cwd.as_ref())?;
 
@@ -978,13 +978,29 @@ pub fn spawn_transfer(
     Ok(())
 }
 
-/// Working dir when the caller didn't supply a scratch one: HOME on Unix,
-/// USERPROFILE on Windows. On Android neither is set in the process environment,
-/// so croc inherits the app's cwd, which is writable.
-fn default_cwd() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
+/// Working dir when the caller didn't supply a scratch one.
+///
+/// This MUST be writable on Android. croc makes its temp files with
+/// `os.CreateTemp(".", "croc-stdin-")` (croc utils.go / cli.go) — hardcoded to the
+/// current directory and ignoring TMPDIR — and an Android app process starts with
+/// cwd `/`, which is read-only. Any invocation without an explicit scratch dir (text
+/// sends, receives) therefore died with `open ./croc-stdin-…: read-only file system`
+/// and exit 1, after the PAKE handshake had already succeeded.
+///
+/// Desktop keeps its old behaviour: HOME on Unix, USERPROFILE on Windows.
+fn fallback_cwd(app: &AppHandle) -> Option<PathBuf> {
+    #[cfg(mobile)]
+    {
+        // Same directory we hand croc as TMPDIR, so all of its scratch lands together.
+        crate::commands::android_tmp_dir(app)
+    }
+    #[cfg(desktop)]
+    {
+        let _ = app;
+        std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from)
+    }
 }
 
 pub fn cancel_transfer(app: &AppHandle, transfer_id: &str) {
