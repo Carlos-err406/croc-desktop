@@ -385,6 +385,9 @@ export function useSend(): UseSend {
     if (state.result) croc.cancel(state.result.transferId);
     idRef.current = null;
     setState(INITIAL);
+    // Android copies each picked file into a cache dir so croc has a real path to
+    // read; clearing the staging area here stops those copies accumulating.
+    void croc.clearStaged();
   }
 
   function setPresetCode(code: string) {

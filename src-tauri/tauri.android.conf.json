@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "build": {
+    "beforeDevCommand": "node scripts/fetch-croc.mjs --android && npm run dev:vite",
+    "beforeBuildCommand": "node scripts/fetch-croc.mjs --android && npm run build:vite"
+  },
+  "bundle": {
+    "externalBin": [],
+    "createUpdaterArtifacts": false,
+    "android": {
+      "minSdkVersion": 26,
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}

@@ -61,6 +61,12 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Tuple<T> {
 
 export const croc = {
   pickPaths: () => call<string[]>('croc_pick_paths'),
+  /**
+   * Drop the files Android staged in the cache for a send. On Android a picked
+   * `content://` URI is copied to a real path croc can open, so the copies must be
+   * swept once the transfer is over. No-op on desktop, which sends in place.
+   */
+  clearStaged: () => call<null>('croc_clear_staged'),
   pickFolders: () => call<string[]>('croc_pick_folders'),
   pickFolder: () => call<string>('croc_pick_folder'),
   defaultDir: () => call<string>('croc_default_dir'),

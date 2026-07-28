@@ -25,21 +25,42 @@ tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
-tauri-plugin-sharekit = "0.3.1"
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
+tauri-plugin-sharekit = "0.3.1" # ships android/ + ios/ — mobile-capable
 tauri-plugin-notification = "2"
 tauri-plugin-deep-link = "2"
-portable-pty = "0.9"
+# Android's file picker returns content:// URIs, which croc (a plain subprocess)
+# cannot open. Fs::open() resolves one to a real std::fs::File via the
+# ContentResolver, so a pick can be STREAMED into the send cache without ever
+# being held in memory. See croc_pick_paths on mobile.
+tauri-plugin-fs = "2"
 regex = "1"
 qrcode = "0.14"
 base64 = "0.22"
 rand = "0.8"
-# HEAD the update asset to show its download size. default-features=false adds no
-# features to the reqwest the updater plugin already compiles (union unchanged),
-# so this reuses that build (incl. its TLS backend) rather than pulling anything new.
-reqwest = { version = "0.13", default-features = false }
+
+# Desktop-only dependencies. Android deliberately takes none of these:
+#   * portable-pty — croc writes its progress bar to stderr and reads prompts from
+#     plain stdin, so a pty buys nothing a merged pipe + COLUMNS can't (croc.rs).
+#   * mdns-sd — nearby/local discovery needs a JVM MulticastLock we don't hold yet.
+#   * updater/process — signed desktop artifacts; Android updates via an APK intent.
+#   * reqwest — only croc_update_size uses it, and the updater's rustls feature drags
+#     in `ring`, whose build script needs a C compiler for the Android target.
+#     Keeping all of it off Android is what lets `cargo check --target
+#     aarch64-linux-android` run with no NDK at all. (default-features=false adds no
+#     features to the reqwest the updater plugin already compiles, so the union is
+#     unchanged.)
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+portable-pty = "0.9"
 mdns-sd = "0.20.2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+reqwest = { version = "0.13", default-features = false }
+
+# Android drives croc over pipes instead of a pty (croc::transport). Merging its
+# stdout and stderr onto ONE pipe needs a dup'able writer, which std::process alone
+# can't express — os_pipe is a thin wrapper over pipe(2) with no further deps.
+[target.'cfg(target_os = "android")'.dependencies]
+os_pipe = "1"
 
 # Read file paths off the native pasteboard (Finder "Copy" → in-app paste).
 [target.'cfg(target_os = "macos")'.dependencies]

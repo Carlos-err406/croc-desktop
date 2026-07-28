@@ -3,13 +3,16 @@ mod codephrase;
 mod commands;
 mod croc;
 mod history;
+#[cfg(desktop)]
 mod nearby;
 
 use croc::CrocState;
 
 /// Buffer files opened via "Open With → Croc Desktop" (or dropped on the app
 /// icon) and ping the UI to stage & send them, focusing the window. Shared by the
-/// macOS RunEvent::Opened path and the Windows/Linux argv path.
+/// macOS RunEvent::Opened path and the Windows/Linux argv path. Android receives
+/// shared files as an intent instead, which is handled separately.
+#[cfg(desktop)]
 fn stage_opened_paths(app: &tauri::AppHandle, paths: Vec<String>) {
     use tauri::{Emitter, Manager};
     if paths.is_empty() {
@@ -72,16 +75,22 @@ pub fn run() {
         }));
     }
 
-    builder
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
+        // Resolves Android content:// URIs into readable files (see croc_pick_paths).
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sharekit::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
         .manage(CrocState::default())
         .manage(commands::OpenedPaths::default())
-        .manage(commands::ClaimedUrls::default())
-        .manage(nearby::NearbyState::default())
+        .manage(commands::ClaimedUrls::default());
+
+    #[cfg(desktop)]
+    let builder = builder.manage(nearby::NearbyState::default());
+
+    builder
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -100,6 +109,8 @@ pub fn run() {
             // menus come from there — rebuilding by hand would drop them) and inject
             // "New Window" into the existing File submenu. The accelerator lives here
             // rather than a JS keydown handler, so there's exactly one ⌘N path.
+            // Desktop-only: Android has no menu bar and no second window to open.
+            #[cfg(desktop)]
             {
                 use tauri::menu::{Menu, MenuItem};
                 let menu = Menu::default(app.handle())?;
@@ -155,6 +166,7 @@ pub fn run() {
             commands::croc_update_size,
             commands::croc_stat_paths,
             commands::croc_pick_paths,
+            commands::croc_clear_staged,
             commands::croc_pick_folder,
             commands::croc_pick_folders,
             commands::croc_send,

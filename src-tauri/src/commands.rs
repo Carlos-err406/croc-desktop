@@ -42,6 +42,13 @@ fn gen_id() -> String {
 }
 
 /// ~/Downloads/Croc (created if missing).
+///
+/// On Android there is no user-writable Downloads path an exec'd binary can use:
+/// public storage is mediated by MediaStore/SAF, which croc knows nothing about.
+/// Receives therefore land in the app's own data dir — writable with no permission
+/// and removed on uninstall — and the UI offers "Save to Downloads" / "Share"
+/// afterwards to get files out.
+#[cfg(desktop)]
 fn default_download_dir(app: &AppHandle) -> String {
     let base = app
         .path()
@@ -54,9 +61,48 @@ fn default_download_dir(app: &AppHandle) -> String {
     dir.to_string_lossy().into_owned()
 }
 
+#[cfg(mobile)]
+fn default_download_dir(app: &AppHandle) -> String {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("Croc"))
+        .unwrap_or_else(|_| PathBuf::from("."));
+    let _ = std::fs::create_dir_all(&dir);
+    dir.to_string_lossy().into_owned()
+}
+
+/// `HOME` for the croc child on Android: croc persists config (including the
+/// `--internal-dns` marker) relative to it, and an unset HOME sends those writes
+/// somewhere the sandbox denies.
+#[cfg(mobile)]
+pub fn android_home_dir(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_data_dir().ok()?.join("croc-home");
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir)
+}
+
+/// `TMPDIR` for the croc child on Android.
+#[cfg(mobile)]
+pub fn android_tmp_dir(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_cache_dir().ok()?.join("croc-tmp");
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir)
+}
+
 #[tauri::command]
 pub fn croc_default_dir(app: AppHandle) -> String {
     default_download_dir(&app)
+}
+
+/// Android has no signed-updater artifact to size up, and reqwest is desktop-only
+/// here (its TLS backend needs a C toolchain for the Android target), so this
+/// reports "unknown" and the UI omits the size. Kept as a command on every
+/// platform so the frontend contract doesn't fork.
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn croc_update_size() -> Option<u64> {
+    None
 }
 
 /// Size in bytes of the pending update's download for THIS platform, so the UI can
@@ -64,6 +110,7 @@ pub fn croc_default_dir(app: AppHandle) -> String {
 /// key (Rust knows os+arch exactly), and HEADs the asset. Best-effort → None on any
 /// failure (GitHub asset responses have no CORS headers, so this can't be done from
 /// the webview with fetch; hence a Rust request). Content-Length survives the 302.
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn croc_update_size() -> Option<u64> {
     // Same manifest as plugins.updater.endpoints in tauri.conf.json.
@@ -140,6 +187,13 @@ pub fn croc_claim_url(state: State<ClaimedUrls>, url: String) -> bool {
 /// from JS so it needs no window-creation permission; the new label matches the
 /// `win-*` pattern in capabilities/default.json, which is what grants the new
 /// window its IPC permissions — without that it would load but every call would fail.
+#[cfg(mobile)]
+#[tauri::command]
+pub fn croc_new_window(_app: AppHandle) -> Result<String, String> {
+    Err("Multiple windows aren't available on this platform.".into())
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_new_window(app: AppHandle) -> Result<String, String> {
     use tauri::{WebviewUrl, WebviewWindowBuilder};
@@ -248,6 +302,7 @@ pub fn croc_stat_paths(paths: Vec<String>) -> Vec<StatEntry> {
 // rfd can't pick files + folders in one dialog; this is a multi-file picker
 // (folders are added via drag-drop). Async so the blocking dialog runs off the
 // main thread.
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn croc_pick_paths(app: AppHandle) -> Vec<String> {
     app.dialog()
@@ -264,6 +319,105 @@ pub async fn croc_pick_paths(app: AppHandle) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Android's picker hands back `content://` URIs from the Storage Access
+/// Framework, and croc — an ordinary subprocess — can't open one. Each pick is
+/// therefore STREAMED into a staging dir under the cache and croc is given the
+/// copy's real path.
+///
+/// The copy is the unavoidable cost of SAF: it briefly doubles the space a send
+/// needs. It's streamed rather than buffered so that cost is disk, never memory.
+/// `croc_clear_staged` empties the dir once a send finishes.
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn croc_pick_paths(app: AppHandle) -> Vec<String> {
+    let Some(files) = app.dialog().file().blocking_pick_files() else {
+        return Vec::new();
+    };
+    files
+        .into_iter()
+        .filter_map(|f| match stage_picked_file(&app, f) {
+            Ok(path) => Some(path),
+            Err(e) => {
+                log::error!("staging picked file failed: {e}");
+                None
+            }
+        })
+        .collect()
+}
+
+/// Copy one picked file into the staging dir, returning its real path. Keeps the
+/// display name so croc (and therefore the receiver) sees the original filename.
+#[cfg(mobile)]
+fn stage_picked_file(
+    app: &AppHandle,
+    picked: tauri_plugin_dialog::FilePath,
+) -> Result<String, String> {
+    use tauri_plugin_fs::{FsExt, OpenOptions};
+
+    let name = display_name_for(&picked);
+    let dir = staging_dir(app)?;
+    let dest = dir.join(&name);
+
+    let mut opts = OpenOptions::new();
+    opts.read(true);
+    let mut src = app
+        .fs()
+        .open(picked, opts)
+        .map_err(|e| format!("can't read the picked file: {e}"))?;
+    let mut out = std::fs::File::create(&dest).map_err(|e| e.to_string())?;
+    std::io::copy(&mut src, &mut out).map_err(|e| e.to_string())?;
+
+    Ok(dest.to_string_lossy().into_owned())
+}
+
+/// Best-effort filename from a SAF URI. Content URIs commonly end in a
+/// percent-encoded display name (…%2Fmovie.mp4) or a bare document id; anything
+/// unusable falls back to a generated name so the send still works.
+#[cfg(mobile)]
+fn display_name_for(picked: &tauri_plugin_dialog::FilePath) -> String {
+    let raw = picked.to_string();
+    let decoded = raw.replace("%2F", "/").replace("%2f", "/").replace("%20", " ");
+    let candidate = decoded.rsplit(['/', ':']).next().unwrap_or("").trim().to_string();
+    let cleaned: String = candidate
+        .chars()
+        .filter(|c| !matches!(c, '/' | '\\' | '\0'))
+        .collect();
+    let cleaned = cleaned.trim_matches('.').trim().to_string();
+    if cleaned.is_empty() || !cleaned.contains('.') {
+        format!("shared-{}", gen_id())
+    } else {
+        cleaned
+    }
+}
+
+/// Where picked files are staged before sending: cache, so Android can evict it
+/// under storage pressure rather than the app leaking space forever.
+#[cfg(mobile)]
+fn staging_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("croc-send");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+/// Drop everything staged for sending. Called when a send finishes or resets; the
+/// copies only exist to hand croc a readable path.
+#[cfg(mobile)]
+#[tauri::command]
+pub fn croc_clear_staged(app: AppHandle) {
+    if let Ok(dir) = staging_dir(&app) {
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub fn croc_clear_staged(_app: AppHandle) {}
+
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn croc_pick_folder(app: AppHandle) -> String {
     app.dialog()
@@ -278,6 +432,16 @@ pub async fn croc_pick_folder(app: AppHandle) -> String {
 // Pick folders to send. rfd can't offer files + folders in one native dialog, so
 // folder sending needs its own picker (previously folders could only be drag-dropped,
 // which the GTK/Linux file chooser in "Browse files…" doesn't allow at all).
+/// SAF has no picker that yields a *path* for a directory — only a tree URI, which
+/// croc can't write into. Receives always land in the app's own folder, and an
+/// empty string tells the UI to keep using that default.
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn croc_pick_folder(_app: AppHandle) -> String {
+    String::new()
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn croc_pick_folders(app: AppHandle) -> Vec<String> {
     app.dialog()
@@ -292,6 +456,15 @@ pub async fn croc_pick_folders(app: AppHandle) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Same SAF limitation as `croc_pick_folder`: a tree URI isn't a path, so sending
+/// a folder would mean walking and staging it file by file. Not in this version —
+/// the UI hides the folder button on Android.
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn croc_pick_folders(_app: AppHandle) -> Vec<String> {
+    Vec::new()
 }
 
 #[tauri::command]
@@ -315,7 +488,8 @@ pub fn croc_send(
         _ => codephrase::generate_code(),
     };
 
-    let mut args: Vec<String> = Vec::new();
+    // Starts with any flags this platform always needs (Android: --internal-dns).
+    let mut args: Vec<String> = croc::platform_global_flags();
     // Offline mode: `--local` (a global flag → before the subcommand) makes croc use
     // only a LAN relay + mDNS discovery, no public relay/internet. It ignores --relay,
     // so we skip it. Both peers must have this on and be on the same network.
@@ -325,7 +499,7 @@ pub fn croc_send(
         args.push("--local".into());
     } else if let Some(r) = &custom_relay {
         args.push("--relay".into());
-        args.push(r.clone());
+        args.push(croc::resolve_relay(r));
     }
     args.push("send".into());
     if zip.unwrap_or(false) {
@@ -381,7 +555,8 @@ pub fn croc_send_text(
         _ => codephrase::generate_code(),
     };
 
-    let mut args: Vec<String> = Vec::new();
+    // Starts with any flags this platform always needs (Android: --internal-dns).
+    let mut args: Vec<String> = croc::platform_global_flags();
     // Offline mode: LAN-only, ignores --relay (see croc_send).
     let local = local.unwrap_or(false);
     let custom_relay = relay.filter(|s| !s.is_empty());
@@ -389,7 +564,7 @@ pub fn croc_send_text(
         args.push("--local".into());
     } else if let Some(r) = &custom_relay {
         args.push("--relay".into());
-        args.push(r.clone());
+        args.push(croc::resolve_relay(r));
     }
     args.push("send".into());
     args.push("--text".into());
@@ -431,14 +606,15 @@ pub fn croc_receive(
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| default_download_dir(&app));
 
-    let mut args: Vec<String> = Vec::new();
+    // Starts with any flags this platform always needs (Android: --internal-dns).
+    let mut args: Vec<String> = croc::platform_global_flags();
     // Offline mode: `--local` → discover the sender via mDNS on the LAN, no public
     // relay. Ignores --relay (see croc_send). Both peers must be on the same network.
     if local.unwrap_or(false) {
         args.push("--local".into());
     } else if let Some(r) = relay.filter(|s| !s.is_empty()) {
         args.push("--relay".into());
-        args.push(r);
+        args.push(croc::resolve_relay(&r));
     }
     args.push("--out".into());
     args.push(out.clone());
@@ -521,6 +697,13 @@ pub fn croc_cancel(app: AppHandle, transfer_id: String) {
     croc::cancel_transfer(&app, &transfer_id);
 }
 
+/// Android has no file manager to reveal into — received files are reached from
+/// the app's own list, "Save to Downloads", or the share sheet.
+#[cfg(mobile)]
+#[tauri::command]
+pub fn croc_show_item(_app: AppHandle, _path: String) {}
+
+#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_show_item(app: AppHandle, path: String) {
     if !path.is_empty() {
@@ -548,8 +731,15 @@ pub fn croc_clipboard_text() -> Option<String> {
     crate::clipboard::clipboard_text()
 }
 
+/// No Dock or taskbar to drive on Android — transfer progress belongs in the
+/// foreground-service notification instead.
+#[cfg(mobile)]
+#[tauri::command]
+pub fn croc_set_progress(_app: AppHandle, _progress: Option<u64>) {}
+
 /// Drive the OS progress indicator (macOS Dock / Windows taskbar / Linux Unity).
 /// `progress` is 0–100; `None` clears it. One cross-platform Tauri API.
+#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_set_progress(app: AppHandle, progress: Option<u64>) {
     use tauri::window::{ProgressBarState, ProgressBarStatus};
@@ -608,8 +798,31 @@ pub fn croc_history_clear(app: AppHandle) -> Vec<HistoryEntry> {
 }
 
 // ── nearby peers (LAN discovery, no listener) ─────────────────────────────
+// Android stubs: mDNS there needs a WifiManager MulticastLock held for the whole
+// time we browse or advertise, and without it multicast is silently dropped. Rather
+// than ship something that looks like it works, the feature reports itself
+// unavailable and the UI hides it. (mdns-sd is desktop-only in Cargo.toml.)
+#[cfg(mobile)]
+#[tauri::command]
+pub fn croc_nearby_start() -> Result<(), String> {
+    Err("Nearby devices aren't available on this platform yet.".into())
+}
+
+#[cfg(mobile)]
+#[tauri::command]
+pub fn croc_nearby_peers() -> Vec<serde_json::Value> {
+    Vec::new()
+}
+
+#[cfg(mobile)]
+#[tauri::command]
+pub fn croc_nearby_discoverable(_code: Option<String>) -> Result<bool, String> {
+    Err("Nearby devices aren't available on this platform yet.".into())
+}
+
 /// Start browsing for nearby croc devices. Browse-only: this does NOT advertise us,
 /// so joining a network never broadcasts the device name by itself.
+#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_nearby_start(state: State<crate::nearby::NearbyState>) -> Result<(), String> {
     state.start_browsing()
@@ -617,6 +830,7 @@ pub fn croc_nearby_start(state: State<crate::nearby::NearbyState>) -> Result<(),
 
 /// Nearby devices currently accepting (self excluded). A peer with `code: null` is
 /// visible but not accepting — nothing to send to.
+#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_nearby_peers(state: State<crate::nearby::NearbyState>) -> Vec<crate::nearby::Peer> {
     state.peers()
@@ -625,6 +839,7 @@ pub fn croc_nearby_peers(state: State<crate::nearby::NearbyState>) -> Vec<crate:
 /// Become discoverable with a one-time `code`, or stop. While discoverable, anyone on
 /// this network can see the code and send to it — which is why it's an explicit,
 /// revocable choice rather than a default.
+#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_nearby_discoverable(
     state: State<crate::nearby::NearbyState>,
@@ -643,6 +858,7 @@ pub fn croc_nearby_discoverable(
 }
 
 /// A friendly device name for the advertisement — the machine's hostname.
+#[cfg(desktop)]
 fn hostname_or_default() -> String {
     std::process::Command::new("hostname")
         .output()

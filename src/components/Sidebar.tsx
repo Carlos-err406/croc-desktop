@@ -19,7 +19,7 @@ export function Sidebar({
   const { status: updateStatus } = useUpdater();
   const updateReady = updateStatus === 'available' || updateStatus === 'ready';
   return (
-    <nav className="flex w-[220px] shrink-0 flex-col border-r border-border bg-sidebar px-[14px] py-5">
+    <nav className="hidden w-[220px] shrink-0 flex-col border-r border-border bg-sidebar px-[14px] py-5 md:flex">
       <div className="flex items-center gap-2.5 px-2 pb-[22px] pt-1.5">
         <CrocBadge />
         <span className="font-heading text-xl font-semibold tracking-[.02em]">Croc</span>

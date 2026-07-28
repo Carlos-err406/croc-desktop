@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
 import { QrScanner } from '@/components/QrScanner';
+import { CAN_USE_NEARBY } from '@/lib/platform';
 
 function extType(name: string): string {
   const dot = name.lastIndexOf('.');
@@ -407,7 +408,9 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               <QrCode size={15} /> Scan a QR code
             </button>
 
-            {/* Reverse pairing — publish a code for THEM to send to. */}
+            {/* Reverse pairing — publish a code for THEM to send to. Needs mDNS, so
+                it's desktop-only until Android holds a multicast lock. */}
+            {CAN_USE_NEARBY && (
             <button
               onClick={() => void toggleDiscoverable()}
               className={`mt-2.5 flex cursor-pointer items-center gap-1.5 text-[13px] font-medium ${
@@ -418,6 +421,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               <Radio size={14} className={discoverable ? 'text-brand' : ''} />
               {discoverable ? 'Discoverable to nearby devices — tap to stop' : 'Or let a nearby device find you'}
             </button>
+            )}
             {discoverable && (
               <p className="mt-1.5 max-w-[400px] text-xs leading-relaxed text-muted-foreground">
                 Visible on this network as a device ready to receive. Hit{' '}

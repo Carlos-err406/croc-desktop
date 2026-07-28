@@ -5,6 +5,7 @@ import { croc } from '@/lib/services/ipc';
 import { useSend } from '@/lib/useSend';
 import { useReceive } from '@/lib/useReceive';
 import { Sidebar } from './Sidebar';
+import { BottomTabs } from './BottomTabs';
 import { SendScreen } from './screens/SendScreen';
 import { ReceiveScreen } from './screens/ReceiveScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
@@ -106,9 +107,12 @@ export function AppShell() {
   ]);
 
   return (
-    <div className="flex h-full bg-background text-foreground">
+    // Column on a phone (canvas above the tab bar), row on desktop (sidebar beside
+    // the canvas). One breakpoint drives both, so a narrow desktop window behaves
+    // like a phone with no JS involved.
+    <div className="flex h-full flex-col bg-background text-foreground md:flex-row">
       <Sidebar screen={screen} onNavigate={setScreen} />
-      <div className="croc-canvas flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="croc-canvas flex min-h-0 min-w-0 flex-1 flex-col pt-[env(safe-area-inset-top)]">
         <UpdateBanner />
         <CrocCompatBanner />
         {/* Keyed so the screen re-plays its entrance on each navigation.
@@ -128,6 +132,7 @@ export function AppShell() {
           {screen === 'about' && <AboutScreen />}
         </div>
       </div>
+      <BottomTabs screen={screen} onNavigate={setScreen} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { ConnectionHint } from '@/components/ConnectionHint';
 import { LocalToggle } from '@/components/LocalToggle';
 import { QrScanner } from '@/components/QrScanner';
 import { NearbyPeers } from '@/components/NearbyPeers';
+import { CAN_PICK_FOLDERS, CAN_USE_FILE_PATHS, CAN_USE_NEARBY } from '@/lib/platform';
 import { parseReceiveTarget } from '@/lib/deeplink';
 import { getPrefs } from '@/lib/prefs';
 import { croc } from '@/lib/services/ipc';
@@ -206,6 +207,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const statusRef = useRef(status);
   statusRef.current = status;
   useEffect(() => {
+    if (!CAN_USE_FILE_PATHS) return; // no OS drag source on a phone
     let unlisten: (() => void) | undefined;
     getCurrentWebview()
       .onDragDropEvent((event) => {
@@ -304,6 +306,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       })();
     };
 
+    if (!CAN_USE_FILE_PATHS) return; // no pasteboard paths, no ⌘V accelerator
     document.addEventListener('paste', onPaste);
     window.addEventListener('keydown', onKeydown);
     return () => {
@@ -480,16 +483,20 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               }`}
             >
               <CrocBadge size={76} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
-              <div className="mt-[22px] font-heading text-2xl font-semibold">Drop files or a folder to send</div>
+              <div className="mt-[22px] font-heading text-2xl font-semibold">
+                {CAN_USE_FILE_PATHS ? 'Drop files or a folder to send' : 'Pick files to send'}
+              </div>
               <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
                 Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to the
                 other device.
               </div>
               <div className="mt-[22px] flex gap-2.5" onClick={(e) => e.stopPropagation()}>
-                <Button onClick={browse}>Browse files…</Button>
-                <Button variant="outline" onClick={browseFolders}>
-                  <FolderPlus /> Add folder
-                </Button>
+                <Button onClick={browse}>{CAN_USE_FILE_PATHS ? 'Browse files…' : 'Choose files'}</Button>
+                {CAN_PICK_FOLDERS && (
+                  <Button variant="outline" onClick={browseFolders}>
+                    <FolderPlus /> Add folder
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setScanning(true)} title="Scan someone's “send to me” QR">
                   <QrCode /> Scan their code
                 </Button>
@@ -566,26 +573,30 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               ))}
             </div>
             <div className="border-t border-border p-[11px] text-center text-xs text-muted-foreground">
-              Drop more files here, or use Add
+              {CAN_USE_FILE_PATHS ? 'Drop more files here, or use Add' : 'Use Add files to include more'}
             </div>
           </div>
           {/* Nearby: adopt a discoverable peer's advertised code — no code exchange. */}
-          <div className="w-[268px] shrink-0 overflow-y-auto">
+          {CAN_USE_NEARBY && (
+          <div className="hidden w-[268px] shrink-0 overflow-y-auto md:block">
             <NearbyPeers
               ourCroc={ourCroc}
               selectedCode={customCode}
               onPick={(p) => p.code && setCustomCode(p.code)}
             />
           </div>
+          )}
           </div>
           <CustomCodeField value={customCode} onChange={setCustomCode} invalid={codeInvalid} />
           <div className="flex gap-2.5">
             <Button variant="outline" className="h-11 flex-1" onClick={browse}>
               <Plus /> Add files
             </Button>
-            <Button variant="outline" className="h-11 flex-1" onClick={browseFolders}>
-              <FolderPlus /> Add folder
-            </Button>
+            {CAN_PICK_FOLDERS && (
+              <Button variant="outline" className="h-11 flex-1" onClick={browseFolders}>
+                <FolderPlus /> Add folder
+              </Button>
+            )}
             <Button className="h-11 flex-[2]" disabled={codeInvalid} onClick={() => send.begin(customCode)}>
               {customCode.trim() ? 'Send with this code' : 'Generate code & send'}
             </Button>

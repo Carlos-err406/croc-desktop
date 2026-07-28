@@ -1,22 +1,29 @@
-//! The croc engine: spawn `croc` in a PTY (portable-pty), parse its TTY-gated
-//! output into typed events streamed to the webview, and support cancel. This is
-//! the Rust port of the Electron `electron/lib/croc.ts` CrocProcess.
+//! The croc engine: spawn `croc`, parse its output into typed events streamed to
+//! the webview, and support cancel/respond. Originally a Rust port of the Electron
+//! `electron/lib/croc.ts` CrocProcess.
+//!
+//! Two transports feed ONE parser (see the `transport` module):
+//!   * desktop — a real pty (portable-pty), which is what the Electron app used.
+//!   * Android — plain pipes with stderr merged into stdout and COLUMNS set wide.
+//!     Tauri's sidecar mechanism is desktop-only and portable-pty isn't built for
+//!     Android at all, so pipes are the only option there. They're sufficient
+//!     because croc writes its progress bar to stderr (gated on text mode, not on
+//!     a tty) and reads prompts from a plain stdin.
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, PtySize};
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
 
-/// A live transfer: `killer` lets `croc_cancel` stop it; `writer` lets
-/// `croc_respond` answer croc's interactive prompts (accept / overwrite) by
-/// writing to the PTY (e.g. "y\n").
+/// A live transfer: `killer` stops it for `croc_cancel`; `writer` answers croc's
+/// interactive prompts (accept / overwrite / resume) for `croc_respond` by writing
+/// "y\n" to the pty master or the child's stdin, depending on transport.
 pub struct Transfer {
-    pub killer: Box<dyn ChildKiller + Send + Sync>,
+    pub killer: transport::Killer,
     pub writer: Box<dyn Write + Send>,
 }
 
@@ -107,13 +114,34 @@ pub fn bundled_croc_binary() -> Option<PathBuf> {
 }
 
 pub fn find_croc_binary() -> Option<PathBuf> {
-    // Explicit override wins (power users / tests).
+    // Explicit override wins (power users / tests). On Android this is the ONLY
+    // path: MainActivity sets CROC_BIN to nativeLibraryDir/libcroc.so before Rust
+    // starts, because that directory is the one place an app may execute from
+    // (app-writable storage is mounted no-exec) and Rust can't read
+    // ApplicationInfo without JNI.
     if let Ok(p) = std::env::var("CROC_BIN") {
         let pb = PathBuf::from(&p);
         if pb.exists() {
             return Some(pb);
         }
     }
+    // Inside an Android sandbox there is no sidecar and no PATH to fall back to, so
+    // a missing CROC_BIN means the MainActivity hook didn't run — a build problem,
+    // not something to paper over by executing an unexpected binary.
+    #[cfg(target_os = "android")]
+    {
+        None
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        find_croc_binary_desktop()
+    }
+}
+
+/// Sidecar-then-PATH lookup, split out so the Android branch above has no
+/// unreachable code behind it.
+#[cfg(not(target_os = "android"))]
+fn find_croc_binary_desktop() -> Option<PathBuf> {
     // Prefer the bundled sidecar so the app is self-contained.
     if let Some(pb) = bundled_croc_binary() {
         return Some(pb);
@@ -134,6 +162,73 @@ pub fn find_croc_binary() -> Option<PathBuf> {
         }
     }
     None
+}
+
+// ── Android DNS ───────────────────────────────────────────────────────────
+// Android ships no /etc/resolv.conf. croc is pure Go with CGO disabled, so its
+// resolver reads that file, finds nothing, falls back to 127.0.0.1:53 and fails
+// every lookup — including the one croc does on its own DEFAULT_RELAY at startup.
+// Two complementary fixes, because neither covers the other's case:
+
+/// Global flags that must precede any subcommand on this platform.
+///
+/// `--internal-dns` makes croc use its built-in list of public resolvers (Quad9,
+/// OpenDNS, Comodo…) instead of the host's. croc picks it up in `init()` by
+/// scanning argv, so position only matters to croc's own flag parser.
+pub fn platform_global_flags() -> Vec<String> {
+    #[cfg(mobile)]
+    {
+        vec!["--internal-dns".to_string()]
+    }
+    #[cfg(desktop)]
+    {
+        Vec::new()
+    }
+}
+
+/// Resolve a relay's hostname to an IP with the PLATFORM resolver, yielding
+/// `ip:port`.
+///
+/// This is not redundant with `--internal-dns`: croc's stub resolver only knows
+/// public DNS, so a relay on the local network (or any private name) resolves
+/// here and nowhere else. Identity on desktop — the host resolver already works
+/// there, and passing croc an IP instead of the name the user typed would be a
+/// behaviour change for no gain. IP literals and port-less values pass through.
+pub fn resolve_relay(relay: &str) -> String {
+    #[cfg(desktop)]
+    {
+        relay.to_string()
+    }
+    #[cfg(mobile)]
+    {
+        use std::net::{IpAddr, ToSocketAddrs};
+
+        let trimmed = relay.trim();
+        // Only "host:port" can be rewritten; without a port croc applies its own
+        // default and we'd be guessing.
+        let Some((host, port)) = trimmed.rsplit_once(':') else {
+            return trimmed.to_string();
+        };
+        if port.is_empty() || !port.chars().all(|c| c.is_ascii_digit()) {
+            return trimmed.to_string();
+        }
+        let host = host.trim_start_matches('[').trim_end_matches(']');
+        if host.parse::<IpAddr>().is_ok() {
+            return trimmed.to_string(); // already literal
+        }
+        let Ok(addrs) = (host, port.parse::<u16>().unwrap_or(0)).to_socket_addrs() else {
+            return trimmed.to_string();
+        };
+        // Prefer IPv4: croc's relay listens on both, and a phone on a v4-only
+        // network that picked the AAAA record would just time out.
+        let mut found: Vec<_> = addrs.collect();
+        found.sort_by_key(|a| u8::from(a.is_ipv6()));
+        match found.first().map(|a| a.ip()) {
+            Some(IpAddr::V4(ip)) => format!("{ip}:{port}"),
+            Some(IpAddr::V6(ip)) => format!("[{ip}]:{port}"),
+            None => trimmed.to_string(),
+        }
+    }
 }
 
 pub fn human_bytes(n: u64) -> String {
@@ -648,6 +743,142 @@ fn humanize_error(raw: Option<&str>, exit_code: i32) -> String {
     format!("Transfer failed (croc exited with code {exit_code}).")
 }
 
+/// Spawning croc. Desktop uses a pty; Android uses pipes. Both hand back the same
+/// four handles, so `spawn_transfer` and the parser never learn which is in play.
+pub mod transport {
+    use std::io::{Read, Write};
+    use std::path::PathBuf;
+
+    /// Everything `spawn_transfer` needs from a freshly-spawned croc.
+    pub struct Spawned {
+        /// croc's stdout AND stderr, interleaved. The progress bar goes to stderr,
+        /// so a transport that drops stderr shows no progress at all.
+        pub reader: Box<dyn Read + Send>,
+        /// Answers croc's prompts ("y\n").
+        pub writer: Box<dyn Write + Send>,
+        pub killer: Killer,
+        /// Blocks until croc exits, yielding its exit code. Owns anything that has
+        /// to outlive the read loop (on desktop, the pty master).
+        pub wait: Box<dyn FnOnce() -> i32 + Send>,
+    }
+
+    #[cfg(desktop)]
+    pub type Killer = Box<dyn portable_pty::ChildKiller + Send + Sync>;
+    #[cfg(mobile)]
+    pub type Killer = PipeKiller;
+
+    /// A 30×1000 pty. The absurd width is deliberate: croc sizes its progress bar
+    /// to the terminal and truncates long filenames to fit, so a narrow terminal
+    /// would cost us the filenames the UI displays.
+    #[cfg(desktop)]
+    pub fn spawn(
+        bin: PathBuf,
+        args: &[String],
+        env: &[(String, String)],
+        cwd: Option<&PathBuf>,
+    ) -> Result<Spawned, String> {
+        use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+
+        let pair = native_pty_system()
+            .openpty(PtySize { rows: 30, cols: 1000, pixel_width: 0, pixel_height: 0 })
+            .map_err(|e| e.to_string())?;
+
+        let mut cmd = CommandBuilder::new(bin);
+        for a in args {
+            cmd.arg(a);
+        }
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
+        if let Some(dir) = cwd {
+            cmd.cwd(dir);
+        }
+
+        let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
+        drop(pair.slave);
+
+        let killer = child.clone_killer();
+        let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
+        let reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
+        let master = pair.master;
+
+        Ok(Spawned {
+            reader,
+            writer,
+            killer,
+            wait: Box::new(move || {
+                // Hold the master until croc is gone; dropping it early closes the
+                // pty out from under the child.
+                let _master = master;
+                child.wait().map(|s| s.exit_code() as i32).unwrap_or(-1)
+            }),
+        })
+    }
+
+    /// Plain pipes, with stdout and stderr pointed at the SAME pipe. Two separate
+    /// pipes read by two threads would interleave nondeterministically, and the
+    /// parser's "an unfinished prompt is the newline-less tail" rule depends on
+    /// arrival order — so the fds are dup'd onto one writer instead.
+    #[cfg(mobile)]
+    pub fn spawn(
+        bin: PathBuf,
+        args: &[String],
+        env: &[(String, String)],
+        cwd: Option<&PathBuf>,
+    ) -> Result<Spawned, String> {
+        use std::process::{Command, Stdio};
+        use std::sync::{Arc, Mutex};
+
+        let (read_end, write_end) = os_pipe::pipe().map_err(|e| e.to_string())?;
+        let write_dup = write_end.try_clone().map_err(|e| e.to_string())?;
+
+        let mut cmd = Command::new(bin);
+        cmd.args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::from(write_end))
+            .stderr(Stdio::from(write_dup));
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+
+        // Both write ends move into the Command, so the parent's copies are closed
+        // by spawn(); otherwise the reader below would never see EOF.
+        let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+        let writer = child.stdin.take().ok_or("croc stdin unavailable")?;
+        let shared = Arc::new(Mutex::new(child));
+        let killer = PipeKiller(Arc::clone(&shared));
+
+        Ok(Spawned {
+            reader: Box::new(read_end),
+            writer: Box::new(writer),
+            killer,
+            wait: Box::new(move || loop {
+                // try_wait + sleep, never a blocking wait: holding this mutex
+                // across wait() would deadlock a concurrent cancel().
+                match shared.lock().unwrap().try_wait() {
+                    Ok(Some(status)) => break status.code().unwrap_or(-1),
+                    Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+                    Err(_) => break -1,
+                }
+            }),
+        })
+    }
+
+    /// Cancel handle for the pipe transport, mirroring portable-pty's ChildKiller.
+    #[cfg(mobile)]
+    pub struct PipeKiller(pub std::sync::Arc<std::sync::Mutex<std::process::Child>>);
+
+    #[cfg(mobile)]
+    impl PipeKiller {
+        pub fn kill(&mut self) -> std::io::Result<()> {
+            self.0.lock().unwrap().kill()
+        }
+    }
+}
+
 /// Spawn croc with the given args + CROC_SECRET, stream events, register the
 /// killer for cancel. Returns once the process is launched (it keeps running in
 /// a background thread).
@@ -659,51 +890,50 @@ pub fn spawn_transfer(
     work_dir: Option<std::path::PathBuf>,
     auto_answer_prompts: bool,
 ) -> Result<(), String> {
-    let bin = find_croc_binary()
-        .ok_or("croc binary not found. Install croc (e.g. `brew install croc`) or set CROC_BIN.")?;
+    let bin = find_croc_binary().ok_or(
+        "croc binary not found. Install croc (e.g. `brew install croc`) or set CROC_BIN.",
+    )?;
 
-    let pty_system = native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows: 30,
-            cols: 1000, // wide PTY so croc prints full filenames (not truncated + "...")
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| e.to_string())?;
+    #[allow(unused_mut)]
+    let mut env: Vec<(String, String)> = vec![("CROC_SECRET".into(), secret)];
 
-    let mut cmd = CommandBuilder::new(bin);
-    for a in &args {
-        cmd.arg(a);
-    }
-    cmd.env("CROC_SECRET", &secret);
     // Widen PATH so a PATH-resolved croc is findable (the bundled sidecar is used
     // via an absolute path regardless). The extra dirs are Unix-only; on Windows
     // appending them with the wrong separator would just corrupt PATH, so skip it.
-    let path = std::env::var("PATH").unwrap_or_default();
-    #[cfg(not(windows))]
-    cmd.env("PATH", format!("{path}:/opt/homebrew/bin:/usr/local/bin"));
-    #[cfg(windows)]
-    cmd.env("PATH", path);
+    #[cfg(desktop)]
+    {
+        let path = std::env::var("PATH").unwrap_or_default();
+        #[cfg(not(windows))]
+        env.push(("PATH".into(), format!("{path}:/opt/homebrew/bin:/usr/local/bin")));
+        #[cfg(windows)]
+        env.push(("PATH".into(), path));
+    }
+
+    // Android has no pty to read a width from, so croc falls back to $COLUMNS (then
+    // 80) — and at 80 columns it truncates the filenames the UI shows. This is the
+    // pipe-transport equivalent of the desktop pty's cols=1000.
+    #[cfg(mobile)]
+    {
+        env.push(("COLUMNS".into(), "1000".into()));
+        // croc writes its config (and the --internal-dns marker) under HOME, and
+        // temp files under TMPDIR. Neither is set in an Android app process, so
+        // point both at app-private storage or croc writes where it may not.
+        if let Some(dir) = crate::commands::android_home_dir(&app) {
+            env.push(("HOME".into(), dir.to_string_lossy().into_owned()));
+        }
+        if let Some(dir) = crate::commands::android_tmp_dir(&app) {
+            env.push(("TMPDIR".into(), dir.to_string_lossy().into_owned()));
+        }
+    }
+
     // When sending a folder, croc writes a temp `<name>.zip` into its CWD and only
     // deletes it on a clean exit. A per-send scratch dir keeps that zip out of the
     // user's home dir and lets us wipe leftovers after a failed transfer, so a retry
     // never hits croc's un-overridable "file already exists!" (utils.go ZipDirectory).
-    match &work_dir {
-        Some(dir) => cmd.cwd(dir),
-        None => {
-            // HOME on Unix, USERPROFILE on Windows — a sane default working dir.
-            if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
-                cmd.cwd(home);
-            }
-        }
-    }
+    let cwd = work_dir.clone().or_else(default_cwd);
+    let transport::Spawned { mut reader, writer, killer, wait } =
+        transport::spawn(bin, &args, &env, cwd.as_ref())?;
 
-    let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
-    drop(pair.slave);
-
-    let killer = child.clone_killer();
-    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
     {
         let state = app.state::<CrocState>();
         state
@@ -713,11 +943,8 @@ pub fn spawn_transfer(
             .insert(transfer_id.clone(), Transfer { killer, writer });
     }
 
-    let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
-
     std::thread::spawn(move || {
-        // Keep the master alive for the duration of the read loop.
-        let _master = pair.master;
+        use std::io::Read;
         let mut parser = Parser::new(app.clone(), transfer_id.clone(), auto_answer_prompts);
         let mut buf = [0u8; 4096];
         loop {
@@ -727,8 +954,7 @@ pub fn spawn_transfer(
                 Err(_) => break,
             }
         }
-        let exit_code = child.wait().map(|s| s.exit_code() as i32).unwrap_or(-1);
-        parser.finalize(exit_code);
+        parser.finalize(wait());
         let state = app.state::<CrocState>();
         state.transfers.lock().unwrap().remove(&transfer_id);
         // Remove the scratch dir (and any leftover temp zip croc didn't clean up
@@ -739,6 +965,15 @@ pub fn spawn_transfer(
     });
 
     Ok(())
+}
+
+/// Working dir when the caller didn't supply a scratch one: HOME on Unix,
+/// USERPROFILE on Windows. On Android neither is set in the process environment,
+/// so croc inherits the app's cwd, which is writable.
+fn default_cwd() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
 }
 
 pub fn cancel_transfer(app: &AppHandle, transfer_id: &str) {
@@ -757,5 +992,51 @@ pub fn respond(app: &AppHandle, transfer_id: &str, yes: bool) {
     if let Some(t) = map.get_mut(transfer_id) {
         let _ = t.writer.write_all(if yes { b"y\n" } else { b"n\n" });
         let _ = t.writer.flush();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The transport contract, exercised against the real pty backend: output is
+    /// readable, the exit code is reported, and stderr is interleaved with stdout.
+    /// The Android pipe backend can't run on the host, so this guards the half we
+    /// can reach — and both are held to the same shape by `transport::Spawned`.
+    #[cfg(desktop)]
+    #[test]
+    fn transport_reads_output_and_exit_code() {
+        use std::io::Read;
+
+        let spawned = transport::spawn(
+            PathBuf::from("/bin/sh"),
+            &[
+                "-c".to_string(),
+                // stderr first: if a transport dropped it, croc's progress bar
+                // (which goes to stderr) would vanish and the UI would sit empty.
+                "printf 'from-stderr\\n' >&2; printf 'from-stdout %s\\n' \"$CROC_TEST_ENV\"; exit 3"
+                    .to_string(),
+            ],
+            &[("CROC_TEST_ENV".to_string(), "passed".to_string())],
+            None,
+        )
+        .expect("spawn failed");
+
+        let transport::Spawned { mut reader, wait, .. } = spawned;
+        let mut out = String::new();
+        let _ = reader.read_to_string(&mut out);
+
+        assert!(out.contains("from-stderr"), "stderr must reach the parser: {out:?}");
+        assert!(out.contains("from-stdout passed"), "stdout + env must pass through: {out:?}");
+        assert_eq!(wait(), 3, "exit code must be reported for finalize()");
+    }
+
+    /// Desktop must hand croc exactly what the user typed — rewriting a relay to an
+    /// IP is an Android-only workaround for the missing platform resolver.
+    #[cfg(desktop)]
+    #[test]
+    fn resolve_relay_is_identity_on_desktop() {
+        assert_eq!(resolve_relay("croc.schollz.com:9009"), "croc.schollz.com:9009");
+        assert!(platform_global_flags().is_empty());
     }
 }
