@@ -90,6 +90,34 @@ pub fn android_tmp_dir(app: &AppHandle) -> Option<PathBuf> {
     Some(dir)
 }
 
+/// A per-transfer scratch directory to use as croc's cwd.
+///
+/// MUST NOT be `std::env::temp_dir()` on Android: that reads `$TMPDIR`, which an
+/// Android app process doesn't set, so it falls back to `/tmp` — a path that doesn't
+/// exist there. croc would then be spawned with a cwd it can't enter and every file
+/// send would fail with ENOENT. App-private cache is the writable equivalent.
+///
+/// Errors are returned rather than swallowed: a scratch dir we couldn't create is a
+/// send that cannot work, and "couldn't create a working folder" beats croc failing
+/// later for a reason the user can't act on.
+fn scratch_dir(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
+    #[cfg(desktop)]
+    let base = {
+        let _ = app;
+        std::env::temp_dir()
+    };
+    #[cfg(mobile)]
+    let base = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("croc-scratch");
+
+    let dir = base.join(name);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("couldn't create a working folder: {e}"))?;
+    Ok(dir)
+}
+
 #[tauri::command]
 pub fn croc_default_dir(app: AppHandle) -> String {
     default_download_dir(&app)
@@ -510,8 +538,7 @@ pub fn croc_send(
     // Give each send its own scratch cwd. croc drops a temp `<folder>.zip` here when
     // zipping a folder; isolating + wiping it (see spawn_transfer) stops a retry after
     // a failed transfer from tripping croc's "file already exists!" error.
-    let work_dir = std::env::temp_dir().join(format!("croc-send-{transfer_id}"));
-    let _ = std::fs::create_dir_all(&work_dir);
+    let work_dir = scratch_dir(&app, &format!("croc-send-{transfer_id}"))?;
     croc::spawn_transfer(
         app.clone(),
         transfer_id.clone(),
@@ -761,7 +788,11 @@ pub fn croc_set_progress(app: AppHandle, progress: Option<u64>) {
 /// Write pasted bytes (base64) to a uniquely-named temp file and return its path,
 /// so a pasted image or file can be handed to croc as a normal file to send.
 #[tauri::command]
-pub fn croc_save_temp_file(name: String, base64_data: String) -> Result<String, String> {
+pub fn croc_save_temp_file(
+    app: AppHandle,
+    name: String,
+    base64_data: String,
+) -> Result<String, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     let bytes = STANDARD
         .decode(base64_data.as_bytes())
@@ -770,8 +801,7 @@ pub fn croc_save_temp_file(name: String, base64_data: String) -> Result<String, 
     // subdir to avoid collisions.
     let clean = name.rsplit(['/', '\\']).next().unwrap_or("pasted-file");
     let clean = if clean.trim().is_empty() { "pasted-file" } else { clean.trim() };
-    let dir = std::env::temp_dir().join("croc-desktop-paste").join(gen_id());
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let dir = scratch_dir(&app, &format!("croc-paste-{}", gen_id()))?;
     let path = dir.join(clean);
     std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
     Ok(path.to_string_lossy().into_owned())
