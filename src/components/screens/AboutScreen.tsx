@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import { CrocBadge } from '@/components/CrocLogo';
 import { APP_NAME, IS_MOBILE } from '@/lib/platform';
 
-const REPO_URL = 'https://github.com/Carlos-err406/croc-desktop';
+const REPO_URL = 'https://github.com/Carlos-err406/croc-gui';
 const CROC_URL = 'https://github.com/schollz/croc';
 // Croc Mobile — the Android build of this same app. Straight to the release page,
 // which is where the APK lives (GitHub-only distribution, no store listing).
-const ANDROID_URL = 'https://github.com/Carlos-err406/croc-desktop/releases/latest';
+const ANDROID_URL = 'https://github.com/Carlos-err406/croc-gui/releases/latest';
 
 export function AboutScreen() {
   const [info, setInfo] = useState<CrocInfo | null>(null);

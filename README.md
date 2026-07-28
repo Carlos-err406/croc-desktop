@@ -1,6 +1,6 @@
-# Croc Desktop
+# Crocodile 🐊
 
-A friendly, cross-platform app for [**croc**](https://github.com/schollz/croc) — schollz's secure peer-to-peer file transfer tool. **macOS · Windows · Linux · Android**.
+*croc with a face.* **Croc Desktop** and **Croc Mobile** — a friendly, cross-platform GUI for [**croc**](https://github.com/schollz/croc), schollz's secure peer-to-peer file transfer tool. **macOS · Windows · Linux · Android**.
 
 Drop in a file, folder, or some text → get a one-time code (and a QR) → share it. The other device enters the code and the transfer runs **end-to-end encrypted, straight between the two machines**. No account, no cloud storage, nothing kept on a server.
 
@@ -33,7 +33,7 @@ Drop in a file, folder, or some text → get a one-time code (and a QR) → shar
 
 ## Install
 
-Grab the latest build from the [**Releases**](https://github.com/Carlos-err406/croc-desktop/releases/latest) page:
+Grab the latest build from the [**Releases**](https://github.com/Carlos-err406/croc-gui/releases/latest) page:
 
 - **macOS** — `.dmg` (universal). The app is not notarized, so on first launch right-click → **Open** (or *System Settings → Privacy & Security → Open Anyway*).
 - **Windows** — `.exe` installer.
@@ -57,7 +57,7 @@ Previously this README recommended [croc-app](https://github.com/Dking08/croc-ap
 
 ## How it works
 
-Croc Desktop does **not** reimplement the croc protocol — it drives the real `croc` CLI and parses its output.
+Neither app reimplements the croc protocol — both drive the real `croc` CLI and parse its output.
 
 - **Two transports, one parser.** Desktop drives croc through a **pseudo-terminal** ([`portable-pty`](https://crates.io/crates/portable-pty)). Android has no pty available to an app, so it merges the child's stdout and stderr onto a **single pipe** and sets `COLUMNS=1000` so croc doesn't truncate filenames. Measured against croc v10.6.0 with no TTY anywhere: progress lines, peer lines, and interactive accept/overwrite/resume prompts all survive a plain pipe — which is why one regex parser serves both.
 - The code phrase is generated app-side and passed via the `CROC_SECRET` env var (croc v10 refuses a code as a plain CLI arg), so there's no fragile stdout parsing for the code.
@@ -108,7 +108,7 @@ Releases are cut by pushing a `v*` tag: CI builds and signs the desktop installe
 
 ## Credits
 
-Built on [schollz/croc](https://github.com/schollz/croc). Croc Desktop is an independent GUI and is not affiliated with the croc project.
+Built on [schollz/croc](https://github.com/schollz/croc). Crocodile is an independent GUI and is not affiliated with the croc project.
 
 ## License
 

@@ -143,7 +143,7 @@ pub async fn croc_update_size() -> Option<u64> {
 pub async fn croc_update_size() -> Option<u64> {
     // Same manifest as plugins.updater.endpoints in tauri.conf.json.
     const MANIFEST: &str =
-        "https://github.com/Carlos-err406/croc-desktop/releases/latest/download/latest.json";
+        "https://github.com/Carlos-err406/croc-gui/releases/latest/download/latest.json";
     let os = if cfg!(target_os = "macos") {
         "darwin"
     } else if cfg!(target_os = "windows") {
