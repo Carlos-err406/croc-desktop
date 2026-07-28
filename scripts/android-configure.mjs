@@ -14,7 +14,7 @@
  *
  * Run AFTER `tauri android init`, BEFORE `tauri android build`.
  */
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -48,6 +48,20 @@ function patch(file, label, fn) {
   writeFileSync(file, after);
   console.log(`[android-configure] ${label}: patched`);
   changed += 1;
+}
+
+/** Every file under `dir`, as paths relative to it. */
+function filesUnder(dir, prefix = '') {
+  const out = [];
+  for (const entry of readdirSync(dir)) {
+    const rel = prefix ? `${prefix}/${entry}` : entry;
+    if (statSync(join(dir, entry)).isDirectory()) {
+      out.push(...filesUnder(join(dir, entry), rel));
+    } else {
+      out.push(rel);
+    }
+  }
+  return out;
 }
 
 /** Insert `text` before `anchor`, asserting the anchor exists exactly once. */
@@ -396,6 +410,53 @@ patch(strings, 'res/values/strings.xml', (src) => {
   }
   return out;
 });
+
+// ── 5. Launcher icon ─────────────────────────────────────────────────────────
+//
+// `tauri android init` writes the template's default Tauri icon and never looks at
+// src-tauri/icons/android, so a freshly generated project installs with the wrong
+// launcher icon — which is what ships, since gen/android isn't committed.
+//
+// The icons themselves are committed (generated once by `tauri icon`), so this is a
+// copy rather than a regeneration: no CLI to invoke and CI gets the same bytes.
+const ICONS = join(ROOT, 'src-tauri', 'icons', 'android');
+const RES = join(APP, 'src', 'main', 'res');
+
+if (!existsSync(ICONS)) {
+  throw new Error(
+    `[android-configure] ${ICONS} not found — run \`npm run tauri -- icon <path>\` to generate the Android icon set.`,
+  );
+}
+
+let icons = 0;
+for (const file of filesUnder(ICONS)) {
+  const src = readFileSync(join(ICONS, file));
+  const dest = join(RES, file);
+  if (existsSync(dest) && readFileSync(dest).equals(src)) continue;
+  mkdirSync(dirname(dest), { recursive: true });
+  writeFileSync(dest, src);
+  icons += 1;
+}
+
+// The template's own adaptive-icon parts. Ours (mipmap-anydpi-v26/ic_launcher.xml)
+// references @mipmap/ic_launcher_foreground and @color/ic_launcher_background
+// instead, so these are left referenced by nothing — and a stray green Android robot
+// in the drawables is exactly the sort of thing that turns up in a store listing
+// later. Verified unreferenced before removing.
+for (const stale of ['drawable/ic_launcher_background.xml', 'drawable-v24/ic_launcher_foreground.xml']) {
+  const path = join(RES, stale);
+  if (existsSync(path)) {
+    rmSync(path);
+    icons += 1;
+  }
+}
+
+if (icons === 0) {
+  console.log('[android-configure] launcher icon: already applied');
+} else {
+  console.log(`[android-configure] launcher icon: installed (${icons} file(s))`);
+  changed += 1;
+}
 
 console.log(
   changed === 0

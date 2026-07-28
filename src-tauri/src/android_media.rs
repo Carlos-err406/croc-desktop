@@ -8,7 +8,7 @@
 //!
 //! MediaStore is the way out that needs no permission at all: an app may always
 //! insert its own items into `MediaStore.Downloads` on API 29+. Each received file is
-//! copied there under `Download/Croc/` and the private copy is deleted, so the app dir
+//! copied there under `Download/CrocMobile/` and the private copy is deleted, so the app dir
 //! is a staging area rather than a black hole.
 //!
 //! The insert uses `IS_PENDING=1` while the bytes are written and clears it at the
@@ -27,7 +27,7 @@ use jni::JNIEnv;
 
 /// Where exports land, relative to the shared storage root. MediaStore requires the
 /// leading "Download/" for the Downloads collection.
-const RELATIVE_PATH: &str = "Download/Croc/";
+const RELATIVE_PATH: &str = "Download/CrocMobile/";
 
 pub enum Exported {
     /// Copied to Downloads. MediaStore de-duplicates collisions itself by appending
@@ -38,7 +38,7 @@ pub enum Exported {
     Unsupported,
 }
 
-/// Copy `src` into `Download/Croc/<sub_dir>/`. `sub_dir` mirrors the layout of a
+/// Copy `src` into `Download/CrocMobile/<sub_dir>/`. `sub_dir` mirrors the layout of a
 /// received folder so a multi-file transfer doesn't flatten into one directory (and
 /// two files called `IMG_0001.jpg` from different folders don't collide). On success
 /// the caller may delete `src`.
@@ -126,7 +126,7 @@ fn new_content_values<'a>(
     Ok(values)
 }
 
-/// `Download/Croc/<sub_dir>/`, with anything that could escape it stripped — the
+/// `Download/CrocMobile/<sub_dir>/`, with anything that could escape it stripped — the
 /// sender chose these names, so they're untrusted input.
 fn relative_path(sub_dir: &str) -> String {
     let safe: Vec<&str> = sub_dir

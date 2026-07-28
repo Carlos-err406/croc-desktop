@@ -1,6 +1,6 @@
 # Croc Desktop
 
-A friendly, cross-platform (**macOS · Windows · Linux**) desktop app for [**croc**](https://github.com/schollz/croc) — schollz's secure peer-to-peer file transfer tool.
+A friendly, cross-platform app for [**croc**](https://github.com/schollz/croc) — schollz's secure peer-to-peer file transfer tool. **macOS · Windows · Linux · Android**.
 
 Drop in a file, folder, or some text → get a one-time code (and a QR) → share it. The other device enters the code and the transfer runs **end-to-end encrypted, straight between the two machines**. No account, no cloud storage, nothing kept on a server.
 
@@ -10,16 +10,16 @@ Drop in a file, folder, or some text → get a one-time code (and a QR) → shar
 
 ## Features
 
-- **Send files, folders, or text** — drag & drop, a file/folder picker, or paste (⌘/Ctrl-V) images, text, or copied files.
-- **One-time code + QR** — share the code, or let the peer scan the QR. The QR encodes a `croc://` deep link, so a phone camera opens the companion app straight into receiving.
+- **Send files, folders, or text** — drag & drop, a file/folder picker, or paste (⌘/Ctrl-V) images, text, or copied files. On Android, share to Croc from any app.
+- **One-time code + QR** — share the code, or let the peer scan the QR. The QR encodes a `croc://` deep link, so scanning it with a phone opens Croc straight into receiving.
 - **Receive** — type or paste a code, or scan a QR with your camera. Auto-fills a code from the clipboard.
 - **Live progress** on a per-file timeline, mirrored onto the Dock/taskbar.
 - **Self-healing transfers** — a dropped transfer **auto-reconnects** (both ends retry the same code), and interrupted downloads **resume** from where they left off instead of restarting.
-- **Auto-accept or review** incoming files, with desktop notifications when a transfer finishes or needs you.
+- **Auto-accept or review** incoming files, with notifications when a transfer finishes or needs you.
 - **Transfer history** — re-send or reveal past transfers; nothing leaves the device.
 - **Custom & bookmarked codes**, a relay picker + reachability test, and light/dark themes.
 - **Deep links** — `croc://` and shareable `https://` links open the app straight into receiving.
-- **Self-contained** — the correct `croc` binary is **bundled**, so there's nothing to install. It **auto-updates** itself, signed.
+- **Self-contained** — the correct `croc` binary is **bundled**, so there's nothing to install. Desktop **auto-updates** itself, signed.
 
 ## Screenshots
 
@@ -38,28 +38,40 @@ Grab the latest build from the [**Releases**](https://github.com/Carlos-err406/c
 - **macOS** — `.dmg` (universal). The app is not notarized, so on first launch right-click → **Open** (or *System Settings → Privacy & Security → Open Anyway*).
 - **Windows** — `.exe` installer.
 - **Linux** — `.AppImage` (portable) or `.deb`.
+- **Android** — `croc-mobile-<version>-arm64.apk`. Sideload it: your phone will ask you to allow installs from your browser or file manager. Requires **Android 8+** on 64-bit ARM (`arm64-v8a`).
 
-The app updates itself automatically from then on (toggleable in Settings).
+Desktop updates itself automatically from then on (toggleable in Settings). Android doesn't yet — watch the Releases page, or the repo.
 
-## Android companion
+## Croc Mobile
 
-Pair with your phone using the recommended companion app, [**croc-app**](https://github.com/Dking08/croc-app) — scan the desktop QR to receive, or send from the phone to the desktop. There's a link to it on the **About** screen.
+The Android build is the **same app**: same UI, same engine, same `croc://` code/QR contract — so phone ↔ desktop, phone ↔ phone and phone ↔ `croc` CLI all pair by scanning or typing a code.
+
+What's different on a phone:
+
+- **Files come in through the share sheet.** Share a photo, a document, or a link to **Croc Mobile** from anywhere and it lands on the Send screen, ready to go.
+- **Received files are published to `Download/CrocMobile`**, so they show up in the Files app and the gallery like any other download. *(Android 10+; older releases keep them in app storage.)*
+- **No folder sends, drag-drop, or "reveal in folder"** — Android's storage model gives apps document handles, not paths.
+- **Keep the app open during a transfer.** A background transfer may be killed by the system; the foreground service that would prevent that isn't built yet.
+
+Previously this README recommended [croc-app](https://github.com/Dking08/croc-app) as the companion — a good project that showed a lot of this was possible. Croc Mobile supersedes it here.
 
 ## How it works
 
 Croc Desktop does **not** reimplement the croc protocol — it drives the real `croc` CLI and parses its output.
 
-- **`croc`'s progress output is TTY-gated** (it prints nothing to a plain pipe), so transfers run through a **pseudo-terminal** ([`portable-pty`](https://crates.io/crates/portable-pty)) — the only reliable way to capture the live progress bar cross-platform.
+- **Two transports, one parser.** Desktop drives croc through a **pseudo-terminal** ([`portable-pty`](https://crates.io/crates/portable-pty)). Android has no pty available to an app, so it merges the child's stdout and stderr onto a **single pipe** and sets `COLUMNS=1000` so croc doesn't truncate filenames. Measured against croc v10.6.0 with no TTY anywhere: progress lines, peer lines, and interactive accept/overwrite/resume prompts all survive a plain pipe — which is why one regex parser serves both.
 - The code phrase is generated app-side and passed via the `CROC_SECRET` env var (croc v10 refuses a code as a plain CLI arg), so there's no fragile stdout parsing for the code.
 - Status/progress is parsed in Rust and **streamed to the UI over a Tauri event channel**, then rendered with the app's own progress timeline.
-- The matching `croc` binary is **bundled as a sidecar** (pinned to a version compatible with the Android app), preferred over any system `croc`.
+- The matching `croc` binary ships with the app — a **Tauri sidecar** on desktop, and on Android a `GOOS=android` build packaged as `libcroc.so` (the only place Android lets an app execute from). Both are preferred over any system `croc`.
+
+[**docs/android.md**](docs/android.md) covers the Android port in detail: why croc is compiled rather than downloaded, how content URIs are staged, DNS, and what's verified on real hardware.
 
 ## Stack
 
 - **[Tauri v2](https://tauri.app)** — Rust backend, native webview (no bundled Chromium)
 - **React 18 + TypeScript**, **Vite**
 - **Tailwind CSS v4** + **shadcn/ui** (new-york)
-- Rust: `portable-pty` (pseudo-terminal), `qrcode` (QR), `reqwest`; Tauri plugins for updater, deep-link, single-instance, notifications, dialog, opener
+- Rust: `portable-pty` (pseudo-terminal), `os_pipe` (Android transport), `qrcode` (QR), `reqwest`, `jni` (Android storage); Tauri plugins for updater, deep-link, single-instance, notifications, dialog, opener
 
 ## Develop
 
@@ -77,13 +89,22 @@ npm run typecheck  # tsc --noEmit
 npm run build:vite # type-check + build the frontend only
 ```
 
+For Android you also need the **Android SDK + NDK**, **JDK 17**, **Go 1.25+** (croc is compiled from source for `GOOS=android`) and `rustup target add aarch64-linux-android`:
+
+```bash
+npm run android:init   # tauri android init + scripts/android-configure.mjs
+npm run android:dev    # or: npm run android:build
+```
+
+`src-tauri/gen/android/` is generated and git-ignored — customisations live in `scripts/android-configure.mjs`, so regenerating the project stays safe. See [docs/android.md](docs/android.md).
+
 ## Build
 
 ```bash
 npm run build      # tauri build → .dmg / .exe / .AppImage / .deb for the current OS
 ```
 
-Releases are cut by pushing a `v*` tag: CI builds, signs, and auto-publishes the installers plus the updater manifest for all three platforms.
+Releases are cut by pushing a `v*` tag: CI builds and signs the desktop installers, the updater manifest, and the Android APK, then publishes them all to one GitHub release. **One version across every platform** — Android derives its `versionCode` from the semver, so a platform-specific version stream would produce duplicate codes and break updates.
 
 ## Credits
 

@@ -47,7 +47,7 @@ fn gen_id() -> String {
 /// public storage is mediated by MediaStore/SAF, which croc knows nothing about.
 /// Receives therefore land in the app's own data dir — writable with no permission
 /// and removed on uninstall — and `croc_export_received` republishes them to
-/// `Download/Croc` once the transfer finishes, so nothing is stranded there.
+/// `Download/CrocMobile` once the transfer finishes, so nothing is stranded there.
 #[cfg(desktop)]
 fn default_download_dir(app: &AppHandle) -> String {
     let base = app
@@ -539,12 +539,12 @@ pub async fn croc_take_shared(_app: AppHandle) -> Result<SharedPayload, String> 
 pub struct ExportResult {
     /// How many files were published to Downloads.
     pub saved: usize,
-    /// Where they went, for the UI to show ("Download/Croc"). `None` when nothing
+    /// Where they went, for the UI to show ("Download/CrocMobile"). `None` when nothing
     /// moved — the files are still at the receive path the UI already knows.
     pub location: Option<String>,
 }
 
-/// Publish a finished receive's files to `Download/Croc` and drop the private
+/// Publish a finished receive's files to `Download/CrocMobile` and drop the private
 /// copies, so what arrived is reachable from the Files app and the gallery.
 ///
 /// The whole receive directory is swept rather than a list of names: it holds
@@ -589,7 +589,7 @@ pub async fn croc_export_received(out: String) -> Result<ExportResult, String> {
         (0, Some(e)) => Err(e),
         (_, _) => Ok(ExportResult {
             saved,
-            location: (saved > 0).then(|| "Download/Croc".to_string()),
+            location: (saved > 0).then(|| "Download/CrocMobile".to_string()),
         }),
     }
 }

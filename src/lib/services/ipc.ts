@@ -46,7 +46,7 @@ export interface CrocInfo {
 /** Outcome of publishing a receive to Downloads. See croc.exportReceived(). */
 export interface ExportResult {
   saved: number;
-  /** Where the files went ("Download/Croc"), or null if none moved. */
+  /** Where the files went ("Download/CrocMobile"), or null if none moved. */
   location: string | null;
 }
 

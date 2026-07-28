@@ -9,8 +9,9 @@ import { APP_NAME, IS_MOBILE } from '@/lib/platform';
 
 const REPO_URL = 'https://github.com/Carlos-err406/croc-desktop';
 const CROC_URL = 'https://github.com/schollz/croc';
-// The companion Android app (upstream project) — scan a QR from here to pair.
-const ANDROID_URL = 'https://github.com/Dking08/croc-app';
+// Croc Mobile — the Android build of this same app. Straight to the release page,
+// which is where the APK lives (GitHub-only distribution, no store listing).
+const ANDROID_URL = 'https://github.com/Carlos-err406/croc-desktop/releases/latest';
 
 export function AboutScreen() {
   const [info, setInfo] = useState<CrocInfo | null>(null);
@@ -107,18 +108,18 @@ export function AboutScreen() {
           </div>
         ) : null}
 
-        {/* Recommended companion: the Android app, for phone ↔ desktop transfers.
-            Pointless on Android — that's this app — so desktop only. Also w-[340px]
-            was wider than a 360px phone once padding is counted. */}
+        {/* The Android build, for phone ↔ desktop transfers. Pointless on Android —
+            that's this app — so desktop only. Also w-[340px] was wider than a 360px
+            phone once padding is counted. */}
         {!IS_MOBILE && (
         <div className="flex w-full max-w-[340px] items-center gap-3 rounded-[12px] border border-border bg-secondary/50 px-4 py-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-brand-surface text-brand-deep">
             <Smartphone size={18} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-medium">Croc for Android</div>
+            <div className="text-[13px] font-medium">Croc Mobile</div>
             <div className="text-xs text-muted-foreground">
-              Recommended companion — send & receive on your phone, scan to pair.
+              The same app for Android — send &amp; receive on your phone, scan to pair.
             </div>
           </div>
           <Button size="sm" variant="outline" className="shrink-0" onClick={() => croc.openUrl(ANDROID_URL)}>

@@ -19,7 +19,7 @@ Galaxy S23 FE (SM-S711U1), **Android 16**, arm64, debug APK built from this tree
 | `croc://receive?code=…` deep link | Cold-launches onto Receive and completes the transfer |
 | Share sheet → a PNG | Staged **byte-identical**, listed as `croc-share-test.png` with a PNG badge |
 | Share sheet → text | Lands on Send in text mode with the message filled in |
-| Receive a folder → Downloads | `Download/Croc/album/{photo-one.jpg,notes.txt}`, **SHA-256 identical**, private copy gone |
+| Receive a folder → Downloads | `Download/CrocMobile/album/{photo-one.jpg,notes.txt}`, **SHA-256 identical**, private copy gone |
 
 Sharing was driven with `am start`, which only grants a URI that's in the intent's
 `data` or `ClipData` — pass `-d <uri>` as well as `--eu android.intent.extra.STREAM`,
@@ -171,7 +171,7 @@ them.
 That would strand the result — app-private storage is invisible to the Files app, the
 gallery and every share sheet, so a received photo could be received and then never
 seen again. `croc_export_received` republishes each finished receive into
-`Download/Croc/` through MediaStore (`android_media.rs`) and deletes the private copy,
+`Download/CrocMobile/` through MediaStore (`android_media.rs`) and deletes the private copy,
 which needs no permission at all on API 29+. It sweeps the whole receive directory
 rather than a list of names, so anything a previous run failed to export gets another
 chance instead of being stranded forever. Sub-directories are preserved, so a received
@@ -190,7 +190,7 @@ and files stay in the app dir.
 | Review-mode prompts (accept / overwrite / resume) | Same code, over a stdin pipe |
 | File picking | SAF picker, staged through the cache |
 | Getting files in from other apps | Share sheet (`ACTION_SEND`), not "Open With" |
-| Receive location | App data dir, then published to `Download/Croc` via MediaStore |
+| Receive location | App data dir, then published to `Download/CrocMobile` via MediaStore |
 | Folder sends | Off — SAF gives tree URIs, not paths |
 | Drag-drop, paste-to-send, reveal in folder, ⌘N, multi-window, menus | Off |
 | Dock/taskbar progress | Off (foreground-service notification instead) |
