@@ -4,6 +4,7 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { croc } from './services/ipc';
 import { getPrefs } from './prefs';
 import { IS_MOBILE } from './platform';
+import { checkAndroidUpdate, type AndroidUpdate } from './androidUpdate';
 
 export type UpdateStatus =
   | 'idle' // not checked / nothing to show
@@ -45,9 +46,18 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
   const [totalBytes, setTotalBytes] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const updateRef = useRef<Update | null>(null);
+  const androidRef = useRef<AndroidUpdate | null>(null);
   const started = useRef(false);
 
   const install = async () => {
+    // Android has no in-app install: hand the APK to the browser, which downloads
+    // it and lets Android's package installer do the rest. Status stays 'available'
+    // — nothing has been installed yet, and claiming otherwise would be a lie.
+    if (IS_MOBILE) {
+      const target = androidRef.current;
+      if (target) await croc.openUrl(target.apkUrl);
+      return;
+    }
     const update = updateRef.current;
     if (!update) return;
     try {
@@ -76,13 +86,29 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
       if (opts?.manual) setStatus('uptodate');
       return;
     }
-    // tauri_plugin_updater is registered under #[cfg(desktop)], so on Android
-    // check() throws "plugin not found" — on every launch, since this runs from a
-    // mount effect. Nothing renders updater.error today, which is the only reason
-    // it looks harmless: the first screen to surface it would show a plugin error
-    // instead of the real answer, which is that Android has no update channel yet
-    // (Settings hides the Updates card). Stay idle until there is one.
-    if (IS_MOBILE) return;
+    // tauri_plugin_updater is registered under #[cfg(desktop)], so calling check()
+    // here would throw "plugin not found" on Android. Read the GitHub release
+    // instead — same information, no plugin. See androidUpdate.ts.
+    if (IS_MOBILE) {
+      try {
+        setError(null);
+        setStatus('checking');
+        const found = await checkAndroidUpdate(__APP_VERSION__);
+        androidRef.current = found;
+        if (found) {
+          setVersion(found.version);
+          setStatus('available'); // never auto-installs: Android always confirms
+        } else {
+          setStatus('uptodate');
+        }
+      } catch (err) {
+        // "Couldn't check" — NOT 'uptodate', which would be the same screen as a
+        // successful check and would quietly hide every future release.
+        setError(String(err));
+        setStatus('error');
+      }
+      return;
+    }
     try {
       setError(null);
       setStatus('checking');

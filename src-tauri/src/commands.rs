@@ -123,6 +123,24 @@ pub fn croc_default_dir(app: AppHandle) -> String {
     default_download_dir(&app)
 }
 
+/// Where the user should be told their files go — NOT necessarily where croc
+/// writes them.
+///
+/// On Android those differ: croc can only write to app-private storage, and the
+/// files are republished to Download/CrocMobile when the transfer finishes. Showing
+/// the path croc uses ("/data/user/0/dev.carlosd.crocdesktop/Croc") names a place
+/// the user cannot open and isn't where the files end up. Falls back to the real
+/// path on API 26-28, where publishing isn't available and the files really do stay
+/// put. Everywhere else the two are the same thing.
+#[tauri::command]
+pub fn croc_save_location(app: AppHandle) -> String {
+    #[cfg(target_os = "android")]
+    if crate::android_media::exports_supported() {
+        return crate::android_media::DOWNLOADS_LABEL.to_string();
+    }
+    default_download_dir(&app)
+}
+
 /// Android has no signed-updater artifact to size up, and reqwest is desktop-only
 /// here (its TLS backend needs a C toolchain for the Android target), so this
 /// reports "unknown" and the UI omits the size. Kept as a command on every

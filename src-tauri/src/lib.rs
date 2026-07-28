@@ -167,6 +167,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::croc_default_dir,
+            commands::croc_save_location,
             commands::croc_info,
             commands::croc_invite,
             commands::croc_new_window,

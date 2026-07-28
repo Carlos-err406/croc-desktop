@@ -221,15 +221,31 @@ is a change of default rather than a second refactor.
 - **Progress while copying.** A pick is copied into the cache before croc starts, and a
   finished receive is copied out to Downloads afterwards. Both are silent, so a multi-GB
   video is a visible wait with no feedback at either end.
-- **In-app update check + install intent.** `REQUEST_INSTALL_PACKAGES` is declared;
-  `useUpdater()` is a context and `UpdateBanner` only reads from it, so reimplementing
-  its three plugin calls as Rust commands would carry the UI over unchanged. Android
-  cannot install silently — the system installer always confirms.
+- **In-app APK download.** The update *check* works (see below); installing hands the
+  APK URL to the browser, which downloads it and lets Android's package installer take
+  over. Doing it in-app means DownloadManager over JNI plus a FileProvider to give the
+  system installer a readable URI. `REQUEST_INSTALL_PACKAGES` is already declared.
+  Android can never install silently — the system installer always confirms.
 - **`assetlinks.json`** on the Pages site with the release signing cert's SHA-256,
   without which https App Links show a chooser instead of opening the app. The `croc://`
   scheme works regardless.
 - ~~Release signing~~ — done. `release.yml` builds a signed APK on a tag and attaches
   it to the same GitHub release as the desktop artifacts.
+
+## Updates
+
+There is no signed updater artifact for Android (`createUpdaterArtifacts` is false)
+and tauri-plugin-updater isn't registered there — its rustls path needs `ring`, which
+needs a C toolchain for this target. The GitHub release is a perfectly good manifest
+anyway: `api.github.com` answers with `access-control-allow-origin: *`, so the webview
+reads `/releases/latest` directly and compares the tag to `__APP_VERSION__`
+(`src/lib/androidUpdate.ts`). No new dependency, no native code.
+
+This rides the SAME `useUpdater()` context as desktop, so the banner and the Settings
+card work unchanged — only `check()` and `install()` branch. Two deliberate
+differences: a failed check reports "couldn't check" rather than "up to date" (which
+would look identical to success and would hide every future release), and there is no
+auto-install toggle, because Android's installer always asks.
 
 ## Releasing
 

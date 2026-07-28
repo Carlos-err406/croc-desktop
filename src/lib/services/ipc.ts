@@ -83,6 +83,12 @@ export const croc = {
   pickFolders: () => call<string[]>('croc_pick_folders'),
   pickFolder: () => call<string>('croc_pick_folder'),
   defaultDir: () => call<string>('croc_default_dir'),
+  /**
+   * Where to TELL the user their files go. On Android that's Download/CrocMobile
+   * (croc writes to private storage and the files are republished afterwards), so
+   * it differs from defaultDir(); everywhere else the two match.
+   */
+  saveLocation: () => call<string>('croc_save_location'),
   info: () => call<CrocInfo>('croc_info'),
   /** Mint (or reuse) a code + build the "send to me" QR/links (reverse pairing). */
   invite: (code?: string) => call<CrocInvite>('croc_invite', { code }),

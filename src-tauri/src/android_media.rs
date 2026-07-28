@@ -102,6 +102,22 @@ pub fn export_to_downloads(src: &Path, sub_dir: &str, name: &str) -> Result<Expo
     Ok(Exported::Saved)
 }
 
+/// Whether a finished receive can actually be published to Downloads on this
+/// device. False on API 26-28 (no RELATIVE_PATH/IS_PENDING) or if `nativeInit`
+/// never ran — the UI must not promise a destination we can't deliver.
+pub fn exports_supported() -> bool {
+    let Some(vm) = crate::android_saf::vm() else {
+        return false;
+    };
+    let Ok(mut env) = vm.attach_current_thread() else {
+        return false;
+    };
+    sdk_int(&mut env).unwrap_or(0) >= 29
+}
+
+/// Where published files land, for the UI to show. Matches RELATIVE_PATH.
+pub const DOWNLOADS_LABEL: &str = "Download/CrocMobile";
+
 fn sdk_int(env: &mut JNIEnv) -> Option<i32> {
     env.get_static_field("android/os/Build$VERSION", "SDK_INT", "I")
         .ok()?

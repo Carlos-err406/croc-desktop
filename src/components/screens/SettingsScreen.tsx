@@ -91,14 +91,16 @@ export function SettingsScreen() {
     idle: `You're on v${__APP_VERSION__}`,
     checking: 'Checking for updates…',
     uptodate: `You're on the latest version (v${__APP_VERSION__})`,
-    available: `Version ${updater.version} is available${size ? ` · ${size} download` : ''}`,
+    available: CAN_USE_FILE_PATHS
+      ? `Version ${updater.version} is available${size ? ` · ${size} download` : ''}`
+      : `Version ${updater.version} is available — opens in your browser to install`,
     downloading: `Downloading update… ${Math.round(updater.progress * 100)}%${size ? ` · ${size}` : ''}`,
     ready: `Version ${updater.version} downloaded — restart to apply`,
     error: 'Could not check for updates',
   }[updater.status];
 
   useEffect(() => {
-    if (!prefs.downloadDir) croc.defaultDir().then(([, d]) => d && setDefaultDir(d));
+    if (!prefs.downloadDir) croc.saveLocation().then(([, d]) => d && setDefaultDir(d));
   }, [prefs.downloadDir]);
 
   const [crocInfo, setCrocInfo] = useState<CrocInfo | null>(null);
@@ -251,11 +253,14 @@ export function SettingsScreen() {
           </Row>
         </Card>
 
-        {CAN_USE_FILE_PATHS && (
         <Card title="Updates">
+          {/* Android can't install silently — the system installer always asks — so
+              there's nothing for an "automatic" toggle to control there. */}
+          {CAN_USE_FILE_PATHS && (
           <Row title="Automatic updates" sub="Install new versions on launch">
             <Toggle on={prefs.autoUpdate} onClick={() => update({ autoUpdate: !prefs.autoUpdate })} />
           </Row>
+          )}
           <Row title="Software update" sub={updateStatus}>
             {updater.status === 'ready' ? (
               <Button size="sm" onClick={() => void updater.restart()}>
@@ -263,7 +268,7 @@ export function SettingsScreen() {
               </Button>
             ) : updater.status === 'available' ? (
               <Button size="sm" onClick={() => void updater.install()}>
-                Install now
+                {CAN_USE_FILE_PATHS ? 'Install now' : 'Download'}
               </Button>
             ) : (
               <Button
@@ -278,7 +283,6 @@ export function SettingsScreen() {
             )}
           </Row>
         </Card>
-        )}
 
         <div className="flex items-center gap-3.5 rounded-[14px] border border-border bg-card px-5 py-4">
           <CrocBadge size={40} />

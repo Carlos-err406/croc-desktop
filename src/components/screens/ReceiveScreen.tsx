@@ -204,7 +204,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   useEffect(() => {
     const saved = getPrefs().downloadDir;
     if (saved) setDir(saved);
-    else croc.defaultDir().then(([, d]) => d && setDir(d));
+    else croc.saveLocation().then(([, d]) => d && setDir(d));
   }, []);
 
   // Auto-fill the code box from the clipboard when opening Receive (or refocusing
@@ -227,9 +227,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // On Android the files are published to Downloads once the transfer finishes;
-  // until then the private receive path is where they really are.
-  const savedDir = savedTo || out || dir;
+  // `out` is the path croc writes to. On Android that's app-private storage the
+  // user can't open — an implementation detail — so show the destination (`dir`,
+  // i.e. Download/CrocMobile) until the export confirms where they landed.
+  const savedDir = savedTo || (CAN_USE_FILE_PATHS ? out || dir : dir);
 
   const fileRows = perFile.map((f) => ({
     name: f.name,
