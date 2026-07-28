@@ -175,10 +175,21 @@ fn find_croc_binary_desktop() -> Option<PathBuf> {
 /// `--internal-dns` makes croc use its built-in list of public resolvers (Quad9,
 /// OpenDNS, Comodo…) instead of the host's. croc picks it up in `init()` by
 /// scanning argv, so position only matters to croc's own flag parser.
+///
+/// `--ignore-stdin` is what makes the pipe transport able to send anything at all.
+/// croc decides between "send the named files" and "send piped stdin" with
+/// `(stat.Mode() & os.ModeCharDevice) == 0 && !ignore-stdin` (croc cli.go). A pty
+/// sets ModeCharDevice, so desktop never hits it — but the Android transport gives
+/// croc a real pipe on stdin (needed to answer prompts), so without this flag croc
+/// ignores the file arguments and sends stdin instead. Observed on a device before
+/// this flag existed: the peer received a 1-byte file called `croc-stdin-1215114507`.
+/// The `--text` branch sits behind the same `else if`, so text sends were broken the
+/// same way. IgnoreStdin is read at that one site only and does NOT affect prompt
+/// reading, so review mode still works.
 pub fn platform_global_flags() -> Vec<String> {
     #[cfg(mobile)]
     {
-        vec!["--internal-dns".to_string()]
+        vec!["--internal-dns".to_string(), "--ignore-stdin".to_string()]
     }
     #[cfg(desktop)]
     {
