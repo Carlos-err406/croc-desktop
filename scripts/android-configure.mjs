@@ -388,12 +388,12 @@ class MainActivity : TauriActivity() {
 
 // ── 4. res/values/strings.xml — the launcher label ───────────────────────────
 //
-// `tauri android init` reads productName from tauri.conf.json only; the
-// tauri.android.conf.json override that renames the app for mobile never reaches
-// the generated strings.xml, so the launcher and the "Open with" chooser both say
-// "Croc Desktop" on a phone. That matters more than it sounds: with croc-app and
-// both build variants installed, the chooser lists three entries and two of them
-// carry the desktop's name.
+// `tauri android init` does honour tauri.android.conf.json's productName — but it
+// won't overwrite a strings.xml that already exists, so a gen/ tree generated before
+// that override was added keeps saying "Croc Desktop" forever. CI always starts
+// clean and never hits this; a long-lived working copy does, and then only the
+// developer's own builds carry the wrong name — which is the worst way to find out.
+// Cheap to assert, so assert it.
 const strings = join(APP, 'src', 'main', 'res', 'values', 'strings.xml');
 
 patch(strings, 'res/values/strings.xml', (src) => {
