@@ -3,6 +3,7 @@ import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { croc } from './services/ipc';
 import { getPrefs } from './prefs';
+import { IS_MOBILE } from './platform';
 
 export type UpdateStatus =
   | 'idle' // not checked / nothing to show
@@ -75,6 +76,13 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
       if (opts?.manual) setStatus('uptodate');
       return;
     }
+    // tauri_plugin_updater is registered under #[cfg(desktop)], so on Android
+    // check() throws "plugin not found" — on every launch, since this runs from a
+    // mount effect. Nothing renders updater.error today, which is the only reason
+    // it looks harmless: the first screen to surface it would show a plugin error
+    // instead of the real answer, which is that Android has no update channel yet
+    // (Settings hides the Updates card). Stay idle until there is one.
+    if (IS_MOBILE) return;
     try {
       setError(null);
       setStatus('checking');
