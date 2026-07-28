@@ -418,13 +418,20 @@ fn stage_picked_file(
 #[cfg(mobile)]
 fn display_name_for(picked: &tauri_plugin_dialog::FilePath) -> String {
     let raw = picked.to_string();
+
+    // Authoritative: ask the ContentResolver. A MediaStore pick's URI carries no
+    // filename at all — it ends in a document id like `msf%3A10000210694`, which is
+    // what the peer used to receive (with no extension, so the UI badged it "FILE").
+    #[cfg(target_os = "android")]
+    if let Some(name) = crate::android_saf::display_name(&raw) {
+        return sanitize_component(&name);
+    }
+
+    // Fallback for anything the resolver can't answer.
     // Drop any query/fragment first, or a URI like …/IMG.jpg?x=1 stages under the
     // literal name "IMG.jpg?x=1".
     let path_part = raw.split(['?', '#']).next().unwrap_or(&raw);
-    let decoded = path_part
-        .replace("%2F", "/")
-        .replace("%2f", "/")
-        .replace("%20", " ");
+    let decoded = percent_decode(path_part);
     let candidate = decoded.rsplit(['/', ':']).next().unwrap_or("").trim().to_string();
     let cleaned: String = candidate
         .chars()
@@ -441,6 +448,43 @@ fn display_name_for(picked: &tauri_plugin_dialog::FilePath) -> String {
         cleaned
     } else {
         format!("shared-{}", gen_id())
+    }
+}
+
+/// Minimal percent-decoder for URI text. The previous hand-rolled version only
+/// handled %2F and %20, so a document id like `msf%3A10000210694` kept its encoded
+/// colon, never split on it, and became the filename verbatim.
+#[cfg(mobile)]
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+            if let Some(byte) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Strip anything that could escape the staging directory. A provider-supplied
+/// display name is untrusted input: it reaches us from another app.
+#[cfg(mobile)]
+fn sanitize_component(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .filter(|c| !matches!(c, '/' | '\\' | '\0'))
+        .collect();
+    match cleaned.trim_matches('.').trim() {
+        "" => format!("shared-{}", gen_id()),
+        s => s.to_string(),
     }
 }
 

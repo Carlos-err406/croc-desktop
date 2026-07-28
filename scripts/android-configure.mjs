@@ -220,10 +220,20 @@ patch(mainActivity, 'MainActivity.kt', (src) => {
   // this keeps the CROC_BIN hook readable in one place.
   return `package ${pkg[1]}
 
+import android.content.Context
 import android.os.Bundle
 import android.system.Os
+import android.util.Log
 
 class MainActivity : TauriActivity() {
+    /**
+     * Hands the Rust side a JavaVM and an app Context so it can query the
+     * ContentResolver for a picked file's display name. Nothing in Tauri's Android
+     * stack initialises ndk_context and wry keeps its JavaVM private, so this is how
+     * Rust gets one. Implemented in src/android_saf.rs.
+     */
+    private external fun nativeInit(ctx: Context)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // croc ships as jniLibs/<abi>/libcroc.so, so the installer unpacks it into
         // nativeLibraryDir — the only directory an app may execute from
@@ -234,6 +244,12 @@ class MainActivity : TauriActivity() {
         // Set before super.onCreate, which is what starts the Rust side.
         Os.setenv("CROC_BIN", "\${applicationInfo.nativeLibraryDir}/libcroc.so", true)
         super.onCreate(savedInstanceState)
+
+        // AFTER super.onCreate: the native library isn't loaded before that. The JNI
+        // symbol encodes the package name, so a rename of the bundle identifier
+        // breaks the link — degrade to URI-derived filenames instead of crashing.
+        runCatching { nativeInit(applicationContext) }
+            .onFailure { Log.w("croc", "nativeInit unavailable; picked files fall back to URI names", it) }
     }
 }
 `;

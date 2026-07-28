@@ -61,6 +61,9 @@ reqwest = { version = "0.13", default-features = false }
 # can't express — os_pipe is a thin wrapper over pipe(2) with no further deps.
 [target.'cfg(target_os = "android")'.dependencies]
 os_pipe = "1"
+# Reaching the ContentResolver for a picked file's display name. The dialog plugin
+# resolves it in Kotlin and then discards it (see android_saf.rs), so we ask directly.
+jni = "0.21"
 
 # Read file paths off the native pasteboard (Finder "Copy" → in-app paste).
 [target.'cfg(target_os = "macos")'.dependencies]

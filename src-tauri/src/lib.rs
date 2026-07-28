@@ -1,3 +1,5 @@
+#[cfg(target_os = "android")]
+mod android_saf;
 mod clipboard;
 mod codephrase;
 mod commands;

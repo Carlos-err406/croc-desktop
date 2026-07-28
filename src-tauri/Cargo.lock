@@ -69,6 +69,7 @@ name = "app"
 version = "2.4.1"
 dependencies = [
  "base64 0.22.1",
+ "jni 0.21.1",
  "log",
  "mdns-sd",
  "objc2",

@@ -155,6 +155,10 @@ export function useSend(): UseSend {
     const id = idRef.current;
     if (!id || recordedRef.current === id) return;
     recordedRef.current = id;
+    // The staged copies exist only so croc had a real path to read; once the send is
+    // recorded they're dead weight. Without this they accumulated one directory per
+    // pick (observed: four on a real device), which for a large video is real waste.
+    void croc.clearStaged();
     const totalBytes = state.entries.reduce((a, e) => a + e.size, 0);
     croc.historyAdd({
       kind: 'send',
