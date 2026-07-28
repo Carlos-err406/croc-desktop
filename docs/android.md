@@ -51,6 +51,13 @@ storage is mounted no-exec — and only `lib*.so` files get packaged. So croc la
 `false` above minSdk 23, which would leave nothing on disk) and `keepDebugSymbols` for
 that file (AGP's native-library stripping would corrupt a Go executable).
 
+Verified on the built APK rather than assumed: `unzip -v` reports `libcroc.so` as
+`Defl:N` (compressed). Compressed means legacy packaging is in effect, so the
+installer extracts it to `nativeLibraryDir` — which is what makes exec possible. Had
+it been `Stored`, it would be mapped straight out of the APK with no on-disk copy and
+could never be executed. (AGP emits an advisory warning about `extractNativeLibs`
+regardless; the artifact is the authority.)
+
 `MainActivity.onCreate` sets `CROC_BIN` to
 `${applicationInfo.nativeLibraryDir}/libcroc.so` before `super.onCreate`, because Rust
 can't read `ApplicationInfo` without JNI. `find_croc_binary()` already preferred that
@@ -148,6 +155,14 @@ is a change of default rather than a second refactor.
 - **Share-target payload handling.** The `ACTION_SEND` / `SEND_MULTIPLE` intent filters
   are registered, but nothing reads the incoming URIs into the Send screen yet.
 - **Save-to-Downloads / Share** for received files (MediaStore + FileProvider).
+- **A ContentResolver `DISPLAY_NAME` query** for picked files. `display_name_for`
+  currently parses the URI tail, which is right for the external-storage provider
+  (`primary:Download/foo.pdf`) but not for media/photo-picker URIs that end in a bare
+  document id — those fall back to a generated name, so the receiver gets a file
+  without a meaningful name. Doing it properly means a JNI call into the
+  ContentResolver.
+- **Progress while staging.** A pick is copied into the cache before croc starts, and
+  a multi-GB video makes that a visible wait with no feedback.
 - **In-app update check + install intent.** `REQUEST_INSTALL_PACKAGES` is declared;
   `useUpdater()` is a context and `UpdateBanner` only reads from it, so reimplementing
   its three plugin calls as Rust commands would carry the UI over unchanged. Android
