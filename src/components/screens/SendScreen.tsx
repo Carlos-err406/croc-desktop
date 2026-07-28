@@ -191,6 +191,17 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
     if (preset) setCustomCode(preset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Text shared into the app from elsewhere (Android's share sheet). Only while
+  // idle: a share landing mid-transfer waits rather than switching the screen out
+  // from under a send in flight.
+  useEffect(() => {
+    const shared = send.presetText;
+    if (!shared || status !== 'idle') return;
+    setMode('text');
+    setDraft((d) => (d ? `${d}\n${shared}` : shared));
+    send.clearPresetText();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [send.presetText, status]);
   const codeInvalid = customCode.trim().length > 0 && customCode.trim().length < 6;
   const pasteClipboard = async () => {
     try {

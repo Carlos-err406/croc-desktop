@@ -103,6 +103,12 @@ export interface UseSend extends SendState {
   takePresetCode: () => string | undefined;
   /** Queue a code for the Send screen to prefill (reverse pairing / deep link). */
   setPresetCode: (code: string) => void;
+  // Text handed to the app from outside (Android's share sheet). State, not a ref
+  // like presetCode: the Send screen can already be mounted when it arrives, so it
+  // has to re-render to pick it up. Held until the screen consumes it.
+  presetText: string | null;
+  setPresetText: (text: string) => void;
+  clearPresetText: () => void;
 }
 
 export function useSend(): UseSend {
@@ -113,6 +119,7 @@ export function useSend(): UseSend {
   const reconnectTimerRef = useRef<number | null>(null);
   const failedNotifiedRef = useRef<string | null>(null); // transfer id we've already notified failure for
   const presetCodeRef = useRef<string | undefined>(undefined); // code to prefill on next stage (history resend)
+  const [presetText, setPresetTextState] = useState<string | null>(null); // shared-in text awaiting the Send screen
 
   function clearReconnect() {
     if (reconnectTimerRef.current !== null) {
@@ -419,6 +426,14 @@ export function useSend(): UseSend {
     return c;
   }
 
+  function setPresetText(text: string) {
+    if (text.trim()) setPresetTextState(text);
+  }
+
+  function clearPresetText() {
+    setPresetTextState(null);
+  }
+
   return {
     ...state,
     stage,
@@ -433,5 +448,8 @@ export function useSend(): UseSend {
     reset,
     takePresetCode,
     setPresetCode,
+    presetText,
+    setPresetText,
+    clearPresetText,
   };
 }

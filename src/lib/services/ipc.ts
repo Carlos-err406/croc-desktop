@@ -43,6 +43,12 @@ export interface CrocInfo {
   compatible: boolean;
 }
 
+/** A delivery from Android's share sheet. See croc.takeShared(). */
+export interface SharedPayload {
+  paths: string[];
+  text: string | null;
+}
+
 export interface RelayTest {
   address: string;
   reachable: boolean;
@@ -115,6 +121,12 @@ export const croc = {
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   openUrl: (url: string) => call<null>('croc_open_url', { url }),
   takeOpenedFiles: () => call<string[]>('croc_take_opened_files'),
+  /**
+   * Drain Android's share sheet ("Share → Croc Mobile"). Files come back already
+   * staged to real paths; `text` is set only when the share carried no files.
+   * Always empty on desktop, which has "Open With" instead.
+   */
+  takeShared: () => call<SharedPayload>('croc_take_shared'),
   clipboardFiles: () => call<string[]>('croc_clipboard_files'),
   clipboardText: () => call<string | null>('croc_clipboard_text'),
   setProgress: (progress: number | null) =>
@@ -139,6 +151,15 @@ export const croc = {
   // the app is already running; drain them with takeOpenedFiles().
   onOpenFiles: (cb: () => void): (() => void) => {
     const unlisten = listen('croc://open-files', () => cb());
+    return () => {
+      void unlisten.then((f) => f());
+    };
+  },
+
+  // Android's share sheet, while the app is already running. A share that launches
+  // the app cold is queued instead, and drained by the same takeShared() on mount.
+  onShared: (cb: () => void): (() => void) => {
+    const unlisten = listen('croc://shared', () => cb());
     return () => {
       void unlisten.then((f) => f());
     };

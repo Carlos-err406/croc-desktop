@@ -14,6 +14,7 @@ import { AboutScreen } from './screens/AboutScreen';
 import { UpdateBanner } from './UpdateBanner';
 import { CrocCompatBanner } from './CrocCompatBanner';
 import { parseReceiveTarget } from '@/lib/deeplink';
+import { IS_ANDROID } from '@/lib/platform';
 
 export type Screen = 'send' | 'receive' | 'history' | 'settings' | 'about';
 
@@ -41,6 +42,35 @@ export function AppShell() {
     void drainAndStage();
     const unsub = croc.onOpenFiles(() => void drainAndStage());
     return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Android's share sheet — the phone's answer to "Open With". Files arrive already
+  // staged to real paths; a share with no files (a link, a snippet) fills the text
+  // box instead. Same two cases as above: cold launch drains the queue, a share
+  // while running arrives as an event.
+  useEffect(() => {
+    if (!IS_ANDROID) return;
+    const drainShared = async () => {
+      const [err, shared] = await croc.takeShared();
+      if (err) {
+        // Staging a share can fail the same way a pick can (no space, an
+        // unreadable provider); say so rather than appearing to ignore the share.
+        send.fail(err.message);
+        setScreen('send');
+        return;
+      }
+      if (!shared) return;
+      if (shared.paths.length) {
+        void send.stage(shared.paths);
+        setScreen('send');
+      } else if (shared.text) {
+        send.setPresetText(shared.text);
+        setScreen('send');
+      }
+    };
+    void drainShared();
+    return croc.onShared(() => void drainShared());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

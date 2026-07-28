@@ -501,6 +501,38 @@ fn staging_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// What Android's share sheet handed us: files (already staged to real paths) and,
+/// when a share carried no files, its text.
+#[derive(Default, serde::Serialize)]
+pub struct SharedPayload {
+    pub paths: Vec<String>,
+    pub text: Option<String>,
+}
+
+/// Drain a share-sheet delivery, staging its `content://` URIs the same way a pick
+/// is staged. Errors reach the UI: a share that silently drops a file is worse than
+/// one that says why.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn croc_take_shared(app: AppHandle) -> Result<SharedPayload, String> {
+    use std::str::FromStr;
+
+    let shared = crate::android_share::take();
+    let mut paths = Vec::with_capacity(shared.uris.len());
+    for uri in shared.uris {
+        // Infallible: anything that isn't a URI is treated as a plain path.
+        let picked = tauri_plugin_dialog::FilePath::from_str(&uri).unwrap();
+        paths.push(stage_picked_file(&app, picked)?);
+    }
+    Ok(SharedPayload { paths, text: shared.text })
+}
+
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+pub async fn croc_take_shared(_app: AppHandle) -> Result<SharedPayload, String> {
+    Ok(SharedPayload::default())
+}
+
 /// Drop everything staged for sending. Called when a send finishes or resets; the
 /// copies only exist to hand croc a readable path.
 #[cfg(mobile)]

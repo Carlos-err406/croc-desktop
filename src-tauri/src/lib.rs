@@ -1,5 +1,7 @@
 #[cfg(target_os = "android")]
 mod android_saf;
+#[cfg(target_os = "android")]
+mod android_share;
 mod clipboard;
 mod codephrase;
 mod commands;
@@ -154,6 +156,11 @@ pub fn run() {
                         .extend(paths);
                 }
             }
+            // Hand the share-sheet bridge a handle so a share arriving while the
+            // app runs can wake the UI (a cold-start share is drained on mount).
+            #[cfg(target_os = "android")]
+            android_share::set_app_handle(app.handle().clone());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -188,6 +195,7 @@ pub fn run() {
             commands::croc_history_remove,
             commands::croc_history_clear,
             commands::croc_take_opened_files,
+            commands::croc_take_shared,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

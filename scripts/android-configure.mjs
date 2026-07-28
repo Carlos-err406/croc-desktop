@@ -251,7 +251,7 @@ patch(gradle, 'app/build.gradle.kts', (src) => {
   return out;
 });
 
-// ── 3. MainActivity.kt — hand croc's path to the Rust side ───────────────────
+// ── 3. MainActivity.kt — the two hooks Rust needs from Kotlin ────────────────
 function findMainActivity(dir) {
   for (const entry of readdirSync(dir)) {
     const p = join(dir, entry);
@@ -271,7 +271,9 @@ if (!mainActivity) {
 }
 
 patch(mainActivity, 'MainActivity.kt', (src) => {
-  if (src.includes('CROC_BIN')) return src;
+  // Guarded on the newest hook rather than the file being ours, so extending this
+  // template re-patches an activity an older run already replaced.
+  if (src.includes('nativeShare')) return src;
 
   const pkg = src.match(/^package\s+([\w.]+)/m);
   if (!pkg) throw new Error('[android-configure] no package declaration in MainActivity.kt');
@@ -281,6 +283,9 @@ patch(mainActivity, 'MainActivity.kt', (src) => {
   return `package ${pkg[1]}
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.system.Os
 import android.util.Log
@@ -293,6 +298,13 @@ class MainActivity : TauriActivity() {
      * Rust gets one. Implemented in src/android_saf.rs.
      */
     private external fun nativeInit(ctx: Context)
+
+    /**
+     * Hands over a share-sheet payload. tauri-plugin-deep-link only handles
+     * ACTION_VIEW, so SEND intents have no route into the app without this.
+     * Implemented in src/android_share.rs.
+     */
+    private external fun nativeShare(uris: Array<String>, text: String?)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // croc ships as jniLibs/<abi>/libcroc.so, so the installer unpacks it into
@@ -310,6 +322,51 @@ class MainActivity : TauriActivity() {
         // breaks the link — degrade to URI-derived filenames instead of crashing.
         runCatching { nativeInit(applicationContext) }
             .onFailure { Log.w("croc", "nativeInit unavailable; picked files fall back to URI names", it) }
+
+        handleShare(intent)
+    }
+
+    // launchMode is singleTask, so a share arriving while the app is already open
+    // lands here instead of starting a second activity.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShare(intent)
+    }
+
+    /**
+     * Queue an ACTION_SEND / ACTION_SEND_MULTIPLE payload for the UI to pick up.
+     * Only reads the intent — copying the content:// URIs is Rust's job, done when
+     * the frontend drains them, so a failed copy has somewhere to be reported.
+     */
+    private fun handleShare(intent: Intent?) {
+        if (intent == null) return
+        if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) return
+
+        val uris = streamUris(intent)
+        // Text only when nothing else came with it: a shared photo often carries a
+        // caption in EXTRA_TEXT, and that isn't what the user asked to send.
+        val text = if (uris.isEmpty()) intent.getStringExtra(Intent.EXTRA_TEXT) else null
+        if (uris.isEmpty() && text.isNullOrBlank()) return
+
+        runCatching { nativeShare(uris.map(Uri::toString).toTypedArray(), text) }
+            .onFailure { Log.w("croc", "nativeShare unavailable; dropping the shared payload", it) }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun streamUris(intent: Intent): List<Uri> {
+        val typed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+        return if (intent.action == Intent.ACTION_SEND) {
+            val uri =
+                if (typed) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                else intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            listOfNotNull(uri)
+        } else {
+            val list =
+                if (typed) intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                else intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+            list?.filterNotNull() ?: emptyList()
+        }
     }
 }
 `;

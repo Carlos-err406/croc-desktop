@@ -16,9 +16,18 @@ Galaxy S23 FE (SM-S711U1), **Android 16**, arm64, debug APK built from this tree
 | Send text → Mac | `libcroc.so --internal-dns --ignore-stdin send --text …`, received verbatim |
 | Send a file picked via SAF → Mac | Staged to `cache/croc-send/<id>/saf-test.txt`, received with the **original filename and contents** |
 | 16 KB page compatibility | Both native libs ≥16 KB aligned; the Android 16 warning is gone |
+| `croc://receive?code=…` deep link | Cold-launches onto Receive and completes the transfer |
+| Share sheet → a PNG | Staged **byte-identical**, listed as `croc-share-test.png` with a PNG badge |
+| Share sheet → text | Lands on Send in text mode with the message filled in |
 
-Not yet verified on hardware: background survival (no foreground service yet), LAN /
-local-only mode, and deep links (see "Known gaps").
+Sharing was driven with `am start`, which only grants a URI that's in the intent's
+`data` or `ClipData` — pass `-d <uri>` as well as `--eu android.intent.extra.STREAM`,
+or the app gets a `SecurityException` that looks like an app bug. `ACTION_SEND_MULTIPLE`
+takes the same path but couldn't be scripted (`am` can't put a URI `ArrayList` in an
+extra), so it's only verified by inspection.
+
+Not yet verified on hardware: background survival (no foreground service yet) and LAN /
+local-only mode.
 
 ## Quick start
 
@@ -128,6 +137,31 @@ that directory when a send finishes or resets.
 The copy briefly doubles the space a send needs — the unavoidable cost of SAF. It's
 streamed, so the cost is disk, never memory.
 
+A picked URI carries no reliable filename — a MediaStore pick ends in a document id
+like `msf%3A10000210694`, so the peer used to receive a file with no extension. The
+name comes from a `ContentResolver` `DISPLAY_NAME` query instead (`android_saf.rs`),
+which needs a `JavaVM` and a `Context`; nothing in Tauri's Android stack initialises
+`ndk_context` and wry keeps its VM private, so `MainActivity` hands both over through
+`nativeInit`. URI parsing remains as the fallback.
+
+### Getting files in: the share sheet
+
+`ACTION_SEND` / `ACTION_SEND_MULTIPLE` is the phone's "Open With", and it's how most
+files will arrive — picking from within the app is the exception on mobile.
+tauri-plugin-deep-link only handles `ACTION_VIEW`, so `MainActivity` reads the intent
+itself (`onCreate` for a cold launch, `onNewIntent` while running — `launchMode` is
+`singleTask`) and passes it to `android_share.rs` over JNI.
+
+The URIs are queued raw, not staged in the JNI call: staging can fail for reasons the
+user can act on, and a callback from Kotlin has nowhere to report that.
+`croc_take_shared` does the copying when the frontend drains the queue, and returns a
+`Result`. The read permission the sharing app grants lasts as long as the activity's
+task, and the drain happens on mount, so the copy is always well inside that window.
+
+A share with no files (a link, a snippet) fills the text box instead — held in
+`presetText` until the Send screen is idle, so a share arriving mid-transfer waits
+rather than switching the screen out from under it.
+
 Receives land in the app's data dir, since there is no public Downloads path a
 subprocess can write to. `HOME` and `TMPDIR` are pointed at app-private storage, because
 croc writes config (including the `--internal-dns` marker) and temp zips relative to
@@ -140,6 +174,7 @@ them.
 | Send files, code + QR, progress, history, text, relay picker | Same code |
 | Review-mode prompts (accept / overwrite / resume) | Same code, over a stdin pipe |
 | File picking | SAF picker, staged through the cache |
+| Getting files in from other apps | Share sheet (`ACTION_SEND`), not "Open With" |
 | Receive location | App data dir (no path-returning folder picker exists) |
 | Folder sends | Off — SAF gives tree URIs, not paths |
 | Drag-drop, paste-to-send, reveal in folder, ⌘N, multi-window, menus | Off |
@@ -168,20 +203,8 @@ is a change of default rather than a second refactor.
 - **Foreground service + wake lock** for background transfers. The permissions are
   declared but the service isn't implemented, so a transfer will likely die when the app
   is backgrounded. This is the biggest remaining gap.
-- **Deep links don't route yet.** A `croc://receive?code=…` intent reaches the app — the
-  plugin's `getCurrent` is called — but the UI stays on Send, so nothing starts. The
-  scheme and App Link filters are registered and the app does launch from them; only the
-  handling is missing, which also blocks scanned-QR handoff.
-- **The receive screen's "100%" hero is clipped** in the stacked phone layout.
-- **Share-target payload handling.** The `ACTION_SEND` / `SEND_MULTIPLE` intent filters
-  are registered, but nothing reads the incoming URIs into the Send screen yet.
-- **Save-to-Downloads / Share** for received files (MediaStore + FileProvider).
-- **A ContentResolver `DISPLAY_NAME` query** for picked files. `display_name_for`
-  currently parses the URI tail, which is right for the external-storage provider
-  (`primary:Download/foo.pdf`) but not for media/photo-picker URIs that end in a bare
-  document id — those fall back to a generated name, so the receiver gets a file
-  without a meaningful name. Doing it properly means a JNI call into the
-  ContentResolver.
+- **Save-to-Downloads / Share** for received files (MediaStore + FileProvider). Files
+  land in the app's data dir, so getting them out again means going through the app.
 - **Progress while staging.** A pick is copied into the cache before croc starts, and
   a multi-GB video makes that a visible wait with no feedback.
 - **In-app update check + install intent.** `REQUEST_INSTALL_PACKAGES` is declared;
