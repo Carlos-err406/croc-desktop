@@ -132,8 +132,10 @@ function buildAndroid(s) {
   mkdirSync(dirname(dest), { recursive: true });
   console.log(`[fetch-croc] building croc ${CROC_VERSION} for android/${s.goarch}`);
 
-  // `go install` refuses to cross-compile with GOBIN set and drops the result in
-  // $GOPATH/bin/<goos>_<goarch>/ instead — so clear GOBIN and read that path back.
+  // For a cross-compile `go install` puts the binary in $GOPATH/bin/<goos>_<goarch>/
+  // — unless GOBIN is set, in which case it goes there. Clearing the process env var
+  // isn't enough: Go also honours a GOBIN persisted by `go env -w`. So ask Go for
+  // both and take whichever actually appeared.
   const env = { ...process.env, GOOS: 'android', GOARCH: s.goarch, CGO_ENABLED: '0' };
   delete env.GOBIN;
   execFileSync('go', ['install', '-trimpath', '-ldflags=-s -w', CROC_MODULE], {
@@ -141,9 +143,15 @@ function buildAndroid(s) {
     env,
   });
 
-  const gopath = execFileSync('go', ['env', 'GOPATH'], { encoding: 'utf8', env }).trim();
-  const built = join(gopath, 'bin', `android_${s.goarch}`, 'croc');
-  if (!existsSync(built)) throw new Error(`go install produced nothing at ${built}`);
+  const goEnv = (k) => execFileSync('go', ['env', k], { encoding: 'utf8', env }).trim();
+  const candidates = [
+    join(goEnv('GOPATH'), 'bin', `android_${s.goarch}`, 'croc'),
+    ...(goEnv('GOBIN') ? [join(goEnv('GOBIN'), 'croc')] : []),
+  ];
+  const built = candidates.find(existsSync);
+  if (!built) {
+    throw new Error(`go install produced nothing at any of:\n  ${candidates.join('\n  ')}`);
+  }
   copyFileSync(built, dest);
   chmodSync(dest, 0o755);
   console.log(`[fetch-croc] -> ${dest}`);

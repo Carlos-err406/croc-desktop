@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
 import { QrScanner } from '@/components/QrScanner';
-import { CAN_USE_NEARBY } from '@/lib/platform';
+import { CAN_USE_FILE_PATHS, CAN_USE_NEARBY } from '@/lib/platform';
 
 function extType(name: string): string {
   const dot = name.lastIndexOf('.');
@@ -521,7 +521,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* ACTIVE: connecting / receiving / done — two-column, gradient hero */}
       {!isText && !reconnecting && (status === 'connecting' || status === 'receiving' || status === 'done') && (
-        <div className="flex min-h-0 flex-1 gap-5 px-8 pb-7 pt-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-4 md:flex-row md:gap-5 md:overflow-hidden md:px-8 md:pb-7 md:pt-5">
           {/* LEFT — transparent so it blends into the layout brand wash */}
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-transparent">
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
@@ -584,7 +584,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
           </div>
 
           {/* RIGHT: timeline + files + cancel */}
-          <div className="flex min-h-0 w-[332px] shrink-0 flex-col gap-3.5">
+          <div className="flex min-h-0 w-full shrink-0 flex-col gap-3.5 md:w-[332px]">
             <div className="rounded-[14px] border border-border bg-card p-[18px]">
               <div className="mb-4 text-[13px] font-semibold">Connection</div>
               {receiveSteps(status).map((st, i) => (
@@ -630,10 +630,18 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             </div>
             {status === 'done' ? (
               <div className="flex gap-2.5">
-                <Button className="flex-1" onClick={() => savedDir && croc.showItem(savedDir)}>
-                  <Folder /> Show in folder
-                </Button>
-                <Button variant="outline" className="flex-1" onClick={recv.reset}>
+                {/* No file manager to reveal into on Android, and croc_show_item is a
+                    stub there — so don't offer a button that does nothing. */}
+                {CAN_USE_FILE_PATHS && (
+                  <Button className="flex-1" onClick={() => savedDir && croc.showItem(savedDir)}>
+                    <Folder /> Show in folder
+                  </Button>
+                )}
+                <Button
+                  variant={CAN_USE_FILE_PATHS ? 'outline' : 'default'}
+                  className="flex-1"
+                  onClick={recv.reset}
+                >
                   Receive another
                 </Button>
               </div>

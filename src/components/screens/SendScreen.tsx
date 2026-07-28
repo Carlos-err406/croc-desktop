@@ -396,7 +396,13 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             : null;
 
   async function browse() {
-    const [, paths] = await croc.pickPaths();
+    const [err, paths] = await croc.pickPaths();
+    if (err) {
+      // Staging a pick can genuinely fail on Android (no space, unreadable provider);
+      // saying so beats a screen that just stays empty.
+      send.fail(err.message);
+      return;
+    }
     if (paths && paths.length) send.stage(paths);
   }
   // Separate folder picker — the native file dialog can't select folders (esp. on
@@ -606,7 +612,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
 
       {/* active: two-column */}
       {active && (
-        <div className="flex min-h-0 flex-1 gap-5 px-8 pb-7 pt-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-4 md:flex-row md:gap-5 md:overflow-hidden md:px-8 md:pb-7 md:pt-5">
           {/* LEFT — transparent so it blends into the layout brand wash */}
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-transparent">
             {status === 'waiting' && result && (
@@ -720,7 +726,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           </div>
 
           {/* RIGHT */}
-          <div className="flex min-h-0 w-[332px] shrink-0 flex-col gap-3.5">
+          <div className="flex min-h-0 w-full shrink-0 flex-col gap-3.5 md:w-[332px]">
             <div className="rounded-[14px] border border-border bg-card p-[18px]">
               <div className="mb-4 text-[13px] font-semibold">Connection</div>
               {buildSteps(status).map((s, i) => (

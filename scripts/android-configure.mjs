@@ -117,7 +117,11 @@ const INTENT_FILTERS = `
 patch(manifest, 'AndroidManifest.xml', (src) => {
   let out = src;
 
-  if (!out.includes('android.permission.INTERNET')) {
+  // Guard on a permission ONLY this block declares. Tauri's template already ships
+  // <uses-permission android:name="android.permission.INTERNET" />, so keying on that
+  // silently skipped everything else (caught by dumping the APK: no CAMERA, no
+  // FOREGROUND_SERVICE*). Manifest merging dedupes the INTERNET we re-declare.
+  if (!out.includes('FOREGROUND_SERVICE_DATA_SYNC')) {
     out = insertBefore(out, '    <application', PERMISSIONS, 'permissions');
   }
 

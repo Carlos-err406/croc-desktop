@@ -332,8 +332,11 @@ pub fn croc_stat_paths(paths: Vec<String>) -> Vec<StatEntry> {
 // main thread.
 #[cfg(desktop)]
 #[tauri::command]
-pub async fn croc_pick_paths(app: AppHandle) -> Vec<String> {
-    app.dialog()
+pub async fn croc_pick_paths(app: AppHandle) -> Result<Vec<String>, String> {
+    // Result rather than Vec purely so both platforms present the same command
+    // signature to the frontend; desktop picking can't fail this way.
+    Ok(app
+        .dialog()
         .file()
         .set_title("Choose files to send")
         .blocking_pick_files()
@@ -344,7 +347,7 @@ pub async fn croc_pick_paths(app: AppHandle) -> Vec<String> {
                 .map(|p| p.to_string_lossy().into_owned())
                 .collect()
         })
-        .unwrap_or_default()
+        .unwrap_or_default())
 }
 
 /// Android's picker hands back `content://` URIs from the Storage Access
@@ -357,20 +360,14 @@ pub async fn croc_pick_paths(app: AppHandle) -> Vec<String> {
 /// `croc_clear_staged` empties the dir once a send finishes.
 #[cfg(mobile)]
 #[tauri::command]
-pub async fn croc_pick_paths(app: AppHandle) -> Vec<String> {
+pub async fn croc_pick_paths(app: AppHandle) -> Result<Vec<String>, String> {
     let Some(files) = app.dialog().file().blocking_pick_files() else {
-        return Vec::new();
+        return Ok(Vec::new()); // cancelled — deliberately distinct from a failure
     };
-    files
-        .into_iter()
-        .filter_map(|f| match stage_picked_file(&app, f) {
-            Ok(path) => Some(path),
-            Err(e) => {
-                log::error!("staging picked file failed: {e}");
-                None
-            }
-        })
-        .collect()
+    // Collect into a Result so a half-finished pick reports WHY. Staging can fail for
+    // reasons the user can act on (out of space, an unreadable cloud URI), and
+    // silently returning fewer paths than they chose is the worst outcome.
+    files.into_iter().map(|f| stage_picked_file(&app, f)).collect()
 }
 
 /// Copy one picked file into the staging dir, returning its real path. Keeps the
@@ -383,7 +380,12 @@ fn stage_picked_file(
     use tauri_plugin_fs::{FsExt, OpenOptions};
 
     let name = display_name_for(&picked);
-    let dir = staging_dir(app)?;
+    // Each pick gets its own directory so the display name — which is what croc
+    // transmits — is preserved even when two picks share a filename. Without this,
+    // two files called IMG_0001.jpg collapse into one and the same path is returned
+    // twice. croc_clear_staged removes the whole tree, so these nest harmlessly.
+    let dir = staging_dir(app)?.join(gen_id());
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let dest = dir.join(&name);
 
     let mut opts = OpenOptions::new();
@@ -393,7 +395,12 @@ fn stage_picked_file(
         .open(picked, opts)
         .map_err(|e| format!("can't read the picked file: {e}"))?;
     let mut out = std::fs::File::create(&dest).map_err(|e| e.to_string())?;
-    std::io::copy(&mut src, &mut out).map_err(|e| e.to_string())?;
+    if let Err(e) = std::io::copy(&mut src, &mut out) {
+        // A partial copy would otherwise be sent as if it were the whole file.
+        drop(out);
+        let _ = std::fs::remove_file(&dest);
+        return Err(format!("couldn't copy \"{name}\" for sending: {e}"));
+    }
 
     Ok(dest.to_string_lossy().into_owned())
 }
@@ -404,17 +411,29 @@ fn stage_picked_file(
 #[cfg(mobile)]
 fn display_name_for(picked: &tauri_plugin_dialog::FilePath) -> String {
     let raw = picked.to_string();
-    let decoded = raw.replace("%2F", "/").replace("%2f", "/").replace("%20", " ");
+    // Drop any query/fragment first, or a URI like …/IMG.jpg?x=1 stages under the
+    // literal name "IMG.jpg?x=1".
+    let path_part = raw.split(['?', '#']).next().unwrap_or(&raw);
+    let decoded = path_part
+        .replace("%2F", "/")
+        .replace("%2f", "/")
+        .replace("%20", " ");
     let candidate = decoded.rsplit(['/', ':']).next().unwrap_or("").trim().to_string();
     let cleaned: String = candidate
         .chars()
         .filter(|c| !matches!(c, '/' | '\\' | '\0'))
         .collect();
     let cleaned = cleaned.trim_matches('.').trim().to_string();
-    if cleaned.is_empty() || !cleaned.contains('.') {
-        format!("shared-{}", gen_id())
-    } else {
+
+    // Media/photo-picker URIs end in a bare document id ("1000000123"), which is no
+    // more meaningful to the receiver than a generated name. Anything else — even
+    // without an extension — is likely the real display name, so keep it.
+    // A ContentResolver DISPLAY_NAME query would be authoritative; see docs/android.md.
+    let usable = !cleaned.is_empty() && !cleaned.chars().all(|c| c.is_ascii_digit());
+    if usable {
         cleaned
+    } else {
+        format!("shared-{}", gen_id())
     }
 }
 

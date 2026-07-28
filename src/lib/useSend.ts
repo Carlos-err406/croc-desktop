@@ -92,6 +92,8 @@ export interface UseSend extends SendState {
   begin: (customCode?: string) => Promise<void>;
   sendText: (text: string, customCode?: string) => Promise<void>;
   addMore: () => Promise<void>;
+  /** Put the send into a stated error state (e.g. a pick that couldn't be staged). */
+  fail: (message: string) => void;
   retry: () => Promise<void>;
   cancel: () => void;
   reset: () => void;
@@ -218,12 +220,20 @@ export function useSend(): UseSend {
   function removeEntry(path: string) {
     setState((v) => {
       const entries = v.entries.filter((e) => e.path !== path);
+      // Last entry gone means the staging area has nothing left to hold; on Android
+      // those are cache copies that would otherwise linger until the next reset.
+      if (!entries.length) void croc.clearStaged();
       return entries.length ? { ...v, entries } : INITIAL;
     });
   }
 
   function clear() {
     setState(INITIAL);
+    void croc.clearStaged();
+  }
+
+  function fail(message: string) {
+    setState((v) => ({ ...v, status: 'error', error: message }));
   }
 
   async function begin(customCode?: string) {
@@ -295,7 +305,11 @@ export function useSend(): UseSend {
     if (state.status !== 'waiting') return;
     const code = state.result?.code;
     if (!code) return;
-    const [, picked] = await croc.pickPaths();
+    const [pickErr, picked] = await croc.pickPaths();
+    if (pickErr) {
+      fail(pickErr.message);
+      return;
+    }
     if (!picked || !picked.length) return;
     const [, stat] = await croc.statPaths(picked);
     const additions = (stat ?? []).filter((e) => e.exists);
@@ -377,6 +391,7 @@ export function useSend(): UseSend {
     if (state.result) croc.cancel(state.result.transferId);
     idRef.current = null;
     setState(INITIAL);
+    void croc.clearStaged();
   }
 
   function reset() {
@@ -408,6 +423,7 @@ export function useSend(): UseSend {
     begin,
     sendText,
     addMore,
+    fail,
     retry,
     cancel,
     reset,

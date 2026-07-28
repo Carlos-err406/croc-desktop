@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, History as HistoryIcon, Folder, RotateCw, Trash2, X
 import { croc, type HistoryEntry } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
+import { CAN_USE_FILE_PATHS } from '@/lib/platform';
 
 type Filter = 'all' | 'sent' | 'received';
 
@@ -76,7 +77,8 @@ function Row({
           <RotateCw /> Send again
         </Button>
       )}
-      {e.kind === 'receive' && e.out && (
+      {/* croc_show_item is a stub on Android — no file manager to reveal into. */}
+      {e.kind === 'receive' && e.out && CAN_USE_FILE_PATHS && (
         <Button variant="ghost" size="sm" className="shrink-0" onClick={() => croc.showItem(e.out!)}>
           <Folder /> Reveal
         </Button>

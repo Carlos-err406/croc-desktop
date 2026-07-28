@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CrocFileInfo, CrocProgress, CrocPrompt } from '@/lib/ipc-types';
+import { CAN_USE_FILE_PATHS } from '@/lib/platform';
 import { croc, type CrocEvent } from '@/lib/services/ipc';
 import { getPrefs, relayArg } from '@/lib/prefs';
 import { notify, useTransferNotification } from '@/lib/notify';
@@ -198,7 +199,12 @@ export function useReceive(): UseReceive {
     const unsub = croc.onEvent((e: CrocEvent) => {
       if (e.transferId !== idRef.current) return;
       // Reveal the download folder on completion, if enabled.
-      if ((e.type === 'done' || (e.type === 'exit' && e.code === 0)) && getPrefs().revealOnDone && outRef.current) {
+      if (
+        CAN_USE_FILE_PATHS &&
+        (e.type === 'done' || (e.type === 'exit' && e.code === 0)) &&
+        getPrefs().revealOnDone &&
+        outRef.current
+      ) {
         croc.showItem(outRef.current);
       }
       // A prompt means croc is blocked waiting for the user — nudge them.

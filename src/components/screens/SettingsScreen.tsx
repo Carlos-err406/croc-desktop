@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusChip } from '@/components/ui/status-chip';
 import { CrocBadge } from '@/components/CrocLogo';
+import { CAN_USE_FILE_PATHS } from '@/lib/platform';
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -145,12 +146,18 @@ export function SettingsScreen() {
               >
                 {downloadLabel}
               </span>
-              <Button variant="outline" size="sm" onClick={chooseFolder}>Choose…</Button>
+              {/* SAF yields tree URIs, not paths, so croc_pick_folder can only
+                  return "" on Android — offering the button would do nothing. */}
+              {CAN_USE_FILE_PATHS && (
+                <Button variant="outline" size="sm" onClick={chooseFolder}>Choose…</Button>
+              )}
             </div>
           </Row>
-          <Row title="Reveal in folder when done" sub="Open the file location after a transfer completes">
-            <Toggle on={prefs.revealOnDone} onClick={() => update({ revealOnDone: !prefs.revealOnDone })} />
-          </Row>
+          {CAN_USE_FILE_PATHS && (
+            <Row title="Reveal in folder when done" sub="Open the file location after a transfer completes">
+              <Toggle on={prefs.revealOnDone} onClick={() => update({ revealOnDone: !prefs.revealOnDone })} />
+            </Row>
+          )}
           <Row title="Notify when transfers finish" sub="Show a system notification when a send or receive completes and the app is in the background">
             <Toggle on={prefs.notify} onClick={() => update({ notify: !prefs.notify })} />
           </Row>
