@@ -6,3 +6,10 @@ dist-release
 .DS_Store
 .eslintcache
 .worktrees
+
+# Android release signing — the key and its passwords never go in the repo.
+# CI reconstructs both from GitHub Secrets; keep an offline backup of the .jks,
+# because losing it means every installed app must be uninstalled to update.
+*.jks
+*.keystore
+keystore.properties

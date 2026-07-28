@@ -191,4 +191,26 @@ is a change of default rather than a second refactor.
 - **`assetlinks.json`** on the Pages site with the release signing cert's SHA-256,
   without which https App Links show a chooser instead of opening the app. The `croc://`
   scheme works regardless.
-- **Release signing.** CI produces a *debug* APK, which needs no secrets.
+- ~~Release signing~~ — done. `release.yml` builds a signed APK on a tag and attaches
+  it to the same GitHub release as the desktop artifacts.
+
+## Releasing
+
+Tag as usual (`v2.5.0`); the `android` job in `release.yml` runs after the desktop
+matrix and uploads `croc-mobile-<version>-arm64.apk` to that release.
+
+**One version for every platform.** Android derives `versionCode` from the semver as
+`major*1000000 + minor*1000 + patch` (2.4.1 -> 2004001), and it refuses an update whose
+versionCode didn't increase — so an Android-only version stream would produce a
+duplicate code and be uninstallable as an update. Bump the shared semver even for an
+Android-only fix.
+
+Signing uses four repo secrets: `ANDROID_KEYSTORE_BASE64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. The job fails
+loudly if the keystore secret is missing rather than publishing an unsigned APK that
+Android would refuse to install, and shreds the key material from the runner afterwards.
+
+**Keep the .jks backed up offline.** Android ties app identity to the signing key: lose
+it and every installed copy has to be uninstalled before it can be updated. The repo
+secret is a copy, not a backup — `*.jks`, `*.keystore` and `keystore.properties` are
+gitignored.

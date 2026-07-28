@@ -172,6 +172,63 @@ patch(gradle, 'app/build.gradle.kts', (src) => {
     );
   }
 
+  // Release signing. Tauri's template leaves the release buildType unsigned, which
+  // produces an APK Android refuses to install. Read the key from a gitignored
+  // keystore.properties when present, and otherwise leave the build unsigned so a
+  // local `android:build` still works for anyone without the release key.
+  if (!out.includes('signingConfigs')) {
+    out = insertBefore(
+      out,
+      '\n    buildTypes {',
+      `
+    signingConfigs {
+        create("release") {
+            val propsFile = rootProject.file("keystore.properties")
+            if (propsFile.exists()) {
+                // Parsed by hand rather than with java.util.Properties: in the Gradle
+                // Kotlin DSL \`java\` resolves to the Java plugin extension and shadows
+                // the package, and an \`import\` would have to go at the top of a file
+                // this script only ever patches in the middle.
+                val props = propsFile.readLines()
+                    .filter { it.contains("=") && !it.trimStart().startsWith("#") }
+                    .associate { line ->
+                        val i = line.indexOf('=')
+                        line.substring(0, i).trim() to line.substring(i + 1).trim()
+                    }
+                // rootProject, not file(): the keystore sits beside keystore.properties
+                // in the android project root, while file() would resolve into app/.
+                storeFile = rootProject.file(props["storeFile"] ?: "release.jks")
+                storePassword = props["storePassword"]
+                keyAlias = props["keyAlias"]
+                keyPassword = props["keyPassword"]
+            }
+        }
+    }
+`,
+      'signingConfigs',
+    );
+  }
+
+  // Attach it to the release buildType (the template's block has no signingConfig).
+  if (!out.includes('signingConfig = signingConfigs')) {
+    out = insertBefore(
+      out,
+      '\n        getByName("release") {\n            isMinifyEnabled',
+      '',
+      'release buildType',
+    );
+    out = out.replace(
+      '        getByName("release") {\n            isMinifyEnabled',
+      `        getByName("release") {
+            // Unsigned when keystore.properties is absent — Gradle then emits
+            // app-universal-release-unsigned.apk instead of failing the build.
+            if (rootProject.file("keystore.properties").exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            isMinifyEnabled`,
+    );
+  }
+
   if (!out.includes('abiFilters')) {
     out = insertBefore(
       out,
