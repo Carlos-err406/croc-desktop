@@ -4,6 +4,22 @@ The Android app is the same Tauri app as the desktop one — same React frontend
 Rust backend, same croc engine, same `croc://` code/QR contract. What differs is how
 croc is shipped and driven, plus a handful of features the platform can't support.
 
+## Verified on device
+
+Galaxy S23 FE (SM-S711U1), **Android 16**, arm64, debug APK built from this tree:
+
+| Check | Result |
+| --- | --- |
+| croc extracted to `nativeLibraryDir` | `-rwxr-xr-x … /lib/arm64/libcroc.so` |
+| App's own uid can exec it | `croc version 10.6.0` |
+| Receive 20 MB over Wi-Fi | Landed in the app dir, **SHA-256 identical** to the source, 1.9 MB/s |
+| Send text → Mac | `libcroc.so --internal-dns --ignore-stdin send --text …`, received verbatim |
+| Send a file picked via SAF → Mac | Staged to `cache/croc-send/<id>/saf-test.txt`, received with the **original filename and contents** |
+| 16 KB page compatibility | Both native libs ≥16 KB aligned; the Android 16 warning is gone |
+
+Not yet verified on hardware: background survival (no foreground service yet), LAN /
+local-only mode, and deep links (see "Known gaps").
+
 ## Quick start
 
 ```sh
@@ -152,6 +168,11 @@ is a change of default rather than a second refactor.
 - **Foreground service + wake lock** for background transfers. The permissions are
   declared but the service isn't implemented, so a transfer will likely die when the app
   is backgrounded. This is the biggest remaining gap.
+- **Deep links don't route yet.** A `croc://receive?code=…` intent reaches the app — the
+  plugin's `getCurrent` is called — but the UI stays on Send, so nothing starts. The
+  scheme and App Link filters are registered and the app does launch from them; only the
+  handling is missing, which also blocks scanned-QR handoff.
+- **The receive screen's "100%" hero is clipped** in the stacked phone layout.
 - **Share-target payload handling.** The `ACTION_SEND` / `SEND_MULTIPLE` intent filters
   are registered, but nothing reads the incoming URIs into the Send screen yet.
 - **Save-to-Downloads / Share** for received files (MediaStore + FileProvider).
