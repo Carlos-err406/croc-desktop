@@ -25,6 +25,9 @@ const APP = join(ANDROID, 'app');
 /** The https origin whose /croc/* links should open the app (App Links). */
 const APP_LINK_HOST = 'carlos-err406.github.io';
 
+/** Launcher name. Matches APP_NAME in src/lib/platform.ts and the APK filename. */
+const APP_LABEL = 'Croc Mobile';
+
 if (!existsSync(APP)) {
   console.error(
     `[android-configure] ${APP} not found — run \`npm run tauri -- android init\` first.`,
@@ -310,6 +313,31 @@ class MainActivity : TauriActivity() {
     }
 }
 `;
+});
+
+// ── 4. res/values/strings.xml — the launcher label ───────────────────────────
+//
+// `tauri android init` reads productName from tauri.conf.json only; the
+// tauri.android.conf.json override that renames the app for mobile never reaches
+// the generated strings.xml, so the launcher and the "Open with" chooser both say
+// "Croc Desktop" on a phone. That matters more than it sounds: with croc-app and
+// both build variants installed, the chooser lists three entries and two of them
+// carry the desktop's name.
+const strings = join(APP, 'src', 'main', 'res', 'values', 'strings.xml');
+
+patch(strings, 'res/values/strings.xml', (src) => {
+  let out = src;
+  for (const key of ['app_name', 'main_activity_title']) {
+    const re = new RegExp(`(<string name="${key}">)("?)[^<]*?\\2(</string>)`);
+    if (!re.test(out)) {
+      throw new Error(
+        `[android-configure] no <string name="${key}"> in strings.xml — ` +
+          `the Tauri Android template probably changed.`,
+      );
+    }
+    out = out.replace(re, `$1"${APP_LABEL}"$3`);
+  }
+  return out;
 });
 
 console.log(

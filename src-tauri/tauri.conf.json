@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Croc Desktop",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "identifier": "dev.carlosd.crocdesktop",
   "build": {
     "frontendDist": "../dist",
@@ -78,7 +78,23 @@
         "schemes": [
           "croc"
         ]
-      }
+      },
+      "mobile": [
+        {
+          "scheme": [
+            "croc"
+          ]
+        },
+        {
+          "scheme": [
+            "https"
+          ],
+          "host": "carlos-err406.github.io",
+          "pathPrefix": [
+            "/croc"
+          ]
+        }
+      ]
     }
   }
 }
