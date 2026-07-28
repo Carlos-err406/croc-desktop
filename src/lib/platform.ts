@@ -36,3 +36,10 @@ export const CAN_USE_NEARBY = !IS_MOBILE;
 
 /** Multiple windows, a menu bar, and ⌘-accelerators. */
 export const CAN_USE_WINDOWS = !IS_MOBILE;
+
+/**
+ * The product name to show the user. "Croc Desktop" is a lie on a phone, and it
+ * leaked into the About screen, the Settings footer and the update banner — so it
+ * lives here rather than being spelled out per screen.
+ */
+export const APP_NAME = IS_MOBILE ? 'Croc' : 'Croc Desktop';

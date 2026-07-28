@@ -82,6 +82,7 @@ pub struct CrocReceiveResult {
 /// (croc prints it inconsistently between releases).
 pub const EXPECTED_CROC_VERSION: &str = "v10.6.0";
 
+#[cfg(not(target_os = "android"))]
 fn croc_exe() -> &'static str {
     if cfg!(windows) {
         "croc.exe"
@@ -96,6 +97,7 @@ fn croc_exe() -> &'static str {
 /// We check the exe dir AND its symlink-resolved form (some Linux launchers exec
 /// through a symlink, which would otherwise make `parent()` point where the sidecar
 /// isn't) so we don't silently fall through to a possibly-incompatible system croc.
+#[cfg(not(target_os = "android"))]
 pub fn bundled_croc_binary() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let mut dirs: Vec<PathBuf> = Vec::new();

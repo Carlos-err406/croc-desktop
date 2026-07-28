@@ -1,4 +1,5 @@
 import { ArrowUpCircle, Download, RotateCw, X } from 'lucide-react';
+import { APP_NAME } from '@/lib/platform';
 import { useUpdater } from '@/lib/updater';
 import { formatBytes } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ export function UpdateBanner() {
       {status === 'available' && (
         <>
           <span className="min-w-0 flex-1">
-            A new version{version ? ` (v${version})` : ''} of Croc Desktop is available.
+            A new version{version ? ` (v${version})` : ''} of {APP_NAME} is available.
             {size ? ` (${size} download)` : ''}
           </span>
           <Button size="sm" onClick={() => void install()}>Update now</Button>

@@ -153,6 +153,7 @@ function CopyPill({ value, label, icon }: { value: string; label: string; icon: 
   return (
     <Button
       variant={icon === 'code' ? 'default' : 'outline'}
+      className="min-w-0 shrink"
       onClick={async () => {
         if (await copyText(value)) {
           setCopied(true);
@@ -429,7 +430,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* header */}
-      <div className="flex items-start justify-between gap-4 px-8 pt-[26px]">
+      <div className="flex items-start justify-between gap-4 px-4 md:px-8 pt-[26px]">
         <div>
           <div className="font-heading text-[26px] font-semibold tracking-[.01em]">{heading}</div>
           <div className="mt-[3px] text-[13px] text-muted-foreground">{subtitle}</div>
@@ -443,7 +444,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
 
       {/* reconnecting — auto-retry after a dropped transfer (keeps the same code) */}
       {reconnecting && (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 pb-8 pt-[22px] text-center">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 md:px-8 pb-8 pt-[22px] text-center">
           <Loader2 className="size-9 animate-spin text-brand" />
           <div>
             <div className="font-heading text-xl font-semibold">Reconnecting…</div>
@@ -460,7 +461,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
 
       {/* idle */}
       {(status === 'idle' || status === 'starting') && !reconnecting && (
-        <div className="flex min-h-0 flex-1 flex-col px-8 pb-8 pt-[22px]">
+        <div className="flex min-h-0 flex-1 flex-col px-4 md:px-8 pb-8 pt-[22px]">
           {/* Files / Text mode toggle */}
           <div className="mb-4 flex justify-center">
             <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
@@ -549,7 +550,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
 
       {/* staging */}
       {status === 'staging' && (
-        <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-7 pt-[22px]">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 md:px-8 pb-7 pt-[22px]">
           {/* Two columns: staged files on the left, nearby devices alongside — the
               code field + actions stay full-width below since they apply to both. */}
           <div className="flex min-h-0 flex-1 gap-4">
@@ -614,7 +615,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       {active && (
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-4 md:flex-row md:gap-5 md:overflow-hidden md:px-8 md:pb-7 md:pt-5">
           {/* LEFT — transparent so it blends into the layout brand wash */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-transparent">
+          <div className="flex min-w-0 flex-none flex-col overflow-hidden rounded-2xl border border-border bg-transparent md:flex-1">
             {status === 'waiting' && result && (
               <>
                 <div className="flex flex-col items-center gap-3 bg-[linear-gradient(150deg,var(--brand),var(--brand-deep))] px-6 pb-6 pt-[22px]">
@@ -635,7 +636,10 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   <Button className="w-full" onClick={(e) => shareTransfer(e.currentTarget)}>
                     {sharedCopied ? <Check /> : <Share2 />} {sharedCopied ? 'Code copied' : 'Share…'}
                   </Button>
-                  <div className="flex justify-center gap-2.5">
+                  {/* Three side-by-side pills are wider than a phone — they ran off
+                      both edges once the card stopped clipping them. Wrap, and let
+                      each pill shrink its label rather than force the row wider. */}
+                  <div className="flex flex-wrap justify-center gap-2.5">
                     <CopyPill value={result.code} label="Copy code" icon="code" />
                     <CopyPill value={result.receiveLink} label="Copy link" icon="link" />
                     <CopyPill value={result.receiveCommand.posix} label="Copy command" icon="cmd" />
@@ -809,7 +813,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       )}
 
       {status === 'error' && !reconnecting && (
-        <div className="px-8 pb-7">
+        <div className="px-4 md:px-8 pb-7">
           <div className="rounded-[14px] border border-error-text bg-error-surface p-4 text-error-text">
             <div className="mb-1 font-semibold">Transfer failed</div>
             {error && <div className="text-[13px]">{error}</div>}

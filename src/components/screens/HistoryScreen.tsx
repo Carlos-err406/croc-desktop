@@ -52,7 +52,11 @@ function Row({
   ]
     .filter(Boolean)
     .join('  ·  ');
-  const canResend = isSend && !e.isText && !!e.paths?.length;
+  // Android stores the STAGED cache path for a send (the SAF copy croc actually
+  // read), and croc_clear_staged deletes it when the transfer ends — so the file
+  // a history entry points at is already gone. Re-sending would fail on a missing
+  // path; hide it until the source URI is persisted with takePersistableUriPermission.
+  const canResend = isSend && !e.isText && !!e.paths?.length && CAN_USE_FILE_PATHS;
   return (
     <div className="croc-history-row flex min-w-0 items-center gap-3.5 rounded-[14px] border border-border bg-card px-4 py-3">
       <span
@@ -120,20 +124,20 @@ export function HistoryScreen({ onResend }: { onResend?: (paths: string[], code?
     // Whole screen scrolls (header + filter bar included) so it blends into the
     // gradient wash, rather than a fixed header over a scrolling list.
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="px-8 pt-[26px]">
+      <div className="px-4 md:px-8 pt-[26px]">
         <div className="font-heading text-[26px] font-semibold tracking-[.01em]">History</div>
         <div className="mt-[3px] text-[13px] text-muted-foreground">
           Every transfer stays on this device. Nothing is stored in the cloud.
         </div>
       </div>
 
-      <div className="flex items-center gap-3 px-8 pt-[18px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-[18px] md:px-8">
         <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
           <Seg active={filter === 'all'} onClick={() => setFilter('all')}>All</Seg>
           <Seg active={filter === 'sent'} onClick={() => setFilter('sent')}>Sent</Seg>
           <Seg active={filter === 'received'} onClick={() => setFilter('received')}>Received</Seg>
         </div>
-        <span className="ml-auto text-[13px] text-muted-foreground">
+        <span className="ml-auto whitespace-nowrap text-[13px] text-muted-foreground">
           {entries.length} transfer{entries.length === 1 ? '' : 's'}
         </span>
         {entries.length > 0 && (
@@ -143,7 +147,7 @@ export function HistoryScreen({ onResend }: { onResend?: (paths: string[], code?
         )}
       </div>
 
-      <div className="px-8 pb-7 pt-4">
+      <div className="px-4 md:px-8 pb-7 pt-4">
         {shown.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed border-border px-6 py-14 text-center">
             <div className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-secondary text-muted-foreground">

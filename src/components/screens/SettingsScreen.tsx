@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusChip } from '@/components/ui/status-chip';
 import { CrocBadge } from '@/components/CrocLogo';
-import { CAN_USE_FILE_PATHS } from '@/lib/platform';
+import { APP_NAME, CAN_USE_FILE_PATHS } from '@/lib/platform';
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -24,12 +24,15 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function Row({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-3.5">
-      <div>
+    // Stacked on a phone: a control wide enough to sit beside the label on desktop
+    // (the two relay buttons) would otherwise overflow the card. `min-w-0` lets the
+    // label shrink instead of forcing the row wider than its parent.
+    <div className="flex flex-col items-start gap-2 border-t border-border px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0">
         <div className="text-sm font-medium">{title}</div>
         <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
       </div>
-      {children}
+      <div className="w-full shrink-0 sm:w-auto">{children}</div>
     </div>
   );
 }
@@ -129,14 +132,14 @@ export function SettingsScreen() {
     // Whole screen scrolls (header included) so it blends into the gradient wash,
     // rather than a fixed header over a scrolling body.
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="px-8 pt-[26px]">
+      <div className="px-4 md:px-8 pt-[26px]">
         <div className="font-heading text-[26px] font-semibold tracking-[.01em]">Settings</div>
         <div className="mt-[3px] text-[13px] text-muted-foreground">
           Preferences are stored locally on this device.
         </div>
       </div>
 
-      <div className="flex flex-col gap-[18px] px-8 pb-8 pt-5">
+      <div className="flex flex-col gap-[18px] px-4 md:px-8 pb-8 pt-5">
         <Card title="General">
           <Row title="Download folder" sub="Where received files are saved">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -179,7 +182,7 @@ export function SettingsScreen() {
           {/* The relay is unused in local-only mode (croc --local bypasses it), so dim it. */}
           <div className={prefs.localMode ? 'pointer-events-none opacity-40' : ''}>
             <Row title="Relay" sub="Rendezvous server used to pair devices">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <RelayChoice active={prefs.relay === 'default'} onClick={() => chooseRelay('default')}>
                   Default (croc.schollz.com)
                 </RelayChoice>
@@ -232,7 +235,7 @@ export function SettingsScreen() {
         </Card>
 
         <Card title="Appearance">
-          <Row title="Theme" sub="Match the mood of your desktop">
+          <Row title="Theme" sub={CAN_USE_FILE_PATHS ? 'Match the mood of your desktop' : 'Light or dark'}>
             <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
               <Seg active={prefs.theme === 'light'} onClick={() => chooseTheme('light')}>
                 <Sun size={14} /> Light
@@ -244,6 +247,7 @@ export function SettingsScreen() {
           </Row>
         </Card>
 
+        {CAN_USE_FILE_PATHS && (
         <Card title="Updates">
           <Row title="Automatic updates" sub="Download and install new versions automatically on launch">
             <Toggle on={prefs.autoUpdate} onClick={() => update({ autoUpdate: !prefs.autoUpdate })} />
@@ -270,12 +274,13 @@ export function SettingsScreen() {
             )}
           </Row>
         </Card>
+        )}
 
         <div className="flex items-center gap-3.5 rounded-[14px] border border-border bg-card px-5 py-4">
           <CrocBadge size={40} />
           <div>
             <div className="text-sm font-semibold">
-              Croc Desktop <span className="font-normal text-muted-foreground">v{__APP_VERSION__}</span>
+              {APP_NAME} <span className="font-normal text-muted-foreground">v{__APP_VERSION__}</span>
             </div>
             <div className="mt-px text-xs text-muted-foreground">{crocSub}</div>
           </div>

@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
 import { QrScanner } from '@/components/QrScanner';
-import { CAN_USE_FILE_PATHS, CAN_USE_NEARBY } from '@/lib/platform';
+import { APP_NAME, CAN_USE_FILE_PATHS, CAN_USE_NEARBY } from '@/lib/platform';
 
 function extType(name: string): string {
   const dot = name.lastIndexOf('.');
@@ -239,7 +239,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-start justify-between gap-4 px-8 pt-[26px]">
+      <div className="flex items-start justify-between gap-4 px-4 md:px-8 pt-[26px]">
         <div>
           <div className="font-heading text-[26px] font-semibold tracking-[.01em]">
             {reconnecting
@@ -318,7 +318,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
         // Scrolls when it has to (e.g. the "send to me" invite panel open), and
         // stays vertically centered when it fits — my-auto, not justify-center,
         // so an overflowing panel isn't clipped at the top.
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 md:px-8 pb-8 pt-6">
           <div className="my-auto flex w-full max-w-[440px] flex-col items-center gap-2 text-center mx-auto">
             <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-[18px] bg-brand-surface text-brand-deep">
               <Download size={30} />
@@ -382,7 +382,9 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                   They're sending with croc <b>{mismatch.sender}</b>, you have <b>{mismatch.ours}</b>. The
                   transfer might fail if both ends don't have the same bundled croc version —{' '}
                   {mismatch.senderIsNewer
-                    ? 'update Croc Desktop (Settings → Updates), then try again.'
+                    ? CAN_USE_FILE_PATHS
+                      ? 'update Croc Desktop (Settings → Updates), then try again.'
+                      : `update ${APP_NAME} to the latest release, then try again.`
                     : 'ask them to update their Croc app, then try again.'}
                 </p>
               </div>
@@ -473,7 +475,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* TEXT MESSAGE: `croc send --text` — show the body with a copy button */}
       {isText && !reconnecting && status !== 'idle' && status !== 'error' && (
-        <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-7 pt-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 md:px-8 pb-7 pt-5">
           {text == null ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-[18px] rounded-2xl border border-border">
               <div className="h-11 w-11 animate-[crocspin_.8s_linear_infinite] rounded-full border-[3px] border-border border-t-brand" />
@@ -504,7 +506,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* reconnecting — auto-retry after a dropped transfer (same code) */}
       {reconnecting && (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 pb-8 pt-[22px] text-center">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 md:px-8 pb-8 pt-[22px] text-center">
           <Loader2 className="size-9 animate-spin text-brand" />
           <div>
             <div className="font-heading text-xl font-semibold">Reconnecting…</div>
@@ -523,7 +525,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
       {!isText && !reconnecting && (status === 'connecting' || status === 'receiving' || status === 'done') && (
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-4 md:flex-row md:gap-5 md:overflow-hidden md:px-8 md:pb-7 md:pt-5">
           {/* LEFT — transparent so it blends into the layout brand wash */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-transparent">
+          <div className="flex min-w-0 flex-none flex-col overflow-hidden rounded-2xl border border-border bg-transparent md:flex-1">
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
               {status === 'connecting' ? (
                 <>

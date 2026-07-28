@@ -290,6 +290,13 @@ pub struct CrocInfo {
 #[tauri::command]
 pub fn croc_info() -> CrocInfo {
     let resolved = croc::find_croc_binary();
+    // On Android croc is ALWAYS the one we ship: it's packaged in the APK as
+    // jniLibs/<abi>/libcroc.so and reached through CROC_BIN. There is no sidecar
+    // and no system croc to compare against, so the desktop comparison would report
+    // "System croc" and make a correct install look misconfigured.
+    #[cfg(mobile)]
+    let bundled = resolved.is_some();
+    #[cfg(desktop)]
     let bundled = matches!(
         (&resolved, croc::bundled_croc_binary()),
         (Some(r), Some(b)) if r == &b
