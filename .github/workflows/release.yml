@@ -4,7 +4,13 @@ on:
   push:
     tags:
       - 'v*' # e.g. v0.2.0 — must match the version in tauri.conf.json / package.json
-  workflow_dispatch: {} # manual runs build only (validate packaging; no publish)
+  # Manual runs build only — they never publish (see the `if:`s below). Worth doing
+  # before you tag, for two reasons: it rehearses the packaging, and because a non-tag
+  # run is the only one that *saves* the Rust cache (see `save-if`), it leaves
+  # main-scoped caches that the tag run can then restore. Verified: a dispatch from main
+  # wrote v0-rust-release-{Darwin,Linux,Windows_NT}-* under refs/heads/main, and tag runs
+  # can read default-branch caches. So: dispatch once after a dependency change, then tag.
+  workflow_dispatch: {}
 
 permissions:
   contents: write # create/upload the draft GitHub Release
