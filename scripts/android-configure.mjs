@@ -313,7 +313,7 @@ if (!mainActivity) {
 patch(mainActivity, 'MainActivity.kt', (src) => {
   // Guarded on the newest hook rather than the file being ours, so extending this
   // template re-patches an activity an older run already replaced.
-  if (src.includes('nativeShare')) return src;
+  if (src.includes('CROC_FGS_CLASS')) return src;
 
   const pkg = src.match(/^package\s+([\w.]+)/m);
   if (!pkg) throw new Error('[android-configure] no package declaration in MainActivity.kt');
@@ -355,6 +355,13 @@ class MainActivity : TauriActivity() {
         //
         // Set before super.onCreate, which is what starts the Rust side.
         Os.setenv("CROC_BIN", "\${applicationInfo.nativeLibraryDir}/libcroc.so", true)
+
+        // Same trick for the foreground service. Rust needs the service's fully-qualified
+        // class name, and it CANNOT derive it: getPackageName() returns the applicationId,
+        // which carries the .debug suffix on debug builds and so doesn't match the Kotlin
+        // package. Letting Kotlin name its own class keeps the two in step through any
+        // rename. Read in src/android_fgs.rs.
+        Os.setenv("CROC_FGS_CLASS", TransferService::class.java.name, true)
         super.onCreate(savedInstanceState)
 
         // AFTER super.onCreate: the native library isn't loaded before that. The JNI

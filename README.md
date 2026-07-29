@@ -51,7 +51,7 @@ What's different on a phone:
 - **Files come in through the share sheet.** Share a photo, a document, or a link to **Croc Mobile** from anywhere and it lands on the Send screen, ready to go.
 - **Received files are published to `Download/CrocMobile`**, so they show up in the Files app and the gallery like any other download. *(Android 10+; older releases keep them in app storage.)*
 - **No folder sends, drag-drop, or "reveal in folder"** — Android's storage model gives apps document handles, not paths.
-- **Keep the app open during a transfer.** A background transfer may be killed by the system; the foreground service that would prevent that isn't built yet.
+- **Transfers survive backgrounding.** A foreground service (with a notification while it runs) keeps the transfer alive when you switch apps or lock the phone — verified on device with a 100 MB receive.
 
 Previously this README recommended [croc-app](https://github.com/Dking08/croc-app) as the companion — a good project that showed a lot of this was possible. Croc Mobile supersedes it here.
 
