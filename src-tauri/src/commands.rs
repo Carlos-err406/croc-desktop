@@ -1047,6 +1047,46 @@ pub fn croc_set_progress(app: AppHandle, progress: Option<u64>) {
     }
 }
 
+// ── in-app APK update (Android) ───────────────────────────────────────────
+// Downloaded by DownloadManager and installed by us; see android_install.rs for why
+// neither ACTION_VIEW on the asset URL nor a webview fetch can do this job.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub fn croc_update_download(app: AppHandle, url: String) -> Result<(), String> {
+    crate::android_install::download_start(&app, &url)
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub fn croc_update_progress(app: AppHandle) -> Result<String, String> {
+    crate::android_install::download_poll(&app)
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub fn croc_install_apk(app: AppHandle) -> Result<(), String> {
+    crate::android_install::install(&app)
+}
+
+// Desktop keeps tauri-plugin-updater, which does all of this itself.
+#[cfg(desktop)]
+#[tauri::command]
+pub fn croc_update_download(_app: AppHandle, _url: String) -> Result<(), String> {
+    Err("In-app APK updates are Android-only.".into())
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub fn croc_update_progress(_app: AppHandle) -> Result<String, String> {
+    Err("In-app APK updates are Android-only.".into())
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub fn croc_install_apk(_app: AppHandle) -> Result<(), String> {
+    Err("In-app APK updates are Android-only.".into())
+}
+
 /// Write pasted bytes (base64) to a uniquely-named temp file and return its path,
 /// so a pasted image or file can be handed to croc as a normal file to send.
 #[tauri::command]

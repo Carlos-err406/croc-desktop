@@ -117,10 +117,9 @@ export function SettingsScreen() {
     idle: `You're on v${__APP_VERSION__}`,
     checking: 'Checking for updates…',
     uptodate: `You're on the latest version (v${__APP_VERSION__})`,
-    available: CAN_USE_FILE_PATHS
-      ? `Version ${updater.version} is available${size ? ` · ${size} download` : ''}`
-      : `Version ${updater.version} is available — opens in your browser to install`,
+    available: `Version ${updater.version} is available${size ? ` · ${size} download` : ''}`,
     downloading: `Downloading update… ${Math.round(updater.progress * 100)}%${size ? ` · ${size}` : ''}`,
+    installing: `Version ${updater.version} downloaded — confirm the install when Android asks`,
     ready: `Version ${updater.version} downloaded — restart to apply`,
     error: 'Could not check for updates',
   }[updater.status];

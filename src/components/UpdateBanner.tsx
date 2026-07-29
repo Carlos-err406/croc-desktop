@@ -8,14 +8,20 @@ import { Button } from '@/components/ui/button';
 export function UpdateBanner() {
   const { status, version, progress, totalBytes, install, restart, dismiss } = useUpdater();
 
-  if (status !== 'available' && status !== 'downloading' && status !== 'ready') return null;
+  if (
+    status !== 'available' &&
+    status !== 'downloading' &&
+    status !== 'installing' &&
+    status !== 'ready'
+  )
+    return null;
 
   const pct = Math.round(progress * 100);
   const size = totalBytes ? formatBytes(totalBytes) : null;
 
   return (
     <div className="flex items-center gap-3 border-b border-border bg-brand-surface px-5 py-2.5 text-[13px] text-brand-deep">
-      {status === 'downloading' ? (
+      {status === 'downloading' || status === 'installing' ? (
         <Download size={16} className="shrink-0 animate-pulse" />
       ) : (
         <ArrowUpCircle size={16} className="shrink-0" />
@@ -52,6 +58,13 @@ export function UpdateBanner() {
             />
           </div>
         </>
+      )}
+
+      {status === 'installing' && (
+        <span className="min-w-0 flex-1">
+          Update{version ? ` v${version}` : ''} downloaded — Android's installer will ask you to
+          confirm.
+        </span>
       )}
 
       {status === 'ready' && (

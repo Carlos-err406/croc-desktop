@@ -537,43 +537,58 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           </div>
 
           {mode === 'files' ? (
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={browse}
-              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && browse()}
-              className={`flex flex-1 cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed bg-transparent text-center outline-none transition-colors duration-150 ${
-                dragging ? 'border-brand' : 'border-border'
-              }`}
-            >
-              <CrocBadge size={76} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
-              <div className="mt-[22px] font-heading text-2xl font-semibold">
-                {CAN_USE_FILE_PATHS ? 'Drop files or a folder to send' : 'Pick files to send'}
-              </div>
-              <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
-                Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to
-                the other device.
-              </div>
-              <div className="mt-[22px] flex gap-2.5" onClick={(e) => e.stopPropagation()}>
-                <Button onClick={browse}>
-                  {CAN_USE_FILE_PATHS ? 'Browse files…' : 'Choose files'}
-                </Button>
-                {CAN_PICK_FOLDERS && (
-                  <Button variant="outline" onClick={browseFolders}>
-                    <FolderPlus /> Add folder
+            // Two columns on desktop, same shape as staging below: the nearby list used to
+            // appear only once files were staged, so there was nothing anywhere to suggest
+            // the feature existed. Adopting a peer's code before picking files is fine —
+            // it just fills the custom code the send then uses.
+            <div className="flex min-h-0 flex-1 gap-4">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={browse}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && browse()}
+                className={`flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed bg-transparent text-center outline-none transition-colors duration-150 ${
+                  dragging ? 'border-brand' : 'border-border'
+                }`}
+              >
+                <CrocBadge size={76} className="shadow-[0_12px_30px_-10px_rgba(30,80,40,.35)]" />
+                <div className="mt-[22px] font-heading text-2xl font-semibold">
+                  {CAN_USE_FILE_PATHS ? 'Drop files or a folder to send' : 'Pick files to send'}
+                </div>
+                <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
+                  Croc creates a one-time code. Share it, and the transfer runs encrypted, straight
+                  to the other device.
+                </div>
+                <div className="mt-[22px] flex gap-2.5" onClick={(e) => e.stopPropagation()}>
+                  <Button onClick={browse}>
+                    {CAN_USE_FILE_PATHS ? 'Browse files…' : 'Choose files'}
                   </Button>
+                  {CAN_PICK_FOLDERS && (
+                    <Button variant="outline" onClick={browseFolders}>
+                      <FolderPlus /> Add folder
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={() => setScanning(true)}
+                    title="Scan someone's “send to me” QR"
+                  >
+                    <QrCode /> Scan their code
+                  </Button>
+                </div>
+                {status === 'starting' && (
+                  <div className="mt-[18px] flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Starting croc…
+                  </div>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={() => setScanning(true)}
-                  title="Scan someone's “send to me” QR"
-                >
-                  <QrCode /> Scan their code
-                </Button>
               </div>
-              {status === 'starting' && (
-                <div className="mt-[18px] flex items-center gap-2 text-[13px] text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" /> Starting croc…
+              {CAN_USE_NEARBY && (
+                <div className="hidden w-[268px] shrink-0 overflow-y-auto md:block">
+                  <NearbyPeers
+                    ourCroc={ourCroc}
+                    selectedCode={customCode}
+                    onPick={(p) => p.code && setCustomCode(p.code)}
+                  />
                 </div>
               )}
             </div>

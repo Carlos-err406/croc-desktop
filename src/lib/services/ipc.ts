@@ -132,6 +132,13 @@ export const croc = {
   cancel: (transferId: string) => call<null>('croc_cancel', { transferId }),
   showItem: (path: string) => call<null>('croc_show_item', { path }),
   openUrl: (url: string) => call<null>('croc_open_url', { url }),
+  /**
+   * In-app APK update (Android). The bytes come from the webview because reqwest —
+   * and so tauri-plugin-updater — is desktop-only here; see android_install.rs.
+   */
+  updateDownload: (url: string) => call<null>('croc_update_download', { url }),
+  updateProgress: () => call<string>('croc_update_progress'),
+  installApk: () => call<null>('croc_install_apk'),
   takeOpenedFiles: () => call<string[]>('croc_take_opened_files'),
   /**
    * Drain Android's share sheet ("Share → Croc Mobile"). Files come back already

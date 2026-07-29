@@ -15,6 +15,8 @@
 // system installer a readable URI — worth doing, but not before the app can even
 // tell you an update exists.
 
+import { croc } from './services/ipc';
+
 const REPO = 'Carlos-err406/croc-gui';
 
 export interface AndroidUpdate {
@@ -61,4 +63,34 @@ export async function checkAndroidUpdate(current: string): Promise<AndroidUpdate
   const apk = release.assets?.find((a) => a.name.endsWith('.apk'));
   const pageUrl = release.html_url ?? `https://github.com/${REPO}/releases/latest`;
   return { version, apkUrl: apk?.browser_download_url ?? pageUrl, pageUrl };
+}
+
+/**
+ * Download the APK with Android's DownloadManager, then hand it to the package installer.
+ *
+ * Neither obvious approach works. `openUrl(apkUrl)` goes to the GitHub app, which holds
+ * verified App Links for github.com — behind its app lock, downloading nothing. And
+ * fetching it here is blocked by CORS: api.github.com allows cross-origin reads, which is
+ * why *checking* works, but the asset redirects to release-assets.githubusercontent.com,
+ * which sends no CORS header at all.
+ */
+export async function downloadAndInstallApk(
+  url: string,
+  onProgress: (received: number, total: number) => void,
+): Promise<void> {
+  const [startErr] = await croc.updateDownload(url);
+  if (startErr) throw new Error(startErr.message);
+
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 600));
+    const [pollErr, state] = await croc.updateProgress();
+    if (pollErr) throw new Error(pollErr.message);
+    const [kind, soFar, total] = (state ?? '').split(':');
+    if (kind === 'error') throw new Error(state!.slice('error:'.length) || 'download failed');
+    onProgress(Number(soFar) || 0, Number(total) > 0 ? Number(total) : 0);
+    if (kind === 'done') break;
+  }
+
+  const [installErr] = await croc.installApk();
+  if (installErr) throw new Error(installErr.message);
 }

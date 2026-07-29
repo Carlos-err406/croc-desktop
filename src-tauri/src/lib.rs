@@ -1,6 +1,8 @@
 #[cfg(target_os = "android")]
 mod android_fgs;
 #[cfg(target_os = "android")]
+mod android_install;
+#[cfg(target_os = "android")]
 mod android_media;
 #[cfg(target_os = "android")]
 mod android_saf;
@@ -168,6 +170,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::croc_update_download,
+            commands::croc_update_progress,
+            commands::croc_install_apk,
             commands::croc_default_dir,
             commands::croc_save_location,
             commands::croc_info,

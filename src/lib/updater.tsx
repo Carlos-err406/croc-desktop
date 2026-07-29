@@ -4,13 +4,14 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { croc } from './services/ipc';
 import { getPrefs } from './prefs';
 import { IS_MOBILE } from './platform';
-import { checkAndroidUpdate, type AndroidUpdate } from './androidUpdate';
+import { checkAndroidUpdate, downloadAndInstallApk, type AndroidUpdate } from './androidUpdate';
 
 export type UpdateStatus =
   | 'idle' // not checked / nothing to show
   | 'checking'
   | 'available' // found, awaiting user (manual mode)
   | 'downloading'
+  | 'installing' // Android: handed to the system installer, which owns the rest
   | 'ready' // installed, needs restart
   | 'uptodate'
   | 'error';
@@ -50,12 +51,30 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
   const started = useRef(false);
 
   const install = async () => {
-    // Android has no in-app install: hand the APK to the browser, which downloads
-    // it and lets Android's package installer do the rest. Status stays 'available'
-    // — nothing has been installed yet, and claiming otherwise would be a lie.
+    // Android: download it ourselves, then hand the file to the system installer.
+    // Opening the asset URL instead — which this used to do — never worked once the
+    // GitHub app was installed: it holds verified App Links for github.com, so the
+    // intent went to that app (behind its lock screen) and no download ever started.
     if (IS_MOBILE) {
       const target = androidRef.current;
-      if (target) await croc.openUrl(target.apkUrl);
+      if (!target) return;
+      try {
+        setError(null);
+        setStatus('downloading');
+        setProgress(0);
+        await downloadAndInstallApk(target.apkUrl, (received, total) => {
+          if (total) {
+            setTotalBytes(total);
+            setProgress(Math.min(1, received / total));
+          }
+        });
+        // The system installer owns it from here — it prompts, replaces the app and
+        // restarts it, so there is no 'ready … restart' step of ours to offer.
+        setStatus('installing');
+      } catch (err) {
+        setError(String(err));
+        setStatus('error');
+      }
       return;
     }
     const update = updateRef.current;
