@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest something the app should do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please skim [BACKLOG.md](https://github.com/Carlos-err406/croc-gui/blob/main/BACKLOG.md)
+        first — many ideas are already parked there with notes on what croc itself makes
+        possible or impossible.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation you're in, not the solution yet.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should the app do
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Where it applies
+      options:
+        - label: Desktop (macOS / Windows / Linux)
+        - label: Android
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried, or alternatives you considered

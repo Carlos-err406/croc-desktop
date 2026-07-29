@@ -1,0 +1,88 @@
+name: Bug report
+description: Something in the app misbehaves
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: if the same failure happens with the plain `croc` CLI on both ends
+        (no GUI involved), it belongs upstream at
+        [schollz/croc](https://github.com/schollz/croc/issues).
+
+        Found a security issue? Don't file it here — see
+        [SECURITY.md](https://github.com/Carlos-err406/croc-gui/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - Android
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version and hardware
+      placeholder: macOS 15.3 (Apple Silicon) / Windows 11 / Ubuntu 24.04 / Android 16, Galaxy S23 FE
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Settings → About, or the installer filename.
+      placeholder: 2.6.0
+    validations:
+      required: true
+
+  - type: input
+    id: croc-versions
+    attributes:
+      label: croc version on each end
+      description: >
+        Shown on the About screen, or `croc --version` for the CLI. Peers across a croc
+        minor version can't talk to each other, and that looks like an app bug.
+      placeholder: app 10.6.0 → CLI 10.5.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: peer
+    attributes:
+      label: The other end
+      description: What were you transferring with, and what kind of send was it?
+      placeholder: Phone → Mac, a folder over Wi-Fi. Relay was the default.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or output
+      description: >
+        Terminal output from `npm run dev`, or `adb logcat` on Android, is very helpful.
+        **Redact any real code phrase or link — treat it as a one-time secret.**
+      render: text

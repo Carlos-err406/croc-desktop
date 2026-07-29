@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: croc itself (protocol, relays, encryption, CLI)
+    url: https://github.com/schollz/croc/issues
+    about: >
+      Crocodile only drives the croc CLI. If it reproduces with plain `croc send` /
+      `croc` on both ends, report it upstream.
+  - name: Security vulnerability
+    url: https://github.com/Carlos-err406/croc-gui/blob/main/SECURITY.md
+    about: Please report privately instead of opening a public issue.

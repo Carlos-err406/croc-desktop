@@ -106,6 +106,13 @@ npm run build      # tauri build → .dmg / .exe / .AppImage / .deb for the curr
 
 Releases are cut by pushing a `v*` tag: CI builds and signs the desktop installers, the updater manifest, and the Android APK, then publishes them all to one GitHub release. **One version across every platform** — Android derives its `versionCode` from the semver, so a platform-specific version stream would produce duplicate codes and break updates.
 
+## Contributing
+
+Issues and PRs welcome — [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the checks CI
+runs, and how to test a transfer by hand. Participation is under the
+[Code of Conduct](CODE_OF_CONDUCT.md). Found a vulnerability? Please report it privately
+per [SECURITY.md](SECURITY.md).
+
 ## Credits
 
 Built on [schollz/croc](https://github.com/schollz/croc). Crocodile is an independent GUI and is not affiliated with the croc project.
