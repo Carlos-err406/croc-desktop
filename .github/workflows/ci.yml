@@ -3,7 +3,11 @@ name: CI
 on:
   push:
     branches: [main, tauri-rewrite]
+    # Nothing here reads markdown: *.md is in .prettierignore, eslint only walks
+    # ts/tsx, and no source file loads a doc. A docs-only push has nothing to check.
+    paths-ignore: ['**.md', 'LICENSE']
   pull_request:
+    paths-ignore: ['**.md', 'LICENSE']
 
 # Cancel superseded runs on the same ref.
 concurrency:

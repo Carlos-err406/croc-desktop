@@ -50,10 +50,14 @@ jobs:
         continue-on-error: true
         uses: rui314/setup-mold@v1
 
+      # Restore-only on a tag. A cache saved from refs/tags/vX is readable only by that
+      # same tag's runs, so saving here was pure dead work — and it's the last step of
+      # the job, so it delayed the very leg that gates the release (39-50s on mac/win).
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          save-if: ${{ github.ref_type != 'tag' }}
 
       - name: Install Tauri system deps (Linux)
         if: matrix.os == 'ubuntu-22.04'
@@ -93,12 +97,21 @@ jobs:
   # The Android APK rides in the same GitHub release as the desktop artifacts.
   # Separate job: tauri-action drives the desktop bundlers and has no Android path,
   # and Android needs a JDK, the NDK and a Go toolchain that the desktop jobs don't.
+  #
+  # Deliberately NOT `needs: release`. It used to be, so ~10 minutes of Android build
+  # started only once the whole desktop matrix had finished — that single edge was half
+  # the release's wall clock (22m vs the 10m the releases took before this job existed).
+  # It now builds alongside the desktop legs and hands the APK to `attach-apk` below,
+  # which waits for the release that tauri-action creates. Polling for that release from
+  # here instead would be a coin flip: the measured margin has been as small as 6s.
   android:
     name: Android APK
     runs-on: ubuntu-latest
-    # Only on a tag — this uploads to the release that the tag created.
-    if: github.ref_type == 'tag'
-    needs: release
+    # Runs on a manual dispatch too, so the Android half of a release can be rehearsed
+    # without cutting a tag — publishing is gated in attach-apk, not here. (It used to
+    # test `github.ref_type == 'tag'`, which is also true for a dispatch *from* a tag,
+    # so a supposedly build-only run would have published an APK.)
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_type == 'tag')
     steps:
       - uses: actions/checkout@v5
 
@@ -120,6 +133,16 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+          # Keys off go.sum, which this repo doesn't have — see android.yml.
+          cache: false
+
+      - name: Cache the Go module + build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: gocroc-${{ runner.os }}-go1.25-${{ hashFiles('scripts/fetch-croc.mjs') }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -131,6 +154,7 @@ jobs:
         with:
           workspaces: src-tauri
           key: android-release
+          save-if: ${{ github.ref_type != 'tag' }}
 
       - name: Point NDK_HOME at the runner's NDK
         run: |
@@ -139,8 +163,9 @@ jobs:
 
       - run: npm ci
 
+      # --skip-targets-install: see android.yml.
       - name: Generate the Android project
-        run: npm run tauri -- android init
+        run: npm run tauri -- android init --skip-targets-install
 
       - name: Apply Android configuration
         run: node scripts/android-configure.mjs
@@ -172,7 +197,13 @@ jobs:
       - name: Name it after the release and sanity-check it
         id: apk
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          # On a dispatch GITHUB_REF_NAME is a branch, which would name the APK
+          # "croc-mobile-main-arm64.apk"; fall back to the version the app declares.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version=$(node -p "require('./package.json').version")
+          fi
           src=$(find src-tauri/gen/android -name '*-release*.apk' ! -name '*unsigned*' | head -1)
           test -n "$src" || { echo "::error::no signed APK produced"; exit 1; }
           # croc missing means an APK that installs and then cannot transfer.
@@ -183,12 +214,56 @@ jobs:
           echo "path=$out" >> "$GITHUB_OUTPUT"
           ls -lh "$out"
 
-      - name: Attach it to the release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$GITHUB_REF_NAME" "${{ steps.apk.outputs.path }}" --clobber
+      # Hand the APK to attach-apk rather than uploading from here: this job now runs in
+      # parallel with the desktop matrix, so the release may not exist yet.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          overwrite: true # artifacts are immutable; a re-run 409s without this
+          retention-days: 1 # a release-signed APK on a public repo — don't keep it 90 days
 
       # Keep the key material out of the runner's workspace even on a cached runner.
       - name: Shred the keystore
         if: always()
         run: rm -f src-tauri/gen/android/release.jks src-tauri/gen/android/keystore.properties
+
+  # Attaching is split out so the Android build doesn't have to wait for the desktop
+  # matrix — only this ~20s job does. tauri-action stays the only thing that creates the
+  # release; `gh release upload` cannot, so one-release-per-tag is structural.
+  attach-apk:
+    name: Attach the APK to the release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [release, android]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: apk
+
+      - name: Upload it to the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          apk=$(ls apk/croc-mobile-*-arm64.apk)
+          # -R is load-bearing: this job has no checkout, so gh can't infer the repo.
+          gh release upload "$GITHUB_REF_NAME" "$apk" --clobber -R "$GITHUB_REPOSITORY"
+
+      # All three desktop legs merge their own platform into latest.json and re-upload
+      # it; in the v2.6.0 run two of those writes landed 7s apart. A lost merge means
+      # installed apps on that platform silently never see the update, so check the
+      # published manifest actually carries every platform before we call it a release.
+      - name: Verify the updater manifest carries every platform
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p latest.json --clobber
+          for p in darwin-aarch64 darwin-x86_64 linux-x86_64 windows-x86_64; do
+            jq -e --arg p "$p" '.platforms[$p].url' latest.json >/dev/null \
+              || { echo "::error::latest.json is missing $p — tauri-action's merge lost a platform"; exit 1; }
+          done
+          echo "latest.json carries all four platforms."

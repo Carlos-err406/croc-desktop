@@ -3,7 +3,11 @@ name: Android
 on:
   push:
     branches: [main, 'claude/**']
+    # This workflow is the slowest thing a push waits for (the APK job gates it), so
+    # skipping docs-only pushes here is what actually buys the time. See ci.yml.
+    paths-ignore: ['**.md', 'LICENSE']
   pull_request:
+    paths-ignore: ['**.md', 'LICENSE']
   workflow_dispatch: {}
 
 concurrency:
@@ -68,6 +72,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+          # Its cache keys off go.sum, which this repo doesn't have (croc is built from
+          # a pinned module URL), so it only ever logged a failed restore. Cache the Go
+          # dirs ourselves instead — otherwise croc is recompiled from source every run.
+          cache: false
+
+      - name: Cache the Go module + build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: gocroc-${{ runner.os }}-go1.25-${{ hashFiles('scripts/fetch-croc.mjs') }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -90,8 +106,10 @@ jobs:
 
       # Generates src-tauri/gen/android. Deliberately not committed: it's template
       # output, and regenerating picks up Tauri's own fixes.
+      # --skip-targets-install: init otherwise rustups all four Android targets, and the
+      # build only ever uses aarch64, which the toolchain step already installed.
       - name: Generate the Android project
-        run: npm run tauri -- android init
+        run: npm run tauri -- android init --skip-targets-install
 
       # Our deltas on top of that template: the CROC_BIN hook, jniLibs packaging,
       # arm64 ABI filter, permissions, deep links and the share target.
