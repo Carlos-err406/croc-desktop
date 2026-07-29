@@ -40,7 +40,7 @@ Grab the latest build from the [**Releases**](https://github.com/Carlos-err406/c
 - **Linux** — `.AppImage` (portable) or `.deb`.
 - **Android** — `croc-mobile-<version>-arm64.apk`. Sideload it: your phone will ask you to allow installs from your browser or file manager. Requires **Android 8+** on 64-bit ARM (`arm64-v8a`).
 
-Desktop updates itself automatically from then on (toggleable in Settings). Android doesn't yet — watch the Releases page, or the repo.
+Both platforms update themselves from then on. Desktop downloads and applies signed updates in the background (toggleable in Settings); Android downloads the new APK in-app and hands it to the system installer, which asks you to confirm — the first time, it also asks you to allow installs from Croc.
 
 ## Croc Mobile
 
