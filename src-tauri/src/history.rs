@@ -86,7 +86,10 @@ pub fn add(app: &AppHandle, draft: HistoryDraft) -> Vec<HistoryEntry> {
     next.insert(0, entry);
     next.truncate(MAX_ENTRIES);
     if let Ok(path) = history_file(app) {
-        let _ = std::fs::write(&path, serde_json::to_string(&next).unwrap_or_else(|_| "[]".into()));
+        let _ = std::fs::write(
+            &path,
+            serde_json::to_string(&next).unwrap_or_else(|_| "[]".into()),
+        );
     }
     next
 }
@@ -95,7 +98,10 @@ pub fn remove(app: &AppHandle, id: &str) -> Vec<HistoryEntry> {
     let mut next = list(app);
     next.retain(|e| e.id != id);
     if let Ok(path) = history_file(app) {
-        let _ = std::fs::write(&path, serde_json::to_string(&next).unwrap_or_else(|_| "[]".into()));
+        let _ = std::fs::write(
+            &path,
+            serde_json::to_string(&next).unwrap_or_else(|_| "[]".into()),
+        );
     }
     next
 }

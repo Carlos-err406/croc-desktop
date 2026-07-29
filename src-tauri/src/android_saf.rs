@@ -124,7 +124,12 @@ pub fn display_name(uri: &str) -> Option<String> {
 }
 
 fn read_display_name(env: &mut JNIEnv, cursor: &JObject) -> Option<String> {
-    if !env.call_method(cursor, "moveToFirst", "()Z", &[]).ok()?.z().ok()? {
+    if !env
+        .call_method(cursor, "moveToFirst", "()Z", &[])
+        .ok()?
+        .z()
+        .ok()?
+    {
         return None;
     }
 
@@ -144,7 +149,12 @@ fn read_display_name(env: &mut JNIEnv, cursor: &JObject) -> Option<String> {
     }
 
     let value = env
-        .call_method(cursor, "getString", "(I)Ljava/lang/String;", &[JValue::Int(index)])
+        .call_method(
+            cursor,
+            "getString",
+            "(I)Ljava/lang/String;",
+            &[JValue::Int(index)],
+        )
         .ok()?
         .l()
         .ok()?;

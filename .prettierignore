@@ -1,0 +1,11 @@
+# Build output, and trees we don't own.
+dist
+build
+src-tauri/target
+src-tauri/gen
+src-tauri/binaries
+package-lock.json
+
+# Prose is hand-wrapped here. Prettier reflows tables and list continuations in ways
+# that fight that, for no gain — docs are reviewed by eye, not by formatter.
+*.md

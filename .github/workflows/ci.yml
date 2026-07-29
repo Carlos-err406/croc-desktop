@@ -24,6 +24,9 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          # dtolnay/rust-toolchain installs the minimal profile, which omits both.
+          components: rustfmt, clippy
 
       # Faster linker for the Tauri crate graph (mold becomes the default ld).
       - name: Set up mold linker
@@ -41,8 +44,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      # Cheap checks first — these need no croc sidecar and no Rust build.
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Typecheck
         run: npm run typecheck
@@ -50,7 +63,7 @@ jobs:
       - name: Build frontend
         run: npm run build:vite
 
-      # cargo check triggers Tauri's externalBin validation, which needs the croc
+      # The Rust check triggers Tauri's externalBin validation, which needs the croc
       # sidecar present. (tauri-action does this via beforeBuildCommand; here we run
       # it explicitly.) Cache the download so it isn't re-fetched every run.
       - name: Cache croc sidecar
@@ -62,5 +75,8 @@ jobs:
       - name: Fetch croc sidecar
         run: node scripts/fetch-croc.mjs
 
-      - name: Check Rust
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+      # Clippy compiles the crate anyway, so this replaces a plain `cargo check` at no
+      # extra cost. If a new stable toolchain adds a lint, that shows up as a red PR
+      # unrelated to the change — fix it or `#[allow]` it with a reason.
+      - name: Check Rust (clippy)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings

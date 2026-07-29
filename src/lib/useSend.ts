@@ -11,13 +11,7 @@ export const MAX_AUTO_RECONNECT = 4;
 const reconnectDelay = (attempt: number) => Math.min(4000, 1000 * attempt);
 
 export type SendStatus =
-  | 'idle'
-  | 'staging'
-  | 'starting'
-  | 'waiting'
-  | 'transferring'
-  | 'done'
-  | 'error';
+  'idle' | 'staging' | 'starting' | 'waiting' | 'transferring' | 'done' | 'error';
 
 export interface SendState {
   status: SendStatus;
@@ -70,7 +64,11 @@ function reduce(v: SendState, e: CrocEvent): SendState {
     case 'file-info':
       return { ...v, fileInfo: e.info };
     case 'progress':
-      return { ...v, status: v.status === 'done' ? v.status : 'transferring', progress: e.progress };
+      return {
+        ...v,
+        status: v.status === 'done' ? v.status : 'transferring',
+        progress: e.progress,
+      };
     case 'done':
       return { ...v, status: 'done', progress: { ...(v.progress ?? {}), percent: 100 } };
     case 'error':
@@ -271,7 +269,14 @@ export function useSend(): UseSend {
     }));
 
     const code = customCode?.trim() || undefined;
-    const [err, result] = await croc.send(paths, id, relayArg(), getPrefs().zipFolders, code, getPrefs().localMode);
+    const [err, result] = await croc.send(
+      paths,
+      id,
+      relayArg(),
+      getPrefs().zipFolders,
+      code,
+      getPrefs().localMode,
+    );
     if (idRef.current !== id) return; // superseded or reset while starting
     if (err || !result) {
       setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to start croc.' }));
@@ -335,14 +340,32 @@ export function useSend(): UseSend {
     if (state.result) croc.cancel(state.result.transferId);
     const id = crypto.randomUUID();
     idRef.current = id;
-    setState((v) => ({ ...v, entries: merged, result: null, progress: null, error: null, status: 'starting' }));
+    setState((v) => ({
+      ...v,
+      entries: merged,
+      result: null,
+      progress: null,
+      error: null,
+      status: 'starting',
+    }));
     // Give the relay a moment to release the code before re-registering it.
     await new Promise((r) => setTimeout(r, 500));
     if (idRef.current !== id) return;
-    const [err, result] = await croc.send(merged.map((e) => e.path), id, relayArg(), getPrefs().zipFolders, code, getPrefs().localMode);
+    const [err, result] = await croc.send(
+      merged.map((e) => e.path),
+      id,
+      relayArg(),
+      getPrefs().zipFolders,
+      code,
+      getPrefs().localMode,
+    );
     if (idRef.current !== id) return;
     if (err || !result) {
-      setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to restart the transfer.' }));
+      setState((v) => ({
+        ...v,
+        status: 'error',
+        error: err?.message ?? 'Failed to restart the transfer.',
+      }));
       return;
     }
     setState((v) => ({
@@ -375,7 +398,11 @@ export function useSend(): UseSend {
     );
     if (idRef.current !== id) return;
     if (err || !result) {
-      setState((v) => ({ ...v, status: 'error', error: err?.message ?? 'Failed to restart the transfer.' }));
+      setState((v) => ({
+        ...v,
+        status: 'error',
+        error: err?.message ?? 'Failed to restart the transfer.',
+      }));
       return;
     }
     setState((v) => ({

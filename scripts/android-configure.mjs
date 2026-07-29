@@ -14,7 +14,15 @@
  *
  * Run AFTER `tauri android init`, BEFORE `tauri android build`.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -443,7 +451,10 @@ for (const file of filesUnder(ICONS)) {
 // instead, so these are left referenced by nothing — and a stray green Android robot
 // in the drawables is exactly the sort of thing that turns up in a store listing
 // later. Verified unreferenced before removing.
-for (const stale of ['drawable/ic_launcher_background.xml', 'drawable-v24/ic_launcher_foreground.xml']) {
+for (const stale of [
+  'drawable/ic_launcher_background.xml',
+  'drawable-v24/ic_launcher_foreground.xml',
+]) {
   const path = join(RES, stale);
   if (existsSync(path)) {
     rmSync(path);

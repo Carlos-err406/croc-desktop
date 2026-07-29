@@ -27,8 +27,14 @@ export function UpdateBanner() {
             A new version{version ? ` (v${version})` : ''} of {APP_NAME} is available.
             {size ? ` (${size} download)` : ''}
           </span>
-          <Button size="sm" onClick={() => void install()}>Update now</Button>
-          <button onClick={dismiss} className="shrink-0 text-brand-deep/60 hover:text-brand-deep" aria-label="Dismiss">
+          <Button size="sm" onClick={() => void install()}>
+            Update now
+          </Button>
+          <button
+            onClick={dismiss}
+            className="shrink-0 text-brand-deep/60 hover:text-brand-deep"
+            aria-label="Dismiss"
+          >
             <X size={16} />
           </button>
         </>
@@ -40,7 +46,10 @@ export function UpdateBanner() {
             Downloading update… {pct}%{size ? ` · ${size}` : ''}
           </span>
           <div className="h-1.5 w-40 overflow-hidden rounded-full bg-brand/20">
-            <div className="h-full rounded-full bg-brand transition-[width]" style={{ width: `${pct}%` }} />
+            <div
+              className="h-full rounded-full bg-brand transition-[width]"
+              style={{ width: `${pct}%` }}
+            />
           </div>
         </>
       )}
@@ -53,7 +62,11 @@ export function UpdateBanner() {
           <Button size="sm" onClick={() => void restart()}>
             <RotateCw size={14} /> Restart
           </Button>
-          <button onClick={dismiss} className="shrink-0 text-brand-deep/60 hover:text-brand-deep" aria-label="Later">
+          <button
+            onClick={dismiss}
+            className="shrink-0 text-brand-deep/60 hover:text-brand-deep"
+            aria-label="Later"
+          >
             <X size={16} />
           </button>
         </>

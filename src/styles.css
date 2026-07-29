@@ -198,7 +198,9 @@
   background: transparent;
   color: var(--muted-foreground);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 .croc-nav:hover {
   background: var(--sidebar-accent);
@@ -213,7 +215,9 @@
 /* Staging file row: reveal the remove (×) on hover */
 .croc-file-x {
   opacity: 0;
-  transition: opacity 0.12s, color 0.12s;
+  transition:
+    opacity 0.12s,
+    color 0.12s;
 }
 .croc-file:hover .croc-file-x {
   opacity: 1;
@@ -234,9 +238,7 @@
    go transparent and blend into the wash. */
 .croc-canvas {
   position: relative;
-  background:
-    linear-gradient(160deg, var(--brand-surface), transparent 58%),
-    var(--background);
+  background: linear-gradient(160deg, var(--brand-surface), transparent 58%), var(--background);
 }
 .croc-canvas::before {
   content: '';
@@ -285,7 +287,9 @@ nav {
    leans into the pointer on hover. */
 .croc-nav {
   position: relative;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
 }
 .croc-nav svg {
   transition: transform 0.16s cubic-bezier(0.22, 0.68, 0.28, 1);

@@ -28,7 +28,6 @@ export function AppShell() {
     primeNotifications();
   }, []);
 
-
   // "Open With → Croc Desktop" (or files dropped on the dock icon): stage them to
   // send. Drain on launch (cold open) and whenever the OS pings while running.
   useEffect(() => {
@@ -101,7 +100,9 @@ export function AppShell() {
         break;
       }
     };
-    getCurrentDeepLink().then((u) => void handleUrls(u)).catch(() => {});
+    getCurrentDeepLink()
+      .then((u) => void handleUrls(u))
+      .catch(() => {});
     let unsub: (() => void) | undefined;
     onOpenUrl((urls) => void handleUrls(urls))
       .then((f) => (unsub = f))
@@ -118,7 +119,12 @@ export function AppShell() {
     let value: number | null = null;
     if (recv.status === 'receiving') {
       value = recv.perFile.length
-        ? Math.min(100, Math.round(recv.perFile.reduce((a, f) => a + f.percent, 0) / Math.max(1, recv.totalFiles)))
+        ? Math.min(
+            100,
+            Math.round(
+              recv.perFile.reduce((a, f) => a + f.percent, 0) / Math.max(1, recv.totalFiles),
+            ),
+          )
         : (recv.progress?.percent ?? 0);
     } else if (send.status === 'transferring') {
       value = send.progress?.percent ?? 0;
@@ -127,14 +133,7 @@ export function AppShell() {
       lastProgress.current = value;
       void croc.setProgress(value);
     }
-  }, [
-    recv.status,
-    recv.perFile,
-    recv.totalFiles,
-    recv.progress,
-    send.status,
-    send.progress,
-  ]);
+  }, [recv.status, recv.perFile, recv.totalFiles, recv.progress, send.status, send.progress]);
 
   return (
     // Column on a phone (canvas above the tab bar), row on desktop (sidebar beside
@@ -148,7 +147,9 @@ export function AppShell() {
         {/* Keyed so the screen re-plays its entrance on each navigation.
             min-h-0 lets inner overflow-y-auto regions (e.g. Settings) scroll. */}
         <div key={screen} className="croc-screen flex min-h-0 min-w-0 flex-1 flex-col">
-          {screen === 'send' && <SendScreen send={send} onViewHistory={() => setScreen('history')} />}
+          {screen === 'send' && (
+            <SendScreen send={send} onViewHistory={() => setScreen('history')} />
+          )}
           {screen === 'receive' && <ReceiveScreen recv={recv} />}
           {screen === 'history' && (
             <HistoryScreen

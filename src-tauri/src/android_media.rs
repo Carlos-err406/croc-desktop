@@ -228,15 +228,18 @@ fn copy_into(
                 break;
             }
             // i8 vs u8 is a representation difference only; the bytes are identical.
-            let signed =
-                unsafe { std::slice::from_raw_parts(chunk.as_ptr() as *const i8, read) };
+            let signed = unsafe { std::slice::from_raw_parts(chunk.as_ptr() as *const i8, read) };
             env.set_byte_array_region(&buffer, 0, signed)
                 .map_err(|e| e.to_string())?;
             env.call_method(
                 &stream,
                 "write",
                 "([BII)V",
-                &[JValue::Object(&buffer), JValue::Int(0), JValue::Int(read as i32)],
+                &[
+                    JValue::Object(&buffer),
+                    JValue::Int(0),
+                    JValue::Int(read as i32),
+                ],
             )
             .map_err(|e| format!("write failed: {e}"))?;
         }

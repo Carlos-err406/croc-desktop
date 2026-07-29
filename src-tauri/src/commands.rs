@@ -1,7 +1,7 @@
 //! Tauri commands — the Rust port of electron/ipc/croc/main.ts.
+use crate::codephrase;
 use crate::croc::{self, CrocReceiveResult, CrocSendResult, ReceiveCommand, StatEntry};
 use crate::history::{self, HistoryDraft, HistoryEntry};
-use crate::codephrase;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
@@ -54,7 +54,11 @@ fn default_download_dir(app: &AppHandle) -> String {
         .path()
         .download_dir()
         .ok()
-        .or_else(|| std::env::var("HOME").ok().map(|h| PathBuf::from(h).join("Downloads")))
+        .or_else(|| {
+            std::env::var("HOME")
+                .ok()
+                .map(|h| PathBuf::from(h).join("Downloads"))
+        })
         .unwrap_or_else(|| PathBuf::from("."));
     let dir = base.join("Croc");
     let _ = std::fs::create_dir_all(&dir);
@@ -392,7 +396,10 @@ pub async fn croc_pick_paths(app: AppHandle) -> Result<Vec<String>, String> {
     // Collect into a Result so a half-finished pick reports WHY. Staging can fail for
     // reasons the user can act on (out of space, an unreadable cloud URI), and
     // silently returning fewer paths than they chose is the worst outcome.
-    files.into_iter().map(|f| stage_picked_file(&app, f)).collect()
+    files
+        .into_iter()
+        .map(|f| stage_picked_file(&app, f))
+        .collect()
 }
 
 /// Copy one picked file into the staging dir, returning its real path. Keeps the
@@ -450,7 +457,12 @@ fn display_name_for(picked: &tauri_plugin_dialog::FilePath) -> String {
     // literal name "IMG.jpg?x=1".
     let path_part = raw.split(['?', '#']).next().unwrap_or(&raw);
     let decoded = percent_decode(path_part);
-    let candidate = decoded.rsplit(['/', ':']).next().unwrap_or("").trim().to_string();
+    let candidate = decoded
+        .rsplit(['/', ':'])
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let cleaned: String = candidate
         .chars()
         .filter(|c| !matches!(c, '/' | '\\' | '\0'))
@@ -542,7 +554,10 @@ pub async fn croc_take_shared(app: AppHandle) -> Result<SharedPayload, String> {
         let picked = tauri_plugin_dialog::FilePath::from_str(&uri).unwrap();
         paths.push(stage_picked_file(&app, picked)?);
     }
-    Ok(SharedPayload { paths, text: shared.text })
+    Ok(SharedPayload {
+        paths,
+        text: shared.text,
+    })
 }
 
 #[cfg(not(target_os = "android"))]
@@ -623,7 +638,11 @@ fn files_under(root: &std::path::Path) -> Vec<(PathBuf, String)> {
             let path = entry.path();
             if path.is_dir() {
                 let name = entry.file_name().to_string_lossy().into_owned();
-                let child = if rel.is_empty() { name } else { format!("{rel}/{name}") };
+                let child = if rel.is_empty() {
+                    name
+                } else {
+                    format!("{rel}/{name}")
+                };
                 walk(&path, &child, out);
             } else if path.is_file() {
                 out.push((path, rel.to_string()));
@@ -779,7 +798,10 @@ pub fn croc_send(
         qr,
         receive_command: ReceiveCommand {
             code: code.clone(),
-            posix: format!("CROC_SECRET={code} croc{}", recv_flags(local, &custom_relay)),
+            posix: format!(
+                "CROC_SECRET={code} croc{}",
+                recv_flags(local, &custom_relay)
+            ),
             interactive: "croc   # then paste the code when prompted".into(),
         },
         receive_link: croc::receive_link(&code, local),
@@ -821,7 +843,14 @@ pub fn croc_send_text(
     args.push("--text".into());
     args.push(text);
 
-    croc::spawn_transfer(app.clone(), transfer_id.clone(), args, code.clone(), None, false)?;
+    croc::spawn_transfer(
+        app.clone(),
+        transfer_id.clone(),
+        args,
+        code.clone(),
+        None,
+        false,
+    )?;
 
     // Embed the send's local-only setting so the receiver auto-applies it.
     let qr = croc::generate_qr_data_url(&croc::receive_deeplink(&code, local));
@@ -830,7 +859,10 @@ pub fn croc_send_text(
         qr,
         receive_command: ReceiveCommand {
             code: code.clone(),
-            posix: format!("CROC_SECRET={code} croc{}", recv_flags(local, &custom_relay)),
+            posix: format!(
+                "CROC_SECRET={code} croc{}",
+                recv_flags(local, &custom_relay)
+            ),
             interactive: "croc   # then paste the code when prompted".into(),
         },
         receive_link: croc::receive_link(&code, local),
@@ -923,14 +955,20 @@ pub async fn croc_relay_test(relay: Option<String>) -> RelayTest {
             return (false, 0, "Host resolved to no addresses.".into());
         }
         for sa in &socket_addrs {
-            if let Ok(stream) =
-                std::net::TcpStream::connect_timeout(sa, Duration::from_secs(5))
-            {
+            if let Ok(stream) = std::net::TcpStream::connect_timeout(sa, Duration::from_secs(5)) {
                 drop(stream);
-                return (true, start.elapsed().as_millis() as u64, "Relay is reachable.".into());
+                return (
+                    true,
+                    start.elapsed().as_millis() as u64,
+                    "Relay is reachable.".into(),
+                );
             }
         }
-        (false, start.elapsed().as_millis() as u64, "Couldn't open a connection (timed out or refused).".into())
+        (
+            false,
+            start.elapsed().as_millis() as u64,
+            "Couldn't open a connection (timed out or refused).".into(),
+        )
     })
     .await
     .unwrap_or((false, 0, "Test failed to run.".into()));
@@ -1024,7 +1062,11 @@ pub fn croc_save_temp_file(
     // Keep the original filename (croc uses it) but isolate each paste in its own
     // subdir to avoid collisions.
     let clean = name.rsplit(['/', '\\']).next().unwrap_or("pasted-file");
-    let clean = if clean.trim().is_empty() { "pasted-file" } else { clean.trim() };
+    let clean = if clean.trim().is_empty() {
+        "pasted-file"
+    } else {
+        clean.trim()
+    };
     let dir = scratch_dir(&app, &format!("croc-paste-{}", gen_id()))?;
     let path = dir.join(clean);
     std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
@@ -1101,7 +1143,11 @@ pub fn croc_nearby_discoverable(
 ) -> Result<bool, String> {
     match code.filter(|c| c.trim().len() >= 6) {
         Some(code) => {
-            state.set_discoverable(&hostname_or_default(), croc::EXPECTED_CROC_VERSION, code.trim())?;
+            state.set_discoverable(
+                &hostname_or_default(),
+                croc::EXPECTED_CROC_VERSION,
+                code.trim(),
+            )?;
             Ok(true)
         }
         None => {

@@ -68,8 +68,13 @@ impl NearbyState {
     /// pick themselves, and we already know our own code.
     pub fn peers(&self) -> Vec<Peer> {
         let inner = self.inner.lock().unwrap();
-        let mut v: Vec<Peer> = inner.peers.values().filter(|p| !p.is_self).cloned().collect();
-        v.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        let mut v: Vec<Peer> = inner
+            .peers
+            .values()
+            .filter(|p| !p.is_self)
+            .cloned()
+            .collect();
+        v.sort_by_key(|p| p.name.to_lowercase());
         v
     }
 
@@ -159,7 +164,10 @@ impl NearbyState {
         let instance = sanitize_instance(device_name);
         let mut props = HashMap::new();
         props.insert("name".to_string(), device_name.to_string());
-        props.insert("croc".to_string(), croc_version.trim_start_matches('v').to_string());
+        props.insert(
+            "croc".to_string(),
+            croc_version.trim_start_matches('v').to_string(),
+        );
         props.insert("code".to_string(), code.to_string());
         let info = mdns_sd::ServiceInfo::new(
             SERVICE_TYPE,
@@ -182,7 +190,8 @@ impl NearbyState {
     /// new can send to it.
     pub fn stop_discoverable(&self) -> Result<(), String> {
         let mut inner = self.inner.lock().unwrap();
-        if let (Some(daemon), Some(fullname)) = (inner.daemon.as_ref(), inner.own_fullname.clone()) {
+        if let (Some(daemon), Some(fullname)) = (inner.daemon.as_ref(), inner.own_fullname.clone())
+        {
             let _ = daemon.unregister(&fullname);
         }
         inner.own_fullname = None;

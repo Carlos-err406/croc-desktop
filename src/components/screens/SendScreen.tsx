@@ -1,7 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { shareText } from '@choochmeque/tauri-plugin-sharekit-api';
-import { Bookmark, Camera, Check, Copy, FolderPlus, KeyRound, Link2, Loader2, Lock, Plus, QrCode, Share2, Terminal, X } from 'lucide-react';
+import {
+  Bookmark,
+  Camera,
+  Check,
+  Copy,
+  FolderPlus,
+  KeyRound,
+  Link2,
+  Loader2,
+  Lock,
+  Plus,
+  QrCode,
+  Share2,
+  Terminal,
+  X,
+} from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import type { StatEntry } from '@/lib/services/ipc';
@@ -23,7 +38,8 @@ import { CrocBadge } from '@/components/CrocLogo';
 
 // macOS reads the clipboard via the native pasteboard (no consent prompt);
 // other platforms fall back to the webview clipboard API.
-const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent || navigator.platform || '');
+const isMac =
+  typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent || navigator.platform || '');
 
 const TITLE: Record<string, string> = {
   idle: 'Send files',
@@ -39,7 +55,9 @@ function TypeBadge({ type, small }: { type: string; small?: boolean }) {
   return (
     <span
       className={`shrink-0 font-heading font-semibold text-white ${
-        small ? 'rounded-[5px] px-1.5 py-0.5 text-[10px]' : 'rounded-[6px] px-[7px] py-[3px] text-[11px]'
+        small
+          ? 'rounded-[5px] px-1.5 py-0.5 text-[10px]'
+          : 'rounded-[6px] px-[7px] py-[3px] text-[11px]'
       }`}
       style={{ background: typeColor(type) }}
     >
@@ -143,12 +161,22 @@ function CustomCodeField({
           <Bookmark size={15} className={saved ? 'fill-brand text-brand' : ''} />
         </button>
       </div>
-      {invalid && <span className="pl-1 text-xs text-destructive">Code must be at least 6 characters.</span>}
+      {invalid && (
+        <span className="pl-1 text-xs text-destructive">Code must be at least 6 characters.</span>
+      )}
     </div>
   );
 }
 
-function CopyPill({ value, label, icon }: { value: string; label: string; icon: 'code' | 'cmd' | 'link' }) {
+function CopyPill({
+  value,
+  label,
+  icon,
+}: {
+  value: string;
+  label: string;
+  icon: 'code' | 'cmd' | 'link';
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -252,7 +280,10 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   useEffect(() => {
     const ready = () => ['idle', 'starting', 'staging'].includes(statusRef.current);
     const editable = (el: Element | null) =>
-      !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || (el as HTMLElement).isContentEditable);
+      !!el &&
+      (el.tagName === 'TEXTAREA' ||
+        el.tagName === 'INPUT' ||
+        (el as HTMLElement).isContentEditable);
 
     const stageBlobs = async (blobs: File[]) => {
       const saved: string[] = [];
@@ -370,11 +401,17 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
   const heading = reconnecting
     ? 'Reconnecting…'
     : status === 'idle'
-      ? textual ? 'Send text' : 'Send files'
+      ? textual
+        ? 'Send text'
+        : 'Send files'
       : status === 'transferring'
-        ? textual ? 'Sending text…' : 'Sending…'
+        ? textual
+          ? 'Sending text…'
+          : 'Sending…'
         : status === 'done'
-          ? textual ? 'Text sent' : 'Sent'
+          ? textual
+            ? 'Text sent'
+            : 'Sent'
           : TITLE[status];
 
   const subtitle = reconnecting
@@ -384,7 +421,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
       : status === 'waiting'
         ? 'The transfer starts the moment your peer joins.'
         : status === 'transferring'
-          ? textual ? 'Delivering your message…' : `${countLabel} · ${totalHuman}`
+          ? textual
+            ? 'Delivering your message…'
+            : `${countLabel} · ${totalHuman}`
           : status === 'done'
             ? textual
               ? 'Your message was delivered end-to-end encrypted.'
@@ -435,7 +474,12 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
     else if (transferred >= start + e.size) pct = 100;
     else if (transferred <= start) pct = 0;
     else pct = Math.round(((transferred - start) / e.size) * 100);
-    return { ...e, pct, showBar: status === 'transferring' && pct < 100, showCheck: complete || (status === 'transferring' && pct >= 100) };
+    return {
+      ...e,
+      pct,
+      showBar: status === 'transferring' && pct < 100,
+      showCheck: complete || (status === 'transferring' && pct >= 100),
+    };
   });
 
   return (
@@ -481,7 +525,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   key={m}
                   onClick={() => setMode(m)}
                   className={`cursor-pointer rounded-[7px] px-[15px] py-[7px] text-[13px] font-medium capitalize ${
-                    mode === m ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]' : 'text-muted-foreground'
+                    mode === m
+                      ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]'
+                      : 'text-muted-foreground'
                   }`}
                 >
                   {m}
@@ -505,17 +551,23 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 {CAN_USE_FILE_PATHS ? 'Drop files or a folder to send' : 'Pick files to send'}
               </div>
               <div className="mt-1.5 max-w-[340px] text-sm text-muted-foreground">
-                Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to the
-                other device.
+                Croc creates a one-time code. Share it, and the transfer runs encrypted, straight to
+                the other device.
               </div>
               <div className="mt-[22px] flex gap-2.5" onClick={(e) => e.stopPropagation()}>
-                <Button onClick={browse}>{CAN_USE_FILE_PATHS ? 'Browse files…' : 'Choose files'}</Button>
+                <Button onClick={browse}>
+                  {CAN_USE_FILE_PATHS ? 'Browse files…' : 'Choose files'}
+                </Button>
                 {CAN_PICK_FOLDERS && (
                   <Button variant="outline" onClick={browseFolders}>
                     <FolderPlus /> Add folder
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => setScanning(true)} title="Scan someone's “send to me” QR">
+                <Button
+                  variant="outline"
+                  onClick={() => setScanning(true)}
+                  title="Scan someone's “send to me” QR"
+                >
                   <QrCode /> Scan their code
                 </Button>
               </div>
@@ -541,14 +593,20 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 placeholder="Custom code (optional)"
               />
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={pasteClipboard}>Paste</Button>
-                <span className="ml-auto text-xs text-muted-foreground">{draft.length} characters</span>
+                <Button variant="outline" onClick={pasteClipboard}>
+                  Paste
+                </Button>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {draft.length} characters
+                </span>
                 <Button
                   onClick={() => send.sendText(draft, customCode)}
                   disabled={!draft.trim() || codeInvalid || status === 'starting'}
                 >
                   {status === 'starting' ? (
-                    <><Loader2 className="size-4 animate-spin" /> Starting…</>
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Starting…
+                    </>
                   ) : (
                     'Send text'
                   )}
@@ -565,45 +623,52 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
           {/* Two columns: staged files on the left, nearby devices alongside — the
               code field + actions stay full-width below since they apply to both. */}
           <div className="flex min-h-0 flex-1 gap-4">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-border">
-            <div className="flex items-center justify-between border-b border-border px-[18px] py-3.5">
-              <span className="text-sm font-semibold">{countLabel} ready to send</span>
-              <span onClick={send.clear} className="cursor-pointer text-[13px] text-muted-foreground">
-                Clear all
-              </span>
-            </div>
-            <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
-              {entries.map((f) => (
-                <div
-                  key={f.path}
-                  className="croc-file flex items-center gap-3 rounded-[11px] border border-border bg-card px-3 py-[11px]"
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-border">
+              <div className="flex items-center justify-between border-b border-border px-[18px] py-3.5">
+                <span className="text-sm font-semibold">{countLabel} ready to send</span>
+                <span
+                  onClick={send.clear}
+                  className="cursor-pointer text-[13px] text-muted-foreground"
                 >
-                  <TypeBadge type={f.type} />
-                  <MiddleTruncate text={f.name} className="flex-1 text-[13px] font-medium" />
-                  <span className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">{f.sizeHuman}</span>
-                  <span
-                    className="croc-file-x flex cursor-pointer text-muted-foreground"
-                    onClick={() => send.removeEntry(f.path)}
+                  Clear all
+                </span>
+              </div>
+              <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
+                {entries.map((f) => (
+                  <div
+                    key={f.path}
+                    className="croc-file flex items-center gap-3 rounded-[11px] border border-border bg-card px-3 py-[11px]"
                   >
-                    <X size={15} />
-                  </span>
-                </div>
-              ))}
+                    <TypeBadge type={f.type} />
+                    <MiddleTruncate text={f.name} className="flex-1 text-[13px] font-medium" />
+                    <span className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">
+                      {f.sizeHuman}
+                    </span>
+                    <span
+                      className="croc-file-x flex cursor-pointer text-muted-foreground"
+                      onClick={() => send.removeEntry(f.path)}
+                    >
+                      <X size={15} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-border p-[11px] text-center text-xs text-muted-foreground">
+                {CAN_USE_FILE_PATHS
+                  ? 'Drop more files here, or use Add'
+                  : 'Use Add files to include more'}
+              </div>
             </div>
-            <div className="border-t border-border p-[11px] text-center text-xs text-muted-foreground">
-              {CAN_USE_FILE_PATHS ? 'Drop more files here, or use Add' : 'Use Add files to include more'}
-            </div>
-          </div>
-          {/* Nearby: adopt a discoverable peer's advertised code — no code exchange. */}
-          {CAN_USE_NEARBY && (
-          <div className="hidden w-[268px] shrink-0 overflow-y-auto md:block">
-            <NearbyPeers
-              ourCroc={ourCroc}
-              selectedCode={customCode}
-              onPick={(p) => p.code && setCustomCode(p.code)}
-            />
-          </div>
-          )}
+            {/* Nearby: adopt a discoverable peer's advertised code — no code exchange. */}
+            {CAN_USE_NEARBY && (
+              <div className="hidden w-[268px] shrink-0 overflow-y-auto md:block">
+                <NearbyPeers
+                  ourCroc={ourCroc}
+                  selectedCode={customCode}
+                  onPick={(p) => p.code && setCustomCode(p.code)}
+                />
+              </div>
+            )}
           </div>
           <CustomCodeField value={customCode} onChange={setCustomCode} invalid={codeInvalid} />
           <div className="flex gap-2.5">
@@ -615,7 +680,11 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 <FolderPlus /> Add folder
               </Button>
             )}
-            <Button className="h-11 flex-[2]" disabled={codeInvalid} onClick={() => send.begin(customCode)}>
+            <Button
+              className="h-11 flex-[2]"
+              disabled={codeInvalid}
+              onClick={() => send.begin(customCode)}
+            >
               {customCode.trim() ? 'Send with this code' : 'Generate code & send'}
             </Button>
           </div>
@@ -636,7 +705,14 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   <CopyCodeButton code={result.code} />
                   {result.qr && (
                     <div className="rounded-[14px] bg-white p-3 shadow-[0_16px_34px_-14px_rgba(20,5,60,.55)]">
-                      <img src={result.qr} alt="QR" width={118} height={118} className="block" draggable={false} />
+                      <img
+                        src={result.qr}
+                        alt="QR"
+                        width={118}
+                        height={118}
+                        className="block"
+                        draggable={false}
+                      />
                     </div>
                   )}
                   <div className="flex items-center gap-1.5 text-xs text-white/85">
@@ -645,7 +721,8 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 </div>
                 <div className="flex flex-1 flex-col justify-center gap-3 p-[18px]">
                   <Button className="w-full" onClick={(e) => shareTransfer(e.currentTarget)}>
-                    {sharedCopied ? <Check /> : <Share2 />} {sharedCopied ? 'Code copied' : 'Share…'}
+                    {sharedCopied ? <Check /> : <Share2 />}{' '}
+                    {sharedCopied ? 'Code copied' : 'Share…'}
                   </Button>
                   {/* Three side-by-side pills are wider than a phone — they ran off
                       both edges once the card stopped clipping them. Wrap, and let
@@ -668,10 +745,16 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-4 px-[26px] py-[30px] text-center">
                 <div
                   className={`flex h-16 w-16 items-center justify-center rounded-2xl ${
-                    complete ? 'bg-success-surface text-success-text' : 'bg-brand-surface text-brand-deep'
+                    complete
+                      ? 'bg-success-surface text-success-text'
+                      : 'bg-brand-surface text-brand-deep'
                   }`}
                 >
-                  {complete ? <Check size={30} strokeWidth={2.5} /> : <Loader2 size={28} className="animate-spin" />}
+                  {complete ? (
+                    <Check size={30} strokeWidth={2.5} />
+                  ) : (
+                    <Loader2 size={28} className="animate-spin" />
+                  )}
                 </div>
                 <div>
                   <div className="font-heading text-lg font-semibold">
@@ -689,7 +772,9 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             {!send.isText && (status === 'transferring' || complete) && (
               <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
                 <div className="text-center">
-                  <div className="font-heading text-[68px] font-semibold leading-none text-brand-deep">{complete ? 100 : percent}%</div>
+                  <div className="font-heading text-[68px] font-semibold leading-none text-brand-deep">
+                    {complete ? 100 : percent}%
+                  </div>
                   <div className="mt-2 text-[13px] text-muted-foreground">
                     {complete
                       ? 'Transfer complete'
@@ -708,10 +793,15 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                   <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-success-text">
                     <Check size={16} strokeWidth={3} className="shrink-0" />
                     {entries.length > 1 ? (
-                      <span className="shrink-0">All {entries.length} items delivered securely</span>
+                      <span className="shrink-0">
+                        All {entries.length} items delivered securely
+                      </span>
                     ) : (
                       <>
-                        <MiddleTruncate text={entries[0]?.name ?? send.fileInfo?.name ?? 'File'} className="flex-[0_1_auto] font-medium" />
+                        <MiddleTruncate
+                          text={entries[0]?.name ?? send.fileInfo?.name ?? 'File'}
+                          className="flex-[0_1_auto] font-medium"
+                        />
                         <span className="shrink-0">delivered securely</span>
                       </>
                     )}
@@ -757,33 +847,35 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
               )}
               {!send.isText &&
                 fileRows.map((f) => (
-                <div key={f.path} className="flex flex-col gap-[7px]">
-                  <div className="flex items-center gap-[9px] text-[13px]">
-                    <TypeBadge type={f.type} small />
-                    <MiddleTruncate text={f.name} className="flex-1" />
-                    <span
-                      className={`ml-auto flex shrink-0 items-center gap-[5px] pl-1.5 text-xs ${
-                        f.showBar ? 'text-brand-deep' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {f.showCheck && <Check size={13} className="text-success-text" />}
-                      {f.showBar ? `${f.pct}%` : f.sizeHuman}
-                    </span>
-                  </div>
-                  {f.showBar && (
-                    <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full bg-brand transition-[width] duration-200"
-                        style={{ width: `${f.pct}%` }}
-                      />
+                  <div key={f.path} className="flex flex-col gap-[7px]">
+                    <div className="flex items-center gap-[9px] text-[13px]">
+                      <TypeBadge type={f.type} small />
+                      <MiddleTruncate text={f.name} className="flex-1" />
+                      <span
+                        className={`ml-auto flex shrink-0 items-center gap-[5px] pl-1.5 text-xs ${
+                          f.showBar ? 'text-brand-deep' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {f.showCheck && <Check size={13} className="text-success-text" />}
+                        {f.showBar ? `${f.pct}%` : f.sizeHuman}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {f.showBar && (
+                      <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-brand transition-[width] duration-200"
+                          style={{ width: `${f.pct}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
             {complete ? (
               <div className="flex gap-2.5">
-                <Button className="flex-1" onClick={send.reset}>Send more</Button>
+                <Button className="flex-1" onClick={send.reset}>
+                  Send more
+                </Button>
                 <Button variant="outline" className="flex-1" onClick={onViewHistory}>
                   View in history
                 </Button>
@@ -797,7 +889,11 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                     <Plus /> Add more
                   </Button>
                 )}
-                <Button variant="outline" className={send.isText ? 'w-full' : 'flex-1'} onClick={send.cancel}>
+                <Button
+                  variant="outline"
+                  className={send.isText ? 'w-full' : 'flex-1'}
+                  onClick={send.cancel}
+                >
                   Cancel transfer
                 </Button>
               </div>
@@ -865,7 +961,11 @@ function CopyCodeButton({ code }: { code: string }) {
       <span className="font-heading text-[26px] font-semibold tracking-[.03em] text-white whitespace-nowrap">
         {code}
       </span>
-      {copied ? <Check size={18} className="text-white" /> : <Copy size={18} className="text-white/85" />}
+      {copied ? (
+        <Check size={18} className="text-white" />
+      ) : (
+        <Copy size={18} className="text-white/85" />
+      )}
     </button>
   );
 }
@@ -882,7 +982,9 @@ function TimelineStep({ step }: { step: Step }) {
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
-        <span className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full ${ring}`}>
+        <span
+          className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full ${ring}`}
+        >
           {step.kind === 'done' ? (
             <Check size={13} strokeWidth={3} />
           ) : step.kind === 'pending' ? (
@@ -894,7 +996,9 @@ function TimelineStep({ step }: { step: Step }) {
         {step.line && <span className="my-[3px] min-h-4 w-0.5 flex-1 bg-border" />}
       </div>
       <div className="pb-3">
-        <div className={`text-[13px] font-medium ${step.kind === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>
+        <div
+          className={`text-[13px] font-medium ${step.kind === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}
+        >
           {step.title}
         </div>
         <div className="text-xs text-muted-foreground">{step.sub}</div>

@@ -11,7 +11,12 @@ use std::time::Duration;
 fn main() {
     let pty_system = native_pty_system();
     let pair = pty_system
-        .openpty(PtySize { rows: 24, cols: 1000, pixel_width: 0, pixel_height: 0 })
+        .openpty(PtySize {
+            rows: 24,
+            cols: 1000,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
         .expect("openpty failed");
 
     // `croc send --text` registers a one-time code with the relay and waits for a
@@ -52,6 +57,10 @@ fn main() {
         || captured.to_lowercase().contains("on the other");
     println!(
         "PTY streamed croc output: {}",
-        if saw_code { "YES ✓ (make-or-break PASSED)" } else { "no code line seen — check output above" }
+        if saw_code {
+            "YES ✓ (make-or-break PASSED)"
+        } else {
+            "no code line seen — check output above"
+        }
     );
 }

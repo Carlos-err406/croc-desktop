@@ -316,7 +316,9 @@ fn pct(code: &str) -> String {
     let mut s = String::new();
     for b in code.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => s.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                s.push(b as char)
+            }
             _ => s.push_str(&format!("%{b:02X}")),
         }
     }
@@ -347,7 +349,10 @@ pub fn receive_deeplink(code: &str, local: bool) -> String {
 /// above, embedding the sender's local-only setting so the receiver auto-applies
 /// it, and keeping the link consistent with what the QR already encodes.
 pub fn receive_link(code: &str, local: bool) -> String {
-    let mut s = format!("https://carlos-err406.github.io/croc/receive?code={}", pct(code));
+    let mut s = format!(
+        "https://carlos-err406.github.io/croc/receive?code={}",
+        pct(code)
+    );
     if local {
         s.push_str("&local=1");
     }
@@ -401,14 +406,17 @@ pub fn generate_qr_data_url(code: &str) -> Option<String> {
 // ── output parsing (ports the regexes from croc.ts) ───────────────────────
 static ANSI: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])").unwrap());
-static TEXT_INFO: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:Sending|Receiving)\s+text message\s*\(([^)]+)\)").unwrap());
+static TEXT_INFO: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:Sending|Receiving)\s+text message\s*\(([^)]+)\)").unwrap()
+});
 static PEER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?:Sending|Receiving)\s*\((?:->|<-)").unwrap());
 static ARROW: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\((?:->|<-)").unwrap());
 static INFO: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(?:Sending|Receiving)\s+(?:(\d+)\s+files?|'?(.+?)'?)\s+\(([\d.]+\s*[kKmMgGtT]?i?[bB])\)")
-        .unwrap()
+    Regex::new(
+        r"^(?:Sending|Receiving)\s+(?:(\d+)\s+files?|'?(.+?)'?)\s+\(([\d.]+\s*[kKmMgGtT]?i?[bB])\)",
+    )
+    .unwrap()
 });
 static STATS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\(\s*([\d.]+(?:\s*[kKmMgGtT]?i?[bB])?)\s*/\s*([\d.]+\s*[kKmMgGtT]?i?[bB])(?:,\s*([\d.]+\s*[kKmMgGtT]?i?[bB]/s))?")
@@ -428,9 +436,8 @@ static WAITING: LazyLock<Regex> = LazyLock::new(|| {
 static ACCEPT_PROMPT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)Accept\s+(.+?)\s+\(([^)]+)\)(?:\s+from\s+'[^']*')?\?\s*\(Y/n\)").unwrap()
 });
-static RESUME_PROMPT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)Resume\s+'(.+?)'\s+\(([\d.]+)%\)\?\s*\(y/N\)").unwrap()
-});
+static RESUME_PROMPT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)Resume\s+'(.+?)'\s+\(([\d.]+)%\)\?\s*\(y/N\)").unwrap());
 static OVERWRITE_PROMPT: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)Overwrite\s+'(.+?)'\?\s*\(y/N\)").unwrap());
 // The (Y/n)/(y/N) marker signals a prompt. Matched anywhere (not end-anchored),
@@ -644,10 +651,7 @@ impl Parser {
                 }
                 self.send(
                     "file-info",
-                    serde_json::Map::from_iter([(
-                        "info".into(),
-                        serde_json::Value::Object(info),
-                    )]),
+                    serde_json::Map::from_iter([("info".into(), serde_json::Value::Object(info))]),
                 );
             }
         }
@@ -793,7 +797,12 @@ pub mod transport {
         use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
         let pair = native_pty_system()
-            .openpty(PtySize { rows: 30, cols: 1000, pixel_width: 0, pixel_height: 0 })
+            .openpty(PtySize {
+                rows: 30,
+                cols: 1000,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
             .map_err(|e| e.to_string())?;
 
         let mut cmd = CommandBuilder::new(bin);
@@ -903,9 +912,8 @@ pub fn spawn_transfer(
     work_dir: Option<std::path::PathBuf>,
     auto_answer_prompts: bool,
 ) -> Result<(), String> {
-    let bin = find_croc_binary().ok_or(
-        "croc binary not found. Install croc (e.g. `brew install croc`) or set CROC_BIN.",
-    )?;
+    let bin = find_croc_binary()
+        .ok_or("croc binary not found. Install croc (e.g. `brew install croc`) or set CROC_BIN.")?;
 
     #[allow(unused_mut)]
     let mut env: Vec<(String, String)> = vec![("CROC_SECRET".into(), secret)];
@@ -917,7 +925,10 @@ pub fn spawn_transfer(
     {
         let path = std::env::var("PATH").unwrap_or_default();
         #[cfg(not(windows))]
-        env.push(("PATH".into(), format!("{path}:/opt/homebrew/bin:/usr/local/bin")));
+        env.push((
+            "PATH".into(),
+            format!("{path}:/opt/homebrew/bin:/usr/local/bin"),
+        ));
         #[cfg(windows)]
         env.push(("PATH".into(), path));
     }
@@ -944,8 +955,12 @@ pub fn spawn_transfer(
     // user's home dir and lets us wipe leftovers after a failed transfer, so a retry
     // never hits croc's un-overridable "file already exists!" (utils.go ZipDirectory).
     let cwd = work_dir.clone().or_else(|| fallback_cwd(&app));
-    let transport::Spawned { mut reader, writer, killer, wait } =
-        transport::spawn(bin, &args, &env, cwd.as_ref())?;
+    let transport::Spawned {
+        mut reader,
+        writer,
+        killer,
+        wait,
+    } = transport::spawn(bin, &args, &env, cwd.as_ref())?;
 
     {
         let state = app.state::<CrocState>();
@@ -1051,12 +1066,20 @@ mod tests {
         )
         .expect("spawn failed");
 
-        let transport::Spawned { mut reader, wait, .. } = spawned;
+        let transport::Spawned {
+            mut reader, wait, ..
+        } = spawned;
         let mut out = String::new();
         let _ = reader.read_to_string(&mut out);
 
-        assert!(out.contains("from-stderr"), "stderr must reach the parser: {out:?}");
-        assert!(out.contains("from-stdout passed"), "stdout + env must pass through: {out:?}");
+        assert!(
+            out.contains("from-stderr"),
+            "stderr must reach the parser: {out:?}"
+        );
+        assert!(
+            out.contains("from-stdout passed"),
+            "stdout + env must pass through: {out:?}"
+        );
         assert_eq!(wait(), 3, "exit code must be reported for finalize()");
     }
 
@@ -1065,7 +1088,10 @@ mod tests {
     #[cfg(desktop)]
     #[test]
     fn resolve_relay_is_identity_on_desktop() {
-        assert_eq!(resolve_relay("croc.schollz.com:9009"), "croc.schollz.com:9009");
+        assert_eq!(
+            resolve_relay("croc.schollz.com:9009"),
+            "croc.schollz.com:9009"
+        );
         assert!(platform_global_flags().is_empty());
     }
 }

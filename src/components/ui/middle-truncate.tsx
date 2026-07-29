@@ -43,7 +43,8 @@ function availWidth(el: HTMLElement): number {
   const parent = el.parentElement;
   if (!parent) return el.clientWidth;
   const pcs = getComputedStyle(parent);
-  let avail = parent.clientWidth - parseFloat(pcs.paddingLeft || '0') - parseFloat(pcs.paddingRight || '0');
+  let avail =
+    parent.clientWidth - parseFloat(pcs.paddingLeft || '0') - parseFloat(pcs.paddingRight || '0');
   const kids = Array.from(parent.children) as HTMLElement[];
   const gapRaw = pcs.columnGap === 'normal' ? '0' : pcs.columnGap || '0';
   const gap = parseFloat(gapRaw) || 0;
@@ -51,7 +52,10 @@ function availWidth(el: HTMLElement): number {
   for (const k of kids) {
     if (k === el) continue;
     const kcs = getComputedStyle(k);
-    avail -= k.getBoundingClientRect().width + parseFloat(kcs.marginLeft || '0') + parseFloat(kcs.marginRight || '0');
+    avail -=
+      k.getBoundingClientRect().width +
+      parseFloat(kcs.marginLeft || '0') +
+      parseFloat(kcs.marginRight || '0');
   }
   return Math.max(0, Math.floor(avail));
 }

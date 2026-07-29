@@ -81,7 +81,13 @@ function reduce(v: ReceiveState, e: CrocEvent): ReceiveState {
       const perFile = v.perFile.some((f) => f.name === e.info.name)
         ? v.perFile
         : [...v.perFile, { name: e.info.name, percent: 0, size: e.info.totalHuman }];
-      return { ...v, fileInfo: e.info, perFile, totalFiles: Math.max(v.totalFiles, 1), currentFile: e.info.name };
+      return {
+        ...v,
+        fileInfo: e.info,
+        perFile,
+        totalFiles: Math.max(v.totalFiles, 1),
+        currentFile: e.info.name,
+      };
     }
     case 'progress': {
       const p = e.progress;
@@ -243,7 +249,9 @@ export function useReceive(): UseReceive {
       croc.historyAdd({
         kind: 'receive',
         names: state.isText ? ['Text message'] : state.perFile.map((f) => f.name),
-        count: state.isText ? 1 : Math.max(state.perFile.length, state.totalFiles > 1 ? state.totalFiles : 1),
+        count: state.isText
+          ? 1
+          : Math.max(state.perFile.length, state.totalFiles > 1 ? state.totalFiles : 1),
         sizeHuman: state.progress?.totalHuman ?? undefined,
         out,
         isText: state.isText || undefined,
@@ -305,7 +313,14 @@ export function useReceive(): UseReceive {
     if (idRef.current) croc.cancel(idRef.current);
     const id = crypto.randomUUID();
     idRef.current = id;
-    setState((v) => ({ ...v, code: c, status: 'connecting', progress: null, error: null, fileInfo: null }));
+    setState((v) => ({
+      ...v,
+      code: c,
+      status: 'connecting',
+      progress: null,
+      error: null,
+      fileInfo: null,
+    }));
 
     const prefs = getPrefs();
     // A link can embed connection settings for this transfer only; fall back to prefs.
@@ -318,7 +333,7 @@ export function useReceive(): UseReceive {
         autoAccept: prefs.autoAccept,
         local: ov?.local ?? prefs.localMode,
       },
-      id
+      id,
     );
     if (idRef.current !== id) return;
     if (err || !result) {

@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, History as HistoryIcon, Folder, RotateCw, Trash2, X } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  History as HistoryIcon,
+  Folder,
+  RotateCw,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { croc, type HistoryEntry } from '@/lib/services/ipc';
 import { Button } from '@/components/ui/button';
 import { MiddleTruncate } from '@/components/ui/middle-truncate';
@@ -7,12 +15,22 @@ import { CAN_USE_FILE_PATHS } from '@/lib/platform';
 
 type Filter = 'all' | 'sent' | 'received';
 
-function Seg({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Seg({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div
       onClick={onClick}
       className={`cursor-pointer rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium ${
-        active ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]' : 'text-muted-foreground'
+        active
+          ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]'
+          : 'text-muted-foreground'
       }`}
     >
       {children}
@@ -83,7 +101,12 @@ function Row({
       )}
       {/* croc_show_item is a stub on Android — no file manager to reveal into. */}
       {e.kind === 'receive' && e.out && CAN_USE_FILE_PATHS && (
-        <Button variant="ghost" size="sm" className="shrink-0" onClick={() => croc.showItem(e.out!)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          onClick={() => croc.showItem(e.out!)}
+        >
           <Folder /> Reveal
         </Button>
       )}
@@ -98,7 +121,11 @@ function Row({
   );
 }
 
-export function HistoryScreen({ onResend }: { onResend?: (paths: string[], code?: string) => void }) {
+export function HistoryScreen({
+  onResend,
+}: {
+  onResend?: (paths: string[], code?: string) => void;
+}) {
   const [filter, setFilter] = useState<Filter>('all');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
 
@@ -117,7 +144,7 @@ export function HistoryScreen({ onResend }: { onResend?: (paths: string[], code?
   };
 
   const shown = entries.filter((e) =>
-    filter === 'all' ? true : filter === 'sent' ? e.kind === 'send' : e.kind === 'receive'
+    filter === 'all' ? true : filter === 'sent' ? e.kind === 'send' : e.kind === 'receive',
   );
 
   return (
@@ -133,9 +160,15 @@ export function HistoryScreen({ onResend }: { onResend?: (paths: string[], code?
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-[18px] md:px-8">
         <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
-          <Seg active={filter === 'all'} onClick={() => setFilter('all')}>All</Seg>
-          <Seg active={filter === 'sent'} onClick={() => setFilter('sent')}>Sent</Seg>
-          <Seg active={filter === 'received'} onClick={() => setFilter('received')}>Received</Seg>
+          <Seg active={filter === 'all'} onClick={() => setFilter('all')}>
+            All
+          </Seg>
+          <Seg active={filter === 'sent'} onClick={() => setFilter('sent')}>
+            Sent
+          </Seg>
+          <Seg active={filter === 'received'} onClick={() => setFilter('received')}>
+            Received
+          </Seg>
         </div>
         <span className="ml-auto whitespace-nowrap text-[13px] text-muted-foreground">
           {entries.length} transfer{entries.length === 1 ? '' : 's'}

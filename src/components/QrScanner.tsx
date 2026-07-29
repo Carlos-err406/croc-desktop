@@ -9,7 +9,13 @@ import { Button } from '@/components/ui/button';
  * camera permission (NSCameraUsageDescription) and a webview that grants media
  * capture; if either is missing, getUserMedia rejects and we show a clear error.
  */
-export function QrScanner({ onCode, onClose }: { onCode: (text: string) => void; onClose: () => void }) {
+export function QrScanner({
+  onCode,
+  onClose,
+}: {
+  onCode: (text: string) => void;
+  onClose: () => void;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   // An empty <video> renders the WebView's default poster — a play button — for the
@@ -88,7 +94,9 @@ export function QrScanner({ onCode, onClose }: { onCode: (text: string) => void;
           </div>
           <div className="font-heading text-lg font-semibold">Camera unavailable</div>
           <div className="mt-1.5 text-[13px] text-muted-foreground">{error}</div>
-          <Button className="mt-4 w-full" onClick={onClose}>Enter the code instead</Button>
+          <Button className="mt-4 w-full" onClick={onClose}>
+            Enter the code instead
+          </Button>
         </div>
       ) : (
         <>

@@ -24,7 +24,10 @@ export interface ReceiveTarget {
 
 /** major.minor of a croc version string ("10.6.0" / "v10.6.0" → "10.6"), or null. */
 export function crocMinor(v: string | null | undefined): string | null {
-  const m = (v ?? '').trim().replace(/^v/i, '').match(/^(\d+)\.(\d+)/);
+  const m = (v ?? '')
+    .trim()
+    .replace(/^v/i, '')
+    .match(/^(\d+)\.(\d+)/);
   return m ? `${m[1]}.${m[2]}` : null;
 }
 
@@ -36,7 +39,7 @@ export function crocMinor(v: string | null | undefined): string | null {
  */
 export function versionMismatch(
   senderVersion: string | null | undefined,
-  ourVersion: string | null | undefined
+  ourVersion: string | null | undefined,
 ): { sender: string; ours: string; senderIsNewer: boolean } | null {
   const s = crocMinor(senderVersion);
   const o = crocMinor(ourVersion);
@@ -61,7 +64,9 @@ export function parseReceiveTarget(raw: string): ReceiveTarget | null {
         if (seg && seg !== 'receive' && seg !== 'send') code = decodeURIComponent(seg);
       }
       if (!code) return null;
-      const local = ['1', 'true', 'yes'].includes((u.searchParams.get('local') ?? '').toLowerCase());
+      const local = ['1', 'true', 'yes'].includes(
+        (u.searchParams.get('local') ?? '').toLowerCase(),
+      );
       const relay = u.searchParams.get('relay')?.trim() || undefined;
       const ip = u.searchParams.get('ip')?.trim() || undefined;
       const crocVersion = u.searchParams.get('v')?.trim() || undefined;

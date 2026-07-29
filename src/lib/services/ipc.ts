@@ -101,8 +101,7 @@ export const croc = {
   /** Nearby devices seen so far (self excluded). */
   nearbyPeers: () => call<NearbyPeer[]>('croc_nearby_peers'),
   /** Advertise this device with a one-time code, or pass null to stop. */
-  nearbyDiscoverable: (code: string | null) =>
-    call<boolean>('croc_nearby_discoverable', { code }),
+  nearbyDiscoverable: (code: string | null) => call<boolean>('croc_nearby_discoverable', { code }),
   updateSize: () => call<number | null>('croc_update_size'),
   statPaths: (paths: string[]) => call<StatEntry[]>('croc_stat_paths', { paths }),
   send: (
@@ -111,14 +110,14 @@ export const croc = {
     relay?: string,
     zip?: boolean,
     code?: string,
-    local?: boolean
+    local?: boolean,
   ) => call<CrocSendResult>('croc_send', { paths, transferId, relay, zip, code, local }),
   sendText: (text: string, transferId?: string, relay?: string, code?: string, local?: boolean) =>
     call<CrocSendResult>('croc_send_text', { text, transferId, relay, code, local }),
   receive: (
     code: string,
     opts?: { out?: string; relay?: string; autoAccept?: boolean; local?: boolean },
-    transferId?: string
+    transferId?: string,
   ) =>
     call<CrocReceiveResult>('croc_receive', {
       code,

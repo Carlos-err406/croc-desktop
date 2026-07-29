@@ -25,9 +25,14 @@ export function CrocCompatBanner() {
       <AlertTriangle size={16} className="shrink-0" />
       <span className="min-w-0 flex-1">
         Running <span className="font-medium">{running}</span>
-        {info.path ? <> from <span className="font-mono">{info.path}</span></> : null}, not the bundled{' '}
-        {info.expectedVersion}. Transfers may fail with peers on the bundled version — remove or match the
-        system croc.
+        {info.path ? (
+          <>
+            {' '}
+            from <span className="font-mono">{info.path}</span>
+          </>
+        ) : null}
+        , not the bundled {info.expectedVersion}. Transfers may fail with peers on the bundled
+        version — remove or match the system croc.
       </span>
       <button
         onClick={() => setDismissed(true)}

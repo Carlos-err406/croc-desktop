@@ -147,7 +147,17 @@ export function UpdaterProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ status, version, progress, totalBytes, error, check: runCheck, install, restart, dismiss }}
+      value={{
+        status,
+        version,
+        progress,
+        totalBytes,
+        error,
+        check: runCheck,
+        install,
+        restart,
+        dismiss,
+      }}
     >
       {children}
     </Ctx.Provider>

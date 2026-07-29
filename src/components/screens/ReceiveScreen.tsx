@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bookmark, Check, Copy, Download, Folder, Link2, Loader2, MessageSquareText, QrCode, Radio, Send, WifiOff, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bookmark,
+  Check,
+  Copy,
+  Download,
+  Folder,
+  Link2,
+  Loader2,
+  MessageSquareText,
+  QrCode,
+  Radio,
+  Send,
+  WifiOff,
+  X,
+} from 'lucide-react';
 import { useSavedCodes } from '@/lib/codes';
 import { CodePills } from '@/components/CodePills';
 import { MAX_AUTO_RECONNECT, type ReceiveOverrides, type UseReceive } from '@/lib/useReceive';
@@ -19,7 +34,10 @@ import { APP_NAME, CAN_USE_FILE_PATHS, CAN_USE_NEARBY } from '@/lib/platform';
 function extType(name: string): string {
   const dot = name.lastIndexOf('.');
   if (dot <= 0 || dot === name.length - 1) return 'FILE';
-  return name.slice(dot + 1).toUpperCase().slice(0, 4);
+  return name
+    .slice(dot + 1)
+    .toUpperCase()
+    .slice(0, 4);
 }
 
 function formatDuration(sec: number): string {
@@ -61,7 +79,12 @@ function extractCode(text: string): string | null {
 }
 
 function receiveSteps(status: string): Step[] {
-  const s = (kind: Step['kind'], title: string, sub: string, line: boolean): Step => ({ kind, title, sub, line });
+  const s = (kind: Step['kind'], title: string, sub: string, line: boolean): Step => ({
+    kind,
+    title,
+    sub,
+    line,
+  });
   if (status === 'connecting')
     return [
       s('done', 'Code entered', 'PAKE secret ready', true),
@@ -71,7 +94,12 @@ function receiveSteps(status: string): Step[] {
   return [
     s('done', 'Code entered', 'PAKE secret ready', true),
     s('done', 'Peer connected', 'secure channel open', true),
-    s(status === 'done' ? 'done' : 'brand', status === 'done' ? 'Download complete' : 'Downloading', status === 'done' ? 'all bytes received' : 'streaming encrypted bytes', false),
+    s(
+      status === 'done' ? 'done' : 'brand',
+      status === 'done' ? 'Download complete' : 'Downloading',
+      status === 'done' ? 'all bytes received' : 'streaming encrypted bytes',
+      false,
+    ),
   ];
 }
 function TimelineStep({ step }: { step: Step }) {
@@ -86,7 +114,9 @@ function TimelineStep({ step }: { step: Step }) {
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
-        <span className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full ${ring}`}>
+        <span
+          className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full ${ring}`}
+        >
           {step.kind === 'done' ? (
             <Check size={13} strokeWidth={3} />
           ) : step.kind === 'pending' ? (
@@ -98,7 +128,9 @@ function TimelineStep({ step }: { step: Step }) {
         {step.line && <span className="my-[3px] min-h-4 w-0.5 flex-1 bg-border" />}
       </div>
       <div className="pb-3">
-        <div className={`text-[13px] font-medium ${step.kind === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>
+        <div
+          className={`text-[13px] font-medium ${step.kind === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}
+        >
           {step.title}
         </div>
         <div className="text-xs text-muted-foreground">{step.sub}</div>
@@ -108,7 +140,23 @@ function TimelineStep({ step }: { step: Step }) {
 }
 
 export function ReceiveScreen({ recv }: { recv: UseReceive }) {
-  const { status, code, progress, fileInfo, perFile, totalFiles, currentFile, out, savedTo, saveError, isText, text, prompt, reconnecting, reconnectAttempt } = recv;
+  const {
+    status,
+    code,
+    progress,
+    fileInfo,
+    perFile,
+    totalFiles,
+    currentFile,
+    out,
+    savedTo,
+    saveError,
+    isText,
+    text,
+    prompt,
+    reconnecting,
+    reconnectAttempt,
+  } = recv;
 
   const [copied, setCopied] = useState(false);
   const copyText = async () => {
@@ -127,7 +175,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
     status === 'done'
       ? 100
       : perFile.length
-        ? Math.min(100, Math.round(perFile.reduce((a, f) => a + f.percent, 0) / Math.max(1, totalFiles)))
+        ? Math.min(
+            100,
+            Math.round(perFile.reduce((a, f) => a + f.percent, 0) / Math.max(1, totalFiles)),
+          )
         : (progress?.percent ?? 0);
   const seen = Math.min(perFile.length, totalFiles);
   const [dir, setDir] = useState('');
@@ -247,7 +298,13 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
           <div className="font-heading text-[26px] font-semibold tracking-[.01em]">
             {reconnecting
               ? 'Reconnecting…'
-              : isText ? (status === 'done' ? 'Received text' : 'Receiving text') : status === 'done' ? 'Received' : 'Receive files'}
+              : isText
+                ? status === 'done'
+                  ? 'Received text'
+                  : 'Receiving text'
+                : status === 'done'
+                  ? 'Received'
+                  : 'Receive files'}
           </div>
           <div className="mt-[3px] text-[13px] text-muted-foreground">
             {reconnecting
@@ -301,7 +358,11 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
           </div>
           <div className="mt-3 flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => recv.respond(false)}>
-              {prompt.kind === 'accept' ? 'Decline' : prompt.kind === 'overwrite' ? 'Keep existing' : 'No'}
+              {prompt.kind === 'accept'
+                ? 'Decline'
+                : prompt.kind === 'overwrite'
+                  ? 'Keep existing'
+                  : 'No'}
             </Button>
             <Button size="sm" onClick={() => recv.respond(true)}>
               {prompt.kind === 'accept'
@@ -354,7 +415,9 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                   setLinkOverrides(null); // manual edit → a plain code, drop any link settings
                   setSenderCroc(null);
                 }}
-                onKeyDown={(e) => e.key === 'Enter' && recv.begin(undefined, linkOverrides ?? undefined)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && recv.begin(undefined, linkOverrides ?? undefined)
+                }
                 placeholder="e.g. 7431-mirage-oxford"
                 /* autoFocus is desktop-only: on a phone it throws the keyboard up the
                    moment the tab opens, before the user has chosen to type. */
@@ -381,11 +444,14 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               <div className="mt-2.5 w-full max-w-[420px] rounded-[12px] border border-warning-text/40 bg-warning-surface px-4 py-3 text-left text-[12px] text-warning-text">
                 <div className="flex items-center gap-2 font-semibold">
                   <AlertTriangle size={14} className="shrink-0" />
-                  {mismatch.senderIsNewer ? 'Sender is on a newer croc' : 'Sender is on an older croc'}
+                  {mismatch.senderIsNewer
+                    ? 'Sender is on a newer croc'
+                    : 'Sender is on an older croc'}
                 </div>
                 <p className="mt-1 leading-relaxed">
-                  They're sending with croc <b>{mismatch.sender}</b>, you have <b>{mismatch.ours}</b>. The
-                  transfer might fail if both ends don't have the same bundled croc version —{' '}
+                  They're sending with croc <b>{mismatch.sender}</b>, you have{' '}
+                  <b>{mismatch.ours}</b>. The transfer might fail if both ends don't have the same
+                  bundled croc version —{' '}
                   {mismatch.senderIsNewer
                     ? CAN_USE_FILE_PATHS
                       ? 'update Croc Desktop (Settings → Updates), then try again.'
@@ -418,16 +484,18 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             {/* Reverse pairing — publish a code for THEM to send to. Needs mDNS, so
                 it's desktop-only until Android holds a multicast lock. */}
             {CAN_USE_NEARBY && (
-            <button
-              onClick={() => void toggleDiscoverable()}
-              className={`mt-2.5 flex cursor-pointer items-center gap-1.5 text-[13px] font-medium ${
-                discoverable ? 'text-brand-deep' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title="Let nearby devices on this network send to you without sharing a code"
-            >
-              <Radio size={14} className={discoverable ? 'text-brand' : ''} />
-              {discoverable ? 'Discoverable to nearby devices — tap to stop' : 'Or let a nearby device find you'}
-            </button>
+              <button
+                onClick={() => void toggleDiscoverable()}
+                className={`mt-2.5 flex cursor-pointer items-center gap-1.5 text-[13px] font-medium ${
+                  discoverable ? 'text-brand-deep' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Let nearby devices on this network send to you without sharing a code"
+              >
+                <Radio size={14} className={discoverable ? 'text-brand' : ''} />
+                {discoverable
+                  ? 'Discoverable to nearby devices — tap to stop'
+                  : 'Or let a nearby device find you'}
+              </button>
             )}
             {discoverable && (
               <p className="mt-1.5 max-w-[400px] text-xs leading-relaxed text-muted-foreground">
@@ -449,15 +517,32 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                 <div className="text-[13px] font-medium">Have them scan this to send you files</div>
                 {invite.qr && (
                   <div className="mx-auto mt-3 w-fit rounded-[10px] bg-white p-2">
-                    <img src={invite.qr} alt="Send-to-me QR" width={132} height={132} className="block" draggable={false} />
+                    <img
+                      src={invite.qr}
+                      alt="Send-to-me QR"
+                      width={132}
+                      height={132}
+                      className="block"
+                      draggable={false}
+                    />
                   </div>
                 )}
-                <div className="mt-3 font-heading text-[19px] font-semibold tracking-[.02em]">{invite.code}</div>
+                <div className="mt-3 font-heading text-[19px] font-semibold tracking-[.02em]">
+                  {invite.code}
+                </div>
                 <div className="mt-2.5 flex justify-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(invite.code)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void navigator.clipboard.writeText(invite.code)}
+                  >
                     <Copy size={13} /> Code
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(invite.link)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void navigator.clipboard.writeText(invite.link)}
+                  >
                     <Link2 size={13} /> Link
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setInvite(null)}>
@@ -465,7 +550,8 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
                   </Button>
                 </div>
                 <p className="mt-2.5 text-xs text-muted-foreground">
-                  Then hit <span className="font-medium text-foreground">Receive files</span> to start waiting.
+                  Then hit <span className="font-medium text-foreground">Receive files</span> to
+                  start waiting.
                 </p>
               </div>
             )}
@@ -476,7 +562,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             <div className="mt-4 flex w-full max-w-[380px] items-center gap-1.5 text-xs text-muted-foreground">
               <Folder size={13} className="shrink-0" />
               <span className="shrink-0">Saving to</span>
-              <span className="min-w-0 flex-1 truncate font-medium text-foreground" title={savedDir}>
+              <span
+                className="min-w-0 flex-1 truncate font-medium text-foreground"
+                title={savedDir}
+              >
                 {abbrevHome(savedDir)}
               </span>
             </div>
@@ -533,147 +622,164 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
       )}
 
       {/* ACTIVE: connecting / receiving / done — two-column, gradient hero */}
-      {!isText && !reconnecting && (status === 'connecting' || status === 'receiving' || status === 'done') && (
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-4 md:flex-row md:gap-5 md:overflow-hidden md:px-8 md:pb-7 md:pt-5">
-          {/* LEFT — transparent so it blends into the layout brand wash */}
-          <div className="flex min-w-0 flex-none flex-col overflow-hidden rounded-2xl border border-border bg-transparent md:flex-1">
-            <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
-              {status === 'connecting' ? (
-                <>
-                  <div className="h-11 w-11 animate-[crocspin_.8s_linear_infinite] rounded-full border-[3px] border-border border-t-brand" />
-                  <div className="text-sm text-muted-foreground">Connecting to sender…</div>
-                  <div className="font-heading text-[22px] tracking-[.03em] text-brand-deep">{code}</div>
-                </>
-              ) : (
-                <>
-                  <div className="text-center">
-                    <div className="font-heading text-[68px] font-semibold leading-none text-brand-deep">{overall}%</div>
-                    <div className="mt-2 text-[13px] text-muted-foreground">
-                      {status === 'done'
-                        ? 'Download complete'
-                        : progress?.speedHuman
-                          ? `${progress.speedHuman}${overallEta ? ` · ETA ${overallEta}` : ''}`
-                          : 'Downloading…'}
+      {!isText &&
+        !reconnecting &&
+        (status === 'connecting' || status === 'receiving' || status === 'done') && (
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-4 md:flex-row md:gap-5 md:overflow-hidden md:px-8 md:pb-7 md:pt-5">
+            {/* LEFT — transparent so it blends into the layout brand wash */}
+            <div className="flex min-w-0 flex-none flex-col overflow-hidden rounded-2xl border border-border bg-transparent md:flex-1">
+              <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-[22px] px-[26px] py-[30px]">
+                {status === 'connecting' ? (
+                  <>
+                    <div className="h-11 w-11 animate-[crocspin_.8s_linear_infinite] rounded-full border-[3px] border-border border-t-brand" />
+                    <div className="text-sm text-muted-foreground">Connecting to sender…</div>
+                    <div className="font-heading text-[22px] tracking-[.03em] text-brand-deep">
+                      {code}
                     </div>
-                  </div>
-                  <div className="h-3 w-full max-w-[420px] overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(90deg,var(--brand),var(--brand-deep))] transition-[width] duration-200"
-                      style={{ width: `${overall}%` }}
-                    />
-                  </div>
-                  {status === 'done' ? (
-                    <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-success-text">
-                      <Check size={16} strokeWidth={3} className="shrink-0" />
-                      {totalFiles > 1 ? (
-                        <span className="shrink-0">All {totalFiles} files received</span>
-                      ) : (
-                        <>
-                          <MiddleTruncate text={fileInfo?.name ?? 'File'} className="flex-[0_1_auto] font-medium" />
-                          <span className="shrink-0">received</span>
-                        </>
-                      )}
+                  </>
+                ) : (
+                  <>
+                    <div className="text-center">
+                      <div className="font-heading text-[68px] font-semibold leading-none text-brand-deep">
+                        {overall}%
+                      </div>
+                      <div className="mt-2 text-[13px] text-muted-foreground">
+                        {status === 'done'
+                          ? 'Download complete'
+                          : progress?.speedHuman
+                            ? `${progress.speedHuman}${overallEta ? ` · ETA ${overallEta}` : ''}`
+                            : 'Downloading…'}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px]">
-                      <span className="relative flex h-[9px] w-[9px] shrink-0">
-                        <span className="absolute h-full w-full animate-[crocping_1.4s_ease-out_infinite] rounded-full bg-brand opacity-50" />
-                        <span className="relative h-[9px] w-[9px] rounded-full bg-brand" />
-                      </span>
-                      <span className="shrink-0">Downloading</span>
-                      <MiddleTruncate text={currentFile || fileInfo?.name || ''} className="flex-[0_1_auto] font-medium" />
-                      {totalFiles > 1 ? (
-                        <span className="shrink-0 text-muted-foreground">· {seen} of {totalFiles} files</span>
-                      ) : (
-                        progress?.transferredHuman && progress?.totalHuman && (
-                          <span className="shrink-0 text-muted-foreground">· {progress.transferredHuman} / {progress.totalHuman}</span>
-                        )
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT: timeline + files + cancel */}
-          <div className="flex min-h-0 w-full shrink-0 flex-col gap-3.5 md:w-[332px]">
-            <div className="rounded-[14px] border border-border bg-card p-[18px]">
-              <div className="mb-4 text-[13px] font-semibold">Connection</div>
-              {receiveSteps(status).map((st, i) => (
-                <TimelineStep key={i} step={st} />
-              ))}
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto rounded-[14px] border border-border bg-card px-4 py-[15px]">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[13px] font-semibold">Files</span>
-                {totalFiles > 1 && (
-                  <span className="text-xs text-muted-foreground">
-                    {seen}/{totalFiles}
-                  </span>
-                )}
-              </div>
-              {fileRows.length === 0 && (
-                <div className="text-xs text-muted-foreground">Waiting for the file list…</div>
-              )}
-              {fileRows.map((f) => (
-                <div key={f.name} className="flex flex-col gap-[7px]">
-                  <div className="flex items-center gap-[9px] text-[13px]">
-                    <TypeBadge type={extType(f.name)} />
-                    <MiddleTruncate text={f.name} className="flex-1" />
-                    <span
-                      className={`ml-auto flex shrink-0 items-center gap-[5px] pl-1.5 text-xs ${
-                        f.showBar ? 'text-brand-deep' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {f.showCheck && <Check size={13} className="text-success-text" />}
-                      {f.showBar ? `${f.pct}%` : f.size}
-                    </span>
-                  </div>
-                  {f.showBar && (
-                    <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
+                    <div className="h-3 w-full max-w-[420px] overflow-hidden rounded-full bg-secondary">
                       <div
-                        className="h-full rounded-full bg-brand transition-[width] duration-200"
-                        style={{ width: `${f.pct}%` }}
+                        className="h-full rounded-full bg-[linear-gradient(90deg,var(--brand),var(--brand-deep))] transition-[width] duration-200"
+                        style={{ width: `${overall}%` }}
                       />
                     </div>
+                    {status === 'done' ? (
+                      <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-success-text">
+                        <Check size={16} strokeWidth={3} className="shrink-0" />
+                        {totalFiles > 1 ? (
+                          <span className="shrink-0">All {totalFiles} files received</span>
+                        ) : (
+                          <>
+                            <MiddleTruncate
+                              text={fileInfo?.name ?? 'File'}
+                              className="flex-[0_1_auto] font-medium"
+                            />
+                            <span className="shrink-0">received</span>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex w-full min-w-0 items-center justify-center gap-2 text-[13px]">
+                        <span className="relative flex h-[9px] w-[9px] shrink-0">
+                          <span className="absolute h-full w-full animate-[crocping_1.4s_ease-out_infinite] rounded-full bg-brand opacity-50" />
+                          <span className="relative h-[9px] w-[9px] rounded-full bg-brand" />
+                        </span>
+                        <span className="shrink-0">Downloading</span>
+                        <MiddleTruncate
+                          text={currentFile || fileInfo?.name || ''}
+                          className="flex-[0_1_auto] font-medium"
+                        />
+                        {totalFiles > 1 ? (
+                          <span className="shrink-0 text-muted-foreground">
+                            · {seen} of {totalFiles} files
+                          </span>
+                        ) : (
+                          progress?.transferredHuman &&
+                          progress?.totalHuman && (
+                            <span className="shrink-0 text-muted-foreground">
+                              · {progress.transferredHuman} / {progress.totalHuman}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT: timeline + files + cancel */}
+            <div className="flex min-h-0 w-full shrink-0 flex-col gap-3.5 md:w-[332px]">
+              <div className="rounded-[14px] border border-border bg-card p-[18px]">
+                <div className="mb-4 text-[13px] font-semibold">Connection</div>
+                {receiveSteps(status).map((st, i) => (
+                  <TimelineStep key={i} step={st} />
+                ))}
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto rounded-[14px] border border-border bg-card px-4 py-[15px]">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px] font-semibold">Files</span>
+                  {totalFiles > 1 && (
+                    <span className="text-xs text-muted-foreground">
+                      {seen}/{totalFiles}
+                    </span>
                   )}
                 </div>
-              ))}
-            </div>
-            {/* The transfer succeeded but publishing to Downloads didn't, so the
+                {fileRows.length === 0 && (
+                  <div className="text-xs text-muted-foreground">Waiting for the file list…</div>
+                )}
+                {fileRows.map((f) => (
+                  <div key={f.name} className="flex flex-col gap-[7px]">
+                    <div className="flex items-center gap-[9px] text-[13px]">
+                      <TypeBadge type={extType(f.name)} />
+                      <MiddleTruncate text={f.name} className="flex-1" />
+                      <span
+                        className={`ml-auto flex shrink-0 items-center gap-[5px] pl-1.5 text-xs ${
+                          f.showBar ? 'text-brand-deep' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {f.showCheck && <Check size={13} className="text-success-text" />}
+                        {f.showBar ? `${f.pct}%` : f.size}
+                      </span>
+                    </div>
+                    {f.showBar && (
+                      <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-brand transition-[width] duration-200"
+                          style={{ width: `${f.pct}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {/* The transfer succeeded but publishing to Downloads didn't, so the
                 files are still in app-private storage — say so rather than showing
                 a path the user can't reach and calling it done. */}
-            {status === 'done' && saveError && (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                Received, but couldn't save to Downloads: {saveError}
-              </div>
-            )}
-            {status === 'done' ? (
-              <div className="flex gap-2.5">
-                {/* No file manager to reveal into on Android, and croc_show_item is a
+              {status === 'done' && saveError && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  Received, but couldn't save to Downloads: {saveError}
+                </div>
+              )}
+              {status === 'done' ? (
+                <div className="flex gap-2.5">
+                  {/* No file manager to reveal into on Android, and croc_show_item is a
                     stub there — so don't offer a button that does nothing. */}
-                {CAN_USE_FILE_PATHS && (
-                  <Button className="flex-1" onClick={() => savedDir && croc.showItem(savedDir)}>
-                    <Folder /> Show in folder
+                  {CAN_USE_FILE_PATHS && (
+                    <Button className="flex-1" onClick={() => savedDir && croc.showItem(savedDir)}>
+                      <Folder /> Show in folder
+                    </Button>
+                  )}
+                  <Button
+                    variant={CAN_USE_FILE_PATHS ? 'outline' : 'default'}
+                    className="flex-1"
+                    onClick={recv.reset}
+                  >
+                    Receive another
                   </Button>
-                )}
-                <Button
-                  variant={CAN_USE_FILE_PATHS ? 'outline' : 'default'}
-                  className="flex-1"
-                  onClick={recv.reset}
-                >
-                  Receive another
+                </div>
+              ) : (
+                <Button variant="outline" className="w-full" onClick={recv.cancel}>
+                  <X /> Cancel
                 </Button>
-              </div>
-            ) : (
-              <Button variant="outline" className="w-full" onClick={recv.cancel}>
-                <X /> Cancel
-              </Button>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* ERROR */}
       {status === 'error' && !reconnecting && (
@@ -708,7 +814,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
             recv.setCode(target.code);
             // Carry the link's connection settings into the pending receive.
             setLinkOverrides(
-              target.local || target.relay ? { local: target.local, relay: target.relay } : null
+              target.local || target.relay ? { local: target.local, relay: target.relay } : null,
             );
             setSenderCroc(target.crocVersion ?? null);
           }}

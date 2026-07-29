@@ -2,13 +2,8 @@
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile",
   "description": "Android: one window, a SAF file picker, notifications and croc:// deep links. No updater/process (desktop-only artifacts) and no window or menu permissions.",
-  "platforms": [
-    "android",
-    "iOS"
-  ],
-  "windows": [
-    "main"
-  ],
+  "platforms": ["android", "iOS"],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "dialog:default",

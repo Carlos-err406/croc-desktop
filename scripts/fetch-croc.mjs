@@ -21,8 +21,15 @@
  */
 import { execFileSync } from 'node:child_process';
 import {
-  existsSync, mkdirSync, mkdtempSync, readdirSync, copyFileSync,
-  chmodSync, rmSync, writeFileSync, readFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  copyFileSync,
+  chmodSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
 } from 'node:fs';
 import { platform, tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -55,7 +62,13 @@ const PLAN = {
     { asset: `croc_${CROC_VERSION}_macOS-64bit.tar.gz`, triple: 'x86_64-apple-darwin' },
   ],
   linux: [{ asset: `croc_${CROC_VERSION}_Linux-64bit.tar.gz`, triple: 'x86_64-unknown-linux-gnu' }],
-  win32: [{ asset: `croc_${CROC_VERSION}_Windows-64bit.zip`, triple: 'x86_64-pc-windows-msvc', exe: true }],
+  win32: [
+    {
+      asset: `croc_${CROC_VERSION}_Windows-64bit.zip`,
+      triple: 'x86_64-pc-windows-msvc',
+      exe: true,
+    },
+  ],
 };
 
 const ANDROID = process.argv.includes('--android');
@@ -103,12 +116,17 @@ function fetchOne(s) {
     // doesn't fail the build. curl treats 5xx/timeouts as retryable.
     run('curl', [
       '-fsSL',
-      '--retry', '5',
-      '--retry-delay', '3',
+      '--retry',
+      '5',
+      '--retry-delay',
+      '3',
       '--retry-all-errors',
-      '--retry-max-time', '180',
-      '--connect-timeout', '30',
-      '-o', archive,
+      '--retry-max-time',
+      '180',
+      '--connect-timeout',
+      '30',
+      '-o',
+      archive,
       `${BASE}/${s.asset}`,
     ]);
     run('tar', [s.asset.endsWith('.zip') ? '-xf' : '-xzf', archive, '-C', tmp]);

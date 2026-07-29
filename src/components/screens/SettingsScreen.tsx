@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Check, Moon, RefreshCw, RotateCw, Sun, X, Wifi } from 'lucide-react';
-import { getPrefs, setPrefs, setTheme, relayArg, type Prefs, type RelayMode, type Theme } from '@/lib/prefs';
+import {
+  getPrefs,
+  setPrefs,
+  setTheme,
+  relayArg,
+  type Prefs,
+  type RelayMode,
+  type Theme,
+} from '@/lib/prefs';
 import { useUpdater } from '@/lib/updater';
 import { formatBytes } from '@/lib/utils';
 import { abbrevHome } from '@/lib/paths';
@@ -54,12 +62,22 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
-function Seg({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Seg({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div
       onClick={onClick}
       className={`flex cursor-pointer items-center gap-1.5 rounded-[7px] px-[13px] py-[7px] text-[13px] font-medium ${
-        active ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]' : 'text-muted-foreground'
+        active
+          ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]'
+          : 'text-muted-foreground'
       }`}
     >
       {children}
@@ -67,7 +85,15 @@ function Seg({ active, onClick, children }: { active: boolean; onClick: () => vo
   );
 }
 
-function RelayChoice({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function RelayChoice({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div
       onClick={onClick}
@@ -107,7 +133,10 @@ export function SettingsScreen() {
   useEffect(() => {
     croc.info().then(([, info]) => info && setCrocInfo(info));
   }, []);
-  const [relayTest, setRelayTest] = useState<{ status: 'testing' | 'done'; result?: RelayTest } | null>(null);
+  const [relayTest, setRelayTest] = useState<{
+    status: 'testing' | 'done';
+    result?: RelayTest;
+  } | null>(null);
   const testRelay = async () => {
     setRelayTest({ status: 'testing' });
     const [, result] = await croc.relayTest(relayArg(prefs));
@@ -158,23 +187,46 @@ export function SettingsScreen() {
               {/* SAF yields tree URIs, not paths, so croc_pick_folder can only
                   return "" on Android — offering the button would do nothing. */}
               {CAN_USE_FILE_PATHS && (
-                <Button variant="outline" size="sm" onClick={chooseFolder}>Choose…</Button>
+                <Button variant="outline" size="sm" onClick={chooseFolder}>
+                  Choose…
+                </Button>
               )}
             </div>
           </Row>
           {CAN_USE_FILE_PATHS && (
-            <Row title="Reveal in folder when done" sub="Open the file location after a transfer completes">
-              <Toggle on={prefs.revealOnDone} onClick={() => update({ revealOnDone: !prefs.revealOnDone })} />
+            <Row
+              title="Reveal in folder when done"
+              sub="Open the file location after a transfer completes"
+            >
+              <Toggle
+                on={prefs.revealOnDone}
+                onClick={() => update({ revealOnDone: !prefs.revealOnDone })}
+              />
             </Row>
           )}
-          <Row title="Notify when transfers finish" sub="A system notification when the app is in the background">
+          <Row
+            title="Notify when transfers finish"
+            sub="A system notification when the app is in the background"
+          >
             <Toggle on={prefs.notify} onClick={() => update({ notify: !prefs.notify })} />
           </Row>
-          <Row title="Auto-accept incoming files" sub="When off, approve each file before it downloads">
-            <Toggle on={prefs.autoAccept} onClick={() => update({ autoAccept: !prefs.autoAccept })} />
+          <Row
+            title="Auto-accept incoming files"
+            sub="When off, approve each file before it downloads"
+          >
+            <Toggle
+              on={prefs.autoAccept}
+              onClick={() => update({ autoAccept: !prefs.autoAccept })}
+            />
           </Row>
-          <Row title="Bundle folders into one transfer" sub="Faster for many files; the peer still gets a folder">
-            <Toggle on={prefs.zipFolders} onClick={() => update({ zipFolders: !prefs.zipFolders })} />
+          <Row
+            title="Bundle folders into one transfer"
+            sub="Faster for many files; the peer still gets a folder"
+          >
+            <Toggle
+              on={prefs.zipFolders}
+              onClick={() => update({ zipFolders: !prefs.zipFolders })}
+            />
           </Row>
         </Card>
 
@@ -189,59 +241,75 @@ export function SettingsScreen() {
           <div className={prefs.localMode ? 'pointer-events-none opacity-40' : ''}>
             <Row title="Relay" sub="Server used to pair devices">
               <div className="flex flex-wrap gap-2">
-                <RelayChoice active={prefs.relay === 'default'} onClick={() => chooseRelay('default')}>
+                <RelayChoice
+                  active={prefs.relay === 'default'}
+                  onClick={() => chooseRelay('default')}
+                >
                   Default (croc.schollz.com)
                 </RelayChoice>
-                <RelayChoice active={prefs.relay === 'custom'} onClick={() => chooseRelay('custom')}>
+                <RelayChoice
+                  active={prefs.relay === 'custom'}
+                  onClick={() => chooseRelay('custom')}
+                >
                   Custom…
                 </RelayChoice>
               </div>
             </Row>
-          {prefs.relay === 'custom' && (
-            <div className="px-5 pb-4">
-              <Input
-                placeholder="relay.example.com:9009"
-                value={prefs.relayCustom}
-                onChange={(e) => update({ relayCustom: e.target.value })}
-              />
-            </div>
-          )}
-          <Row title="Connection test" sub="Is the relay reachable?">
-            <div className="flex items-center gap-2.5">
-              {relayTest?.status === 'done' && relayTest.result && (
-                <span
-                  className={`flex items-center gap-1.5 text-xs font-medium ${
-                    relayTest.result.reachable ? 'text-success-text' : 'text-destructive'
-                  }`}
+            {prefs.relay === 'custom' && (
+              <div className="px-5 pb-4">
+                <Input
+                  placeholder="relay.example.com:9009"
+                  value={prefs.relayCustom}
+                  onChange={(e) => update({ relayCustom: e.target.value })}
+                />
+              </div>
+            )}
+            <Row title="Connection test" sub="Is the relay reachable?">
+              <div className="flex items-center gap-2.5">
+                {relayTest?.status === 'done' && relayTest.result && (
+                  <span
+                    className={`flex items-center gap-1.5 text-xs font-medium ${
+                      relayTest.result.reachable ? 'text-success-text' : 'text-destructive'
+                    }`}
+                  >
+                    {relayTest.result.reachable ? (
+                      <>
+                        <Check size={13} /> Reachable · {relayTest.result.ms} ms
+                      </>
+                    ) : (
+                      <>
+                        <X size={13} /> Unreachable
+                      </>
+                    )}
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={relayTest?.status === 'testing'}
+                  onClick={testRelay}
                 >
-                  {relayTest.result.reachable ? (
-                    <><Check size={13} /> Reachable · {relayTest.result.ms} ms</>
-                  ) : (
-                    <><X size={13} /> Unreachable</>
-                  )}
-                </span>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={relayTest?.status === 'testing'}
-                onClick={testRelay}
-              >
-                <Wifi size={14} className={relayTest?.status === 'testing' ? 'animate-pulse' : ''} />
-                {relayTest?.status === 'testing' ? 'Testing…' : 'Test'}
-              </Button>
-            </div>
-          </Row>
-          {relayTest?.status === 'done' && relayTest.result && (
-            <div className="px-5 pb-4 text-xs text-muted-foreground">
-              {relayTest.result.address} — {relayTest.result.detail}
-            </div>
-          )}
+                  <Wifi
+                    size={14}
+                    className={relayTest?.status === 'testing' ? 'animate-pulse' : ''}
+                  />
+                  {relayTest?.status === 'testing' ? 'Testing…' : 'Test'}
+                </Button>
+              </div>
+            </Row>
+            {relayTest?.status === 'done' && relayTest.result && (
+              <div className="px-5 pb-4 text-xs text-muted-foreground">
+                {relayTest.result.address} — {relayTest.result.detail}
+              </div>
+            )}
           </div>
         </Card>
 
         <Card title="Appearance">
-          <Row title="Theme" sub={CAN_USE_FILE_PATHS ? 'Match the mood of your desktop' : 'Light or dark'}>
+          <Row
+            title="Theme"
+            sub={CAN_USE_FILE_PATHS ? 'Match the mood of your desktop' : 'Light or dark'}
+          >
             <div className="flex gap-[3px] rounded-[9px] bg-secondary p-[3px]">
               <Seg active={prefs.theme === 'light'} onClick={() => chooseTheme('light')}>
                 <Sun size={14} /> Light
@@ -257,9 +325,12 @@ export function SettingsScreen() {
           {/* Android can't install silently — the system installer always asks — so
               there's nothing for an "automatic" toggle to control there. */}
           {CAN_USE_FILE_PATHS && (
-          <Row title="Automatic updates" sub="Install new versions on launch">
-            <Toggle on={prefs.autoUpdate} onClick={() => update({ autoUpdate: !prefs.autoUpdate })} />
-          </Row>
+            <Row title="Automatic updates" sub="Install new versions on launch">
+              <Toggle
+                on={prefs.autoUpdate}
+                onClick={() => update({ autoUpdate: !prefs.autoUpdate })}
+              />
+            </Row>
           )}
           <Row title="Software update" sub={updateStatus}>
             {updater.status === 'ready' ? (
@@ -277,7 +348,10 @@ export function SettingsScreen() {
                 disabled={updater.status === 'checking' || updater.status === 'downloading'}
                 onClick={() => void updater.check({ manual: true })}
               >
-                <RefreshCw size={14} className={updater.status === 'checking' ? 'animate-spin' : ''} />
+                <RefreshCw
+                  size={14}
+                  className={updater.status === 'checking' ? 'animate-spin' : ''}
+                />
                 Check for Updates
               </Button>
             )}
@@ -288,7 +362,8 @@ export function SettingsScreen() {
           <CrocBadge size={40} />
           <div>
             <div className="text-sm font-semibold">
-              {APP_NAME} <span className="font-normal text-muted-foreground">v{__APP_VERSION__}</span>
+              {APP_NAME}{' '}
+              <span className="font-normal text-muted-foreground">v{__APP_VERSION__}</span>
             </div>
             <div className="mt-px text-xs text-muted-foreground">{crocSub}</div>
           </div>

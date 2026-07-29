@@ -56,8 +56,8 @@ export function NearbyPeers({
 
       {peers.length === 0 ? (
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Looking for devices on this network that are ready to receive. On the other
-          device, open <span className="font-medium text-foreground">Receive</span> and turn on{' '}
+          Looking for devices on this network that are ready to receive. On the other device, open{' '}
+          <span className="font-medium text-foreground">Receive</span> and turn on{' '}
           <span className="font-medium text-foreground">Discoverable</span>.
         </p>
       ) : (
