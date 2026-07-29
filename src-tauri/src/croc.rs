@@ -971,6 +971,12 @@ pub fn spawn_transfer(
             .insert(transfer_id.clone(), Transfer { killer, writer });
     }
 
+    // Android freezes a backgrounded process and croc, being our child, dies with it.
+    // Started per transfer and stopped when the last one ends (below); Android collapses
+    // repeat starts into another onStartCommand, so concurrent transfers are fine.
+    #[cfg(target_os = "android")]
+    crate::android_fgs::start();
+
     std::thread::spawn(move || {
         use std::io::Read;
         let mut parser = Parser::new(app.clone(), transfer_id.clone(), auto_answer_prompts);
@@ -984,7 +990,20 @@ pub fn spawn_transfer(
         }
         parser.finalize(wait());
         let state = app.state::<CrocState>();
-        state.transfers.lock().unwrap().remove(&transfer_id);
+        // Keep hold of the count: the service must outlive a concurrent transfer, so it
+        // only stops once this was the last one. This also covers cancel, which just kills
+        // croc and leaves this thread to clean up.
+        let remaining = {
+            let mut map = state.transfers.lock().unwrap();
+            map.remove(&transfer_id);
+            map.len()
+        };
+        #[cfg(target_os = "android")]
+        if remaining == 0 {
+            crate::android_fgs::stop();
+        }
+        #[cfg(not(target_os = "android"))]
+        let _ = remaining;
         // Remove the scratch dir (and any leftover temp zip croc didn't clean up
         // because the transfer failed) so the next send starts from a clean slate.
         if let Some(dir) = work_dir {
