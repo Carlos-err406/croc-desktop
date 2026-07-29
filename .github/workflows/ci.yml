@@ -71,7 +71,7 @@ jobs:
       # sidecar present. (tauri-action does this via beforeBuildCommand; here we run
       # it explicitly.) Cache the download so it isn't re-fetched every run.
       - name: Cache croc sidecar
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: src-tauri/binaries
           key: croc-${{ runner.os }}-${{ hashFiles('scripts/fetch-croc.mjs') }}

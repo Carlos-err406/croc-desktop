@@ -60,7 +60,7 @@ jobs:
           cache: npm
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -68,8 +68,12 @@ jobs:
       # croc is compiled from source for GOOS=android: the published Linux binaries
       # are non-PIE, and Android has refused non-PIE executables since API 21. CGO
       # stays off, so no NDK toolchain is involved in croc's own build.
+      # v6+ sets GOTOOLCHAIN=local, so `go install` will NOT silently fetch a newer
+      # toolchain to satisfy croc's go.mod — it fails instead. croc v10.6.0 asks for
+      # go 1.25.0 and '1.25' resolves to 1.25.12, so that's fine today; if a croc bump
+      # raises its go directive past this pin, the fix is to raise go-version here.
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '1.25'
           # Its cache keys off go.sum, which this repo doesn't have (croc is built from
@@ -78,7 +82,7 @@ jobs:
           cache: false
 
       - name: Cache the Go module + build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -92,7 +96,7 @@ jobs:
       # glob matches nothing — the same dead-cache trap as setup-go's go.sum.
       # package-lock.json pins @tauri-apps/cli, which is what picks the wrapper version.
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/wrapper/dists
@@ -146,7 +150,7 @@ jobs:
           unzip -l "$apk" | grep -E 'lib/arm64-v8a/libcroc\.so' \
             || { echo "libcroc.so missing from APK"; exit 1; }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: croc-android-debug-apk
           path: ${{ steps.apk.outputs.path }}
