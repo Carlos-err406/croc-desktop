@@ -73,6 +73,7 @@ jobs:
       # go 1.25.0 and '1.25' resolves to 1.25.12, so that's fine today; if a croc bump
       # raises its go directive past this pin, the fix is to raise go-version here.
       - name: Set up Go
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: '1.25'
@@ -81,13 +82,18 @@ jobs:
           # dirs ourselves instead — otherwise croc is recompiled from source every run.
           cache: false
 
+      # The key carries the exact patch release, not just 1.25: go-build entries are
+      # keyed by compiler version, so a runner moving to the next patch would restore a
+      # cache the new toolchain can't use — and, having hit the primary key, would never
+      # save a usable one. That degrades silently, so spell the version out.
       - name: Cache the Go module + build cache
         uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: gocroc-${{ runner.os }}-go1.25-${{ hashFiles('scripts/fetch-croc.mjs') }}
+          key: gocroc-${{ runner.os }}-go${{ steps.go.outputs.go-version }}-${{ hashFiles('scripts/fetch-croc.mjs') }}
+          restore-keys: gocroc-${{ runner.os }}-
 
       # Gradle re-downloads its whole distribution every run — measured 118s on one
       # runner and ~200s on another, and it's the single biggest slice of "Build APK".

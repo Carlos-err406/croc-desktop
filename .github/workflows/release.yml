@@ -138,19 +138,22 @@ jobs:
       # go-version must stay >= croc's own go directive; v7 sets GOTOOLCHAIN=local, so a
       # too-old pin fails the build instead of quietly fetching a toolchain. See android.yml.
       - name: Set up Go
+        id: go
         uses: actions/setup-go@v7
         with:
           go-version: '1.25'
           # Keys off go.sum, which this repo doesn't have — see android.yml.
           cache: false
 
+      # Exact patch in the key — see android.yml for why 1.25 alone rots silently.
       - name: Cache the Go module + build cache
         uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: gocroc-${{ runner.os }}-go1.25-${{ hashFiles('scripts/fetch-croc.mjs') }}
+          key: gocroc-${{ runner.os }}-go${{ steps.go.outputs.go-version }}-${{ hashFiles('scripts/fetch-croc.mjs') }}
+          restore-keys: gocroc-${{ runner.os }}-
 
       # See android.yml — Gradle otherwise re-downloads its distribution every run.
       - name: Cache Gradle
