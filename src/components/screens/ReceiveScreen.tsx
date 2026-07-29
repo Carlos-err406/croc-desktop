@@ -31,6 +31,15 @@ import { MiddleTruncate } from '@/components/ui/middle-truncate';
 import { QrScanner } from '@/components/QrScanner';
 import { APP_NAME, CAN_USE_FILE_PATHS, CAN_USE_NEARBY } from '@/lib/platform';
 
+/**
+ * The three alternatives under the code box: scan a QR, let a nearby device find you, have
+ * them send to you. One class for all of them, so they can't drift apart — "Scan a QR code"
+ * used to be brand-coloured, which read as a recommendation for the option that's the least
+ * useful of the three on a desktop with no camera pointed anywhere.
+ */
+const ALT_OPTION =
+  'flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-brand-surface hover:text-foreground';
+
 function extType(name: string): string {
   const dot = name.lastIndexOf('.');
   if (dot <= 0 || dot === name.length - 1) return 'FILE';
@@ -292,7 +301,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
   }));
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Idle scrolls as a WHOLE — header included — so the scrollbar spans the pane the way
+    // Settings and History do, instead of starting underneath the header. The other states
+    // are fixed panels that manage their own inner scrolling, so they keep overflow off.
+    <div className={`flex min-h-0 flex-1 flex-col ${status === 'idle' ? 'overflow-y-auto' : ''}`}>
       <div className="flex items-start justify-between gap-4 px-4 md:px-8 pt-[26px]">
         <div>
           <div className="font-heading text-[26px] font-semibold tracking-[.01em]">
@@ -379,11 +391,10 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
       {/* IDLE: enter code */}
       {status === 'idle' && (
-        // Scrolls when it has to (e.g. the "send to me" invite panel open), and
-        // stays vertically centered when it fits — my-auto, not justify-center,
-        // so an overflowing panel isn't clipped at the top.
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 md:px-8 pb-8 pt-6">
-          <div className="my-auto flex w-full max-w-[440px] flex-col items-center gap-2 text-center mx-auto">
+        // No overflow of its own: the wrapper above scrolls, so the scrollbar covers the
+        // header too. Nothing here may claim flex-1 either, or it would fight that scroll.
+        <div className="px-4 md:px-8 pb-8 pt-6">
+          <div className="mx-auto flex w-full max-w-[440px] flex-col items-center gap-2 text-center">
             <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-[18px] bg-brand-surface text-brand-deep">
               <Download size={30} />
             </div>
@@ -474,29 +485,36 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               or
               <span className="h-px w-11 bg-border" />
             </div>
-            <button
-              onClick={() => setScanning(true)}
-              className="mt-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-brand-deep transition-colors hover:bg-brand-surface"
-            >
-              <QrCode size={15} /> Scan a QR code
-            </button>
-
-            {/* Reverse pairing — publish a code for THEM to send to. Needs mDNS, so
-                it's desktop-only until Android holds a multicast lock. */}
-            {CAN_USE_NEARBY && (
-              <button
-                onClick={() => void toggleDiscoverable()}
-                className={`mt-2.5 flex cursor-pointer items-center gap-1.5 text-[13px] font-medium ${
-                  discoverable ? 'text-brand-deep' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="Let nearby devices on this network send to you without sharing a code"
-              >
-                <Radio size={14} className={discoverable ? 'text-brand' : ''} />
-                {discoverable
-                  ? 'Discoverable to nearby devices — tap to stop'
-                  : 'Or let a nearby device find you'}
+            {/* The three alternatives sit on ONE wrapping row: stacked, each on its own
+                centred line, they ate vertical space and pushed the pane into scrolling.
+                They're siblings in meaning, so they read as siblings here — which is also
+                why they've dropped the "Or " each label used to need when read top-down. */}
+            <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+              <button onClick={() => setScanning(true)} className={ALT_OPTION}>
+                <QrCode size={14} /> Scan a QR code
               </button>
-            )}
+
+              {/* Reverse pairing — publish a code for THEM to send to. Needs mDNS, so
+                  it's desktop-only until Android holds a multicast lock. */}
+              {CAN_USE_NEARBY && (
+                <button
+                  onClick={() => void toggleDiscoverable()}
+                  // Brand colour here means "discoverable is ON" — the one bit of state
+                  // among the three, so it's the only one allowed to stand out.
+                  className={`${ALT_OPTION} ${discoverable ? 'text-brand-deep' : ''}`}
+                  title="Let nearby devices on this network send to you without sharing a code"
+                >
+                  <Radio size={14} className={discoverable ? 'text-brand' : ''} />
+                  {discoverable ? 'Discoverable — tap to stop' : 'Let a nearby device find you'}
+                </button>
+              )}
+
+              {!invite && (
+                <button onClick={showInvite} className={ALT_OPTION}>
+                  <Send size={14} /> Have them send to you
+                </button>
+              )}
+            </div>
             {discoverable && (
               <p className="mt-1.5 max-w-[400px] text-xs leading-relaxed text-muted-foreground">
                 Visible on this network as a device ready to receive. Hit{' '}
@@ -505,14 +523,7 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
               </p>
             )}
 
-            {!invite ? (
-              <button
-                onClick={showInvite}
-                className="mt-2.5 flex cursor-pointer items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground"
-              >
-                <Send size={14} /> Or have them send to you
-              </button>
-            ) : (
+            {invite && (
               <div className="mt-3.5 w-full max-w-[400px] rounded-[14px] border border-border bg-card px-4 py-4 text-center">
                 <div className="text-[13px] font-medium">Have them scan this to send you files</div>
                 {invite.qr && (
@@ -558,14 +569,14 @@ export function ReceiveScreen({ recv }: { recv: UseReceive }) {
 
             {/* An Android receive path is long enough to push the row off-screen and
                 break "Saving to" across two lines, so the label is kept whole and the
-                path is the part allowed to shrink. */}
-            <div className="mt-4 flex w-full max-w-[380px] items-center gap-1.5 text-xs text-muted-foreground">
+                path is the part allowed to shrink.
+                text-left is load-bearing: the column above sets text-center, which
+                centred the path inside its flex-1 box and left it floating a long way
+                from its own label. w-auto keeps the row only as wide as it needs. */}
+            <div className="mt-4 flex w-auto max-w-full items-center gap-1.5 text-left text-xs text-muted-foreground">
               <Folder size={13} className="shrink-0" />
               <span className="shrink-0">Saving to</span>
-              <span
-                className="min-w-0 flex-1 truncate font-medium text-foreground"
-                title={savedDir}
-              >
+              <span className="min-w-0 truncate font-medium text-foreground" title={savedDir}>
                 {abbrevHome(savedDir)}
               </span>
             </div>

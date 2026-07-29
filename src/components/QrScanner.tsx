@@ -27,6 +27,8 @@ export function QrScanner({
   useEffect(() => {
     let stream: MediaStream | null = null;
     let raf = 0;
+    // Set by the cleanup so a getUserMedia that resolves after close still releases.
+    let cancelled = false;
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
@@ -40,6 +42,9 @@ export function QrScanner({
         const found = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
         if (found?.data) {
           doneRef.current = true;
+          // Release before handing the code up: the parent decides when to unmount the
+          // overlay, and the camera has no reason to stay on for any of it.
+          stream?.getTracks().forEach((t) => t.stop());
           onCode(found.data.trim());
           return;
         }
@@ -48,16 +53,13 @@ export function QrScanner({
     };
 
     (async () => {
+      let acquired: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        acquired = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment' },
         });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-        raf = requestAnimationFrame(scan);
       } catch (e) {
+        // Nothing was opened, so there's no stream to release here.
         const name = (e as Error)?.name;
         setError(
           name === 'NotAllowedError'
@@ -66,10 +68,37 @@ export function QrScanner({
               ? 'No camera was found on this device.'
               : 'Could not open the camera on this device.',
         );
+        return;
       }
+
+      // Closed while the permission prompt or device warm-up was still pending: the
+      // cleanup below already ran and never saw this stream, so release it here or the
+      // camera light stays on until the app quits.
+      if (cancelled) {
+        acquired.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      stream = acquired;
+
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = acquired;
+        // play() rejects in some webviews (WKWebView among them) even though autoplay +
+        // muted starts the stream anyway. It used to share the catch above, which turned a
+        // WORKING camera into "Camera unavailable" — while leaving it running, green light
+        // and all, because only unmount stopped the tracks. The scan loop waits on
+        // readyState, so a rejection here costs nothing.
+        try {
+          await video.play();
+        } catch {
+          /* frames still arrive; readyState gates the scan */
+        }
+      }
+      raf = requestAnimationFrame(scan);
     })();
 
     return () => {
+      cancelled = true;
       doneRef.current = true;
       cancelAnimationFrame(raf);
       stream?.getTracks().forEach((t) => t.stop());
