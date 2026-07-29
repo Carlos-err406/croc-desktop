@@ -467,6 +467,17 @@ class TransferService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Stop arrives as a start intent carrying EXTRA_STOP, NOT as stopService(): those
+        // are two different call paths with no ordering guarantee, so a stop could be
+        // handled before a progress update sent a moment earlier, and that update would
+        // then re-post this notification with no service left to withdraw it. Same path =
+        // same order. Stopping here instead of calling startForeground is allowed.
+        if (intent?.getBooleanExtra(EXTRA_STOP, false) == true) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         // Rust re-starts the service to push each progress update; -1 means it had nothing
         // to report yet, which shows as an indeterminate bar.
         val percent = intent?.getIntExtra(EXTRA_PERCENT, -1) ?: -1
@@ -500,6 +511,10 @@ class TransferService : Service() {
     }
 
     override fun onDestroy() {
+        // Belt and braces: Android drops the notification with the service anyway, but this
+        // one is NO_CLEAR, so if it ever did outlive the service the user couldn't swipe it
+        // away. Cheap to say explicitly.
+        stopForeground(STOP_FOREGROUND_REMOVE)
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         super.onDestroy()
@@ -541,6 +556,7 @@ class TransferService : Service() {
         const val ID = 1
         const val EXTRA_PERCENT = "percent"
         const val EXTRA_FILE = "file"
+        const val EXTRA_STOP = "stop"
         const val WAKE_LOCK_TIMEOUT_MS = 60L * 60L * 1000L
     }
 }

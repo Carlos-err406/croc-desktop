@@ -21,7 +21,7 @@ use std::time::{Duration, Instant};
 /// Ask Android to keep this process alive. Idempotent: a second call just delivers
 /// another `onStartCommand`, and the service re-posts the same notification.
 pub fn start() {
-    if let Err(e) = toggle(true, None) {
+    if let Err(e) = post(None, false) {
         warn(&format!(
             "foreground service not started ({e}); a backgrounded transfer may be killed"
         ));
@@ -29,9 +29,14 @@ pub fn start() {
 }
 
 /// Drop back to a normal background process, clearing the notification.
+///
+/// Sent as a *start* intent carrying `stop`, not as `stopService`: those are two different
+/// call paths with no ordering guarantee between them, so a progress update posted a moment
+/// earlier could be processed *after* the stop and re-post a notification with no service
+/// left to withdraw it. Going out the same way as the updates keeps them in order.
 pub fn stop() {
     *LAST_POSTED.lock().unwrap() = None;
-    if let Err(e) = toggle(false, None) {
+    if let Err(e) = post(None, true) {
         warn(&format!(
             "foreground service not stopped ({e}); the notification may linger"
         ));
@@ -62,7 +67,7 @@ pub fn progress(percent: u32, file: Option<&str>) {
         }
         *last = Some((Instant::now(), percent));
     }
-    if let Err(e) = toggle(true, Some((percent, file))) {
+    if let Err(e) = post(Some((percent, file)), false) {
         warn(&format!("progress notification not updated ({e})"));
     }
 }
@@ -88,7 +93,9 @@ fn warn(msg: &str) {
     );
 }
 
-fn toggle(on: bool, progress: Option<(u32, Option<&str>)>) -> Result<(), String> {
+/// Everything goes out as one call shape — `startForegroundService` with extras — so
+/// starts, progress updates and the stop are delivered in the order they were made.
+fn post(progress: Option<(u32, Option<&str>)>, stop: bool) -> Result<(), String> {
     let vm = crate::android_saf::vm().ok_or("nativeInit never ran, so there's no JavaVM")?;
     let context = crate::android_saf::context().ok_or("no app Context")?;
     let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
@@ -143,18 +150,27 @@ fn toggle(on: bool, progress: Option<(u32, Option<&str>)>) -> Result<(), String>
         }
     }
 
+    if stop {
+        let key = env.new_string("stop").map_err(|e| e.to_string())?;
+        env.call_method(
+            &intent,
+            "putExtra",
+            "(Ljava/lang/String;Z)Landroid/content/Intent;",
+            &[JValue::Object(&key), JValue::Bool(1)],
+        )
+        .map_err(|e| format!("putExtra stop: {e}"))?;
+    }
+
     // startForegroundService, not startService: API 26+ refuses to start a plain
     // background service, and this is the call that promises we'll reach
     // startForeground() within a few seconds (TransferService does it first thing).
-    let (method, sig) = if on {
-        (
-            "startForegroundService",
-            "(Landroid/content/Intent;)Landroid/content/ComponentName;",
-        )
-    } else {
-        ("stopService", "(Landroid/content/Intent;)Z")
-    };
-    let called = env.call_method(context.as_obj(), method, sig, &[JValue::Object(&intent)]);
+    let method = "startForegroundService";
+    let called = env.call_method(
+        context.as_obj(),
+        method,
+        "(Landroid/content/Intent;)Landroid/content/ComponentName;",
+        &[JValue::Object(&intent)],
+    );
 
     // A pending exception poisons every later JNI call on this thread, so clear it before
     // returning — the SAF and MediaStore paths share this thread.
@@ -167,11 +183,9 @@ fn toggle(on: bool, progress: Option<(u32, Option<&str>)>) -> Result<(), String>
 
     // A null ComponentName means Android resolved no such service — the failure mode that
     // hid the class-name bug. Treat it as the error it is.
-    if on {
-        let component = value.l().map_err(|e| format!("{method} return: {e}"))?;
-        if component.is_null() {
-            return Err(format!("{method} resolved no service"));
-        }
+    let component = value.l().map_err(|e| format!("{method} return: {e}"))?;
+    if component.is_null() {
+        return Err(format!("{method} resolved no service"));
     }
     Ok(())
 }

@@ -24,6 +24,7 @@ Galaxy S23 FE (SM-S711U1), **Android 16**, arm64, debug APK built from this tree
 | Foreground service while transferring | `isForeground=true types=0x1` (dataSync), notification on channel `croc_transfer`; process held at `+50 M/S/FGS (fg-service-act)` instead of being cached |
 | Progress on the notification | `android.title="Transferring — 51%"`, `android.text="fgs-test.bin"`, `android.progress=51/100`, updating about once a second |
 | Notification handover at the end | The `croc_transfer` notification is gone from the active list and the app's own `Download complete / Received 1 file.` is the only one left |
+| Two concurrent transfers | A text send started mid-receive gives two `libcroc.so` processes; ending the send leaves the service `isForeground=true` with its notification and the receive still running. Ending the last one drops both to zero |
 | Service after the transfer | Gone — 0 `TransferService` records, process demoted to `prev /LAST`. Same on cancel (croc killed → reader EOF → service stopped) |
 
 Sharing was driven with `am start`, which only grants a URI that's in the intent's
@@ -32,9 +33,12 @@ or the app gets a `SecurityException` that looks like an app bug. `ACTION_SEND_M
 takes the same path but couldn't be scripted (`am` can't put a URI `ArrayList` in an
 extra), so it's only verified by inspection.
 
-Not yet verified on hardware: LAN / local-only mode, and two *concurrent* transfers (the
-service is reference-counted on `CrocState.transfers` being non-empty, so the case worth
-checking is that the notification survives the first of two finishing).
+Not yet verified on hardware: LAN / local-only mode.
+
+When checking notifications with `dumpsys notification`, count **`NotificationRecord`**
+lines, not `StatusBarNotification` ones — Samsung's dump keeps an archived section, and an
+archived entry reads exactly like a live one. That difference briefly looked like a stuck
+notification bug that didn't exist.
 
 ### Background survival
 
