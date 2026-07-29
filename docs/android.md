@@ -22,6 +22,8 @@ Galaxy S23 FE (SM-S711U1), **Android 16**, arm64, debug APK built from this tree
 | Receive a folder → Downloads | `Download/CrocMobile/album/{photo-one.jpg,notes.txt}`, **SHA-256 identical**, private copy gone |
 | Receive 100 MB **backgrounded, screen locked** | Ran to `100% (105/105 MB)` with the app off-screen and the phone locked; **SHA-256 identical** in `Download/CrocMobile` |
 | Foreground service while transferring | `isForeground=true types=0x1` (dataSync), notification on channel `croc_transfer`; process held at `+50 M/S/FGS (fg-service-act)` instead of being cached |
+| Progress on the notification | `android.title="Transferring — 51%"`, `android.text="fgs-test.bin"`, `android.progress=51/100`, updating about once a second |
+| Notification handover at the end | The `croc_transfer` notification is gone from the active list and the app's own `Download complete / Received 1 file.` is the only one left |
 | Service after the transfer | Gone — 0 `TransferService` records, process demoted to `prev /LAST`. Same on cancel (croc killed → reader EOF → service stopped) |
 
 Sharing was driven with `am start`, which only grants a URI that's in the intent's

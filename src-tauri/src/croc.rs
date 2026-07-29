@@ -680,7 +680,7 @@ impl Parser {
                 "totalHuman": s[2].to_string(),
                 "speedHuman": s.get(3).map(|m| m.as_str()),
                 "etaHuman": eta,
-                "file": file,
+                "file": file.as_deref(),
                 "index": nm.as_ref().and_then(|c| c[1].parse::<u32>().ok()),
                 "count": nm.as_ref().and_then(|c| c[2].parse::<u32>().ok()),
             });
@@ -688,6 +688,10 @@ impl Parser {
                 "progress",
                 serde_json::Map::from_iter([("progress".into(), progress)]),
             );
+            // Mirror it onto the foreground-service notification, which is the only view
+            // of the transfer once the app is off-screen. Throttled inside.
+            #[cfg(target_os = "android")]
+            crate::android_fgs::progress(percent, file.as_deref());
             return;
         }
 

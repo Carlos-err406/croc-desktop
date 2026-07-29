@@ -454,13 +454,32 @@ class TransferService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        // IMPORTANCE_LOW: it has to be visible, but it shouldn't make a sound every time
+        // someone sends a file. minSdk is 26, so the channel is never optional.
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(CHANNEL, "Transfers", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Progress while a transfer is running"
+                setShowBadge(false)
+            },
+        )
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Rust re-starts the service to push each progress update; -1 means it had nothing
+        // to report yet, which shows as an indeterminate bar.
+        val percent = intent?.getIntExtra(EXTRA_PERCENT, -1) ?: -1
+        val file = intent?.getStringExtra(EXTRA_FILE)
+
         // First thing, before any other work: startForegroundService() gives us only a
-        // few seconds to get here, and missing that window is an ANR.
+        // few seconds to get here, and missing that window is an ANR. Calling it again on
+        // later starts is also how the notification gets updated.
+        val notification = notification(percent, file)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
-            startForeground(ID, notification())
+            startForeground(ID, notification)
         }
 
         // A foreground service stops us being frozen, but not the CPU idling in doze
@@ -486,17 +505,7 @@ class TransferService : Service() {
         super.onDestroy()
     }
 
-    private fun notification(): Notification {
-        val manager = getSystemService(NotificationManager::class.java)
-        // IMPORTANCE_LOW: required to be visible, but it shouldn't make a sound every
-        // time someone sends a file. minSdk is 26, so the channel is never optional.
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Transfers", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown while a transfer is running so Android keeps it alive"
-                setShowBadge(false)
-            },
-        )
-
+    private fun notification(percent: Int, file: String?): Notification {
         // Tapping it returns to the transfer rather than starting a second activity;
         // MainActivity is singleTask, so this reuses the existing one.
         val reopen =
@@ -514,16 +523,24 @@ class TransferService : Service() {
             // A platform icon: an adaptive launcher icon renders as a white blob in the
             // status bar, and this needs no app resource to exist.
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle("Transfer in progress")
-            .setContentText("Keeping the transfer running in the background")
+            .setContentTitle(if (percent in 0..100) "Transferring — \$percent%" else "Transferring")
+            .setContentText(file ?: "Keeping the transfer running in the background")
+            // Indeterminate until croc reports a percentage, so the notification never
+            // claims 0% while it's really still pairing.
+            .setProgress(100, percent.coerceAtLeast(0), percent !in 0..100)
             .setContentIntent(reopen)
             .setOngoing(true)
+            // The result is announced separately by the app's own finish notification, so
+            // this one carries no timestamp to argue with.
+            .setShowWhen(false)
             .build()
     }
 
     private companion object {
         const val CHANNEL = "croc_transfer"
         const val ID = 1
+        const val EXTRA_PERCENT = "percent"
+        const val EXTRA_FILE = "file"
         const val WAKE_LOCK_TIMEOUT_MS = 60L * 60L * 1000L
     }
 }

@@ -15,11 +15,13 @@
 //! background (API 31+), which is exactly the case where the user isn't watching anyway.
 
 use jni::objects::JValue;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 /// Ask Android to keep this process alive. Idempotent: a second call just delivers
 /// another `onStartCommand`, and the service re-posts the same notification.
 pub fn start() {
-    if let Err(e) = toggle(true) {
+    if let Err(e) = toggle(true, None) {
         warn(&format!(
             "foreground service not started ({e}); a backgrounded transfer may be killed"
         ));
@@ -28,10 +30,40 @@ pub fn start() {
 
 /// Drop back to a normal background process, clearing the notification.
 pub fn stop() {
-    if let Err(e) = toggle(false) {
+    *LAST_POSTED.lock().unwrap() = None;
+    if let Err(e) = toggle(false, None) {
         warn(&format!(
             "foreground service not stopped ({e}); the notification may linger"
         ));
+    }
+}
+
+/// Last (instant, percent) pushed to the notification, for throttling.
+static LAST_POSTED: Mutex<Option<(Instant, u32)>> = Mutex::new(None);
+
+/// Show transfer progress on the service's notification — the only view of the transfer
+/// once the app is off-screen.
+///
+/// Throttled here rather than at the call site: croc emits a progress line per redraw
+/// (dozens a second), and each update is a binder round trip to post a notification no
+/// human can read that fast. One a second, plus the final 100% so the bar always lands
+/// full before the notification goes away.
+pub fn progress(percent: u32, file: Option<&str>) {
+    {
+        let mut last = LAST_POSTED.lock().unwrap();
+        if let Some((at, was)) = *last {
+            let stale = at.elapsed() >= Duration::from_secs(1);
+            if (percent == was || !stale) && percent < 100 {
+                return;
+            }
+            if percent == was && was >= 100 {
+                return;
+            }
+        }
+        *last = Some((Instant::now(), percent));
+    }
+    if let Err(e) = toggle(true, Some((percent, file))) {
+        warn(&format!("progress notification not updated ({e})"));
     }
 }
 
@@ -56,7 +88,7 @@ fn warn(msg: &str) {
     );
 }
 
-fn toggle(on: bool) -> Result<(), String> {
+fn toggle(on: bool, progress: Option<(u32, Option<&str>)>) -> Result<(), String> {
     let vm = crate::android_saf::vm().ok_or("nativeInit never ran, so there's no JavaVM")?;
     let context = crate::android_saf::context().ok_or("no app Context")?;
     let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
@@ -85,6 +117,31 @@ fn toggle(on: bool) -> Result<(), String> {
         ],
     )
     .map_err(|e| format!("setClassName: {e}"))?;
+
+    // Progress rides as extras; a start with none leaves the bar indeterminate until the
+    // first real progress line arrives.
+    if let Some((percent, file)) = progress {
+        let key = env.new_string("percent").map_err(|e| e.to_string())?;
+        env.call_method(
+            &intent,
+            "putExtra",
+            "(Ljava/lang/String;I)Landroid/content/Intent;",
+            &[JValue::Object(&key), JValue::Int(percent as i32)],
+        )
+        .map_err(|e| format!("putExtra percent: {e}"))?;
+
+        if let Some(file) = file {
+            let key = env.new_string("file").map_err(|e| e.to_string())?;
+            let value = env.new_string(file).map_err(|e| e.to_string())?;
+            env.call_method(
+                &intent,
+                "putExtra",
+                "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;",
+                &[JValue::Object(&key), JValue::Object(&value)],
+            )
+            .map_err(|e| format!("putExtra file: {e}"))?;
+        }
+    }
 
     // startForegroundService, not startService: API 26+ refuses to start a plain
     // background service, and this is the call that promises we'll reach
