@@ -5,6 +5,8 @@ mod android_install;
 #[cfg(target_os = "android")]
 mod android_media;
 #[cfg(target_os = "android")]
+mod android_multicast;
+#[cfg(target_os = "android")]
 mod android_saf;
 #[cfg(target_os = "android")]
 mod android_share;
@@ -13,7 +15,6 @@ mod codephrase;
 mod commands;
 mod croc;
 mod history;
-#[cfg(desktop)]
 mod nearby;
 
 use croc::CrocState;
@@ -97,7 +98,6 @@ pub fn run() {
         .manage(commands::OpenedPaths::default())
         .manage(commands::ClaimedUrls::default());
 
-    #[cfg(desktop)]
     let builder = builder.manage(nearby::NearbyState::default());
 
     builder
@@ -180,6 +180,7 @@ pub fn run() {
             commands::croc_new_window,
             commands::croc_nearby_start,
             commands::croc_nearby_peers,
+            commands::croc_nearby_stop,
             commands::croc_nearby_discoverable,
             commands::croc_claim_url,
             commands::croc_update_size,

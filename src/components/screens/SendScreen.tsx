@@ -541,7 +541,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             // appear only once files were staged, so there was nothing anywhere to suggest
             // the feature existed. Adopting a peer's code before picking files is fine —
             // it just fills the custom code the send then uses.
-            <div className="flex min-h-0 flex-1 gap-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
               <div
                 role="button"
                 tabIndex={0}
@@ -583,7 +583,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
                 )}
               </div>
               {CAN_USE_NEARBY && (
-                <div className="hidden w-[268px] shrink-0 overflow-y-auto md:block">
+                <div className="w-full shrink-0 overflow-y-auto md:w-[268px]">
                   <NearbyPeers
                     ourCroc={ourCroc}
                     selectedCode={customCode}
@@ -637,7 +637,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 md:px-8 pb-7 pt-[22px]">
           {/* Two columns: staged files on the left, nearby devices alongside — the
               code field + actions stay full-width below since they apply to both. */}
-          <div className="flex min-h-0 flex-1 gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-border">
               <div className="flex items-center justify-between border-b border-border px-[18px] py-3.5">
                 <span className="text-sm font-semibold">{countLabel} ready to send</span>
@@ -676,7 +676,7 @@ export function SendScreen({ send, onViewHistory }: { send: UseSend; onViewHisto
             </div>
             {/* Nearby: adopt a discoverable peer's advertised code — no code exchange. */}
             {CAN_USE_NEARBY && (
-              <div className="hidden w-[268px] shrink-0 overflow-y-auto md:block">
+              <div className="w-full shrink-0 overflow-y-auto md:w-[268px]">
                 <NearbyPeers
                   ourCroc={ourCroc}
                   selectedCode={customCode}

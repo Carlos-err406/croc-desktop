@@ -94,6 +94,9 @@ const PERMISSIONS = `    <uses-permission android:name="android.permission.INTER
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Nearby devices: mDNS answers are multicast, and Android drops multicast under
+         Wi-Fi power-save unless we hold a MulticastLock. See src/android_multicast.rs. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <!-- Transfer-finished notifications; prompted at runtime on API 33+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Shipping via GitHub means no store to update us, so the app installs its own
@@ -159,6 +162,19 @@ patch(manifest, 'AndroidManifest.xml', (src) => {
   // FOREGROUND_SERVICE*). Manifest merging dedupes the INTERNET we re-declare.
   if (!out.includes('FOREGROUND_SERVICE_DATA_SYNC')) {
     out = insertBefore(out, '    <application', PERMISSIONS, 'permissions');
+  }
+
+  // A fresh tree gets CHANGE_WIFI_MULTICAST_STATE inside PERMISSIONS above, but a tree
+  // patched before nearby worked on Android already satisfies that guard — so this one
+  // stands alone. The lesson from FOREGROUND_SERVICE*: a guard keyed on an older marker
+  // silently skips everything added after it.
+  if (!out.includes('CHANGE_WIFI_MULTICAST_STATE')) {
+    out = insertBefore(
+      out,
+      '    <application',
+      '    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />\n\n',
+      'multicast permission',
+    );
   }
 
   // croc must be UNPACKED to disk to be executable: AGP defaults extractNativeLibs

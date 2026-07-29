@@ -37,6 +37,9 @@ export function NearbyPeers({
     void poll();
     const t = window.setInterval(poll, 2000);
     return () => {
+      // Ends the mDNS browse and, on Android, releases the multicast lock — holding it
+      // while nothing is looking at peers just costs battery.
+      void croc.nearbyStop();
       alive = false;
       clearInterval(t);
     };

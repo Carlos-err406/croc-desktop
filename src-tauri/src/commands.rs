@@ -1134,31 +1134,17 @@ pub fn croc_history_clear(app: AppHandle) -> Vec<HistoryEntry> {
 }
 
 // ── nearby peers (LAN discovery, no listener) ─────────────────────────────
-// Android stubs: mDNS there needs a WifiManager MulticastLock held for the whole
-// time we browse or advertise, and without it multicast is silently dropped. Rather
-// than ship something that looks like it works, the feature reports itself
-// unavailable and the UI hides it. (mdns-sd is desktop-only in Cargo.toml.)
-#[cfg(mobile)]
+// Works on Android too now: mdns-sd cross-compiles fine, and the missing piece was a
+// WifiManager MulticastLock — without it Android drops multicast under Wi-Fi power-save
+// and mDNS answers never arrive. See android_multicast.rs.
+/// Stop browsing (and release Android's multicast lock) when the UI no longer needs peers.
 #[tauri::command]
-pub fn croc_nearby_start() -> Result<(), String> {
-    Err("Nearby devices aren't available on this platform yet.".into())
-}
-
-#[cfg(mobile)]
-#[tauri::command]
-pub fn croc_nearby_peers() -> Vec<serde_json::Value> {
-    Vec::new()
-}
-
-#[cfg(mobile)]
-#[tauri::command]
-pub fn croc_nearby_discoverable(_code: Option<String>) -> Result<bool, String> {
-    Err("Nearby devices aren't available on this platform yet.".into())
+pub fn croc_nearby_stop(state: State<crate::nearby::NearbyState>) {
+    state.stop_browsing()
 }
 
 /// Start browsing for nearby croc devices. Browse-only: this does NOT advertise us,
 /// so joining a network never broadcasts the device name by itself.
-#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_nearby_start(state: State<crate::nearby::NearbyState>) -> Result<(), String> {
     state.start_browsing()
@@ -1166,7 +1152,6 @@ pub fn croc_nearby_start(state: State<crate::nearby::NearbyState>) -> Result<(),
 
 /// Nearby devices currently accepting (self excluded). A peer with `code: null` is
 /// visible but not accepting — nothing to send to.
-#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_nearby_peers(state: State<crate::nearby::NearbyState>) -> Vec<crate::nearby::Peer> {
     state.peers()
@@ -1175,7 +1160,6 @@ pub fn croc_nearby_peers(state: State<crate::nearby::NearbyState>) -> Vec<crate:
 /// Become discoverable with a one-time `code`, or stop. While discoverable, anyone on
 /// this network can see the code and send to it — which is why it's an explicit,
 /// revocable choice rather than a default.
-#[cfg(desktop)]
 #[tauri::command]
 pub fn croc_nearby_discoverable(
     state: State<crate::nearby::NearbyState>,
@@ -1195,6 +1179,55 @@ pub fn croc_nearby_discoverable(
             Ok(false)
         }
     }
+}
+
+/// A friendly device name for the advertisement.
+///
+/// The name the user gave the phone in Settings, which is what they'll recognise in a peer
+/// list. Build.MODEL ("SM-S711U1") is the fallback, and it's a poor one — hence the order.
+#[cfg(target_os = "android")]
+fn hostname_or_default() -> String {
+    fn lookup() -> Option<String> {
+        use jni::objects::{JString, JValue};
+        let vm = crate::android_saf::vm()?;
+        let context = crate::android_saf::context()?;
+        let mut env = vm.attach_current_thread().ok()?;
+
+        let resolver = env
+            .call_method(
+                context.as_obj(),
+                "getContentResolver",
+                "()Landroid/content/ContentResolver;",
+                &[],
+            )
+            .and_then(|v| v.l())
+            .ok()?;
+        let key = env.new_string("device_name").ok()?;
+        let name = env
+            .call_static_method(
+                "android/provider/Settings$Global",
+                "getString",
+                "(Landroid/content/ContentResolver;Ljava/lang/String;)Ljava/lang/String;",
+                &[JValue::Object(&resolver), JValue::Object(&key)],
+            )
+            .and_then(|v| v.l())
+            .ok()?;
+
+        let picked = if name.is_null() {
+            env.get_static_field("android/os/Build", "MODEL", "Ljava/lang/String;")
+                .and_then(|v| v.l())
+                .ok()?
+        } else {
+            name
+        };
+        if picked.is_null() {
+            return None;
+        }
+        let out: String = env.get_string(&JString::from(picked)).ok()?.into();
+        let out = out.trim().to_string();
+        (!out.is_empty()).then_some(out)
+    }
+    lookup().unwrap_or_else(|| "Croc Mobile".to_string())
 }
 
 /// A friendly device name for the advertisement — the machine's hostname.

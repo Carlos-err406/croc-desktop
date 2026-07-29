@@ -99,6 +99,7 @@ export const croc = {
   /** Start browsing for nearby croc devices (browse-only; does not advertise us). */
   nearbyStart: () => call<null>('croc_nearby_start'),
   /** Nearby devices seen so far (self excluded). */
+  nearbyStop: () => call<null>('croc_nearby_stop'),
   nearbyPeers: () => call<NearbyPeer[]>('croc_nearby_peers'),
   /** Advertise this device with a one-time code, or pass null to stop. */
   nearbyDiscoverable: (code: string | null) => call<boolean>('croc_nearby_discoverable', { code }),

@@ -78,6 +78,27 @@ impl NearbyState {
         v
     }
 
+    /// Stop browsing and, on Android, hand the multicast lock back.
+    ///
+    /// Called when the UI that needs peers goes away. Without this the lock would be held
+    /// for the life of the process the moment anyone opened Send — and on a phone a
+    /// multicast lock defeats Wi-Fi power-save, so it costs battery for nothing.
+    pub fn stop_browsing(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.browsing = false;
+        inner.peers.clear();
+        // The daemon is dropped only when nothing is advertising either; dropping it while
+        // discoverable would silently unregister us.
+        let advertising = inner.own_fullname.is_some();
+        if !advertising {
+            inner.daemon = None;
+        }
+        #[cfg(target_os = "android")]
+        if !advertising {
+            crate::android_multicast::release();
+        }
+    }
+
     /// Start *browsing* only. Deliberately does not advertise: we don't broadcast this
     /// device's name on every network the user joins — that only happens when they
     /// explicitly become discoverable. Idempotent.
@@ -86,6 +107,12 @@ impl NearbyState {
         if inner.browsing {
             return Ok(());
         }
+        // Android drops multicast under Wi-Fi power-save, and does it silently: the daemon
+        // would send its queries and simply never hear a reply. Held for the session once
+        // browsing starts — the alternative is answers that arrive only while the screen
+        // happens to be on.
+        #[cfg(target_os = "android")]
+        crate::android_multicast::acquire()?;
         let daemon = match inner.daemon.as_ref() {
             Some(d) => d.clone(),
             None => {
@@ -147,6 +174,8 @@ impl NearbyState {
         code: &str,
     ) -> Result<(), String> {
         self.start_browsing()?;
+        #[cfg(target_os = "android")]
+        crate::android_multicast::acquire()?;
         let inner_guard = self.inner.lock().unwrap();
         let daemon = inner_guard
             .daemon
@@ -195,6 +224,11 @@ impl NearbyState {
             let _ = daemon.unregister(&fullname);
         }
         inner.own_fullname = None;
+        // Only when nothing else needs multicast. A live browse keeps it.
+        #[cfg(target_os = "android")]
+        if !inner.browsing {
+            crate::android_multicast::release();
+        }
         Ok(())
     }
 }

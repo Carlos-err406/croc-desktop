@@ -32,7 +32,9 @@ export const CAN_USE_FILE_PATHS = !IS_MOBILE;
 export const CAN_PICK_FOLDERS = !IS_MOBILE;
 
 /** Nearby/LAN discovery needs a multicast lock Android doesn't grant us yet. */
-export const CAN_USE_NEARBY = !IS_MOBILE;
+// Android included since it holds a MulticastLock (src-tauri/src/android_multicast.rs);
+// without one, mDNS answers are silently dropped under Wi-Fi power-save.
+export const CAN_USE_NEARBY = true;
 
 /** Multiple windows, a menu bar, and ⌘-accelerators. */
 export const CAN_USE_WINDOWS = !IS_MOBILE;

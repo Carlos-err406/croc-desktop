@@ -21,6 +21,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
+mdns-sd = "0.20.2"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
@@ -44,7 +45,6 @@ rand = "0.8"
 # Desktop-only dependencies. Android deliberately takes none of these:
 #   * portable-pty — croc writes its progress bar to stderr and reads prompts from
 #     plain stdin, so a pty buys nothing a merged pipe + COLUMNS can't (croc.rs).
-#   * mdns-sd — nearby/local discovery needs a JVM MulticastLock we don't hold yet.
 #   * updater/process — signed desktop artifacts; Android updates via an APK intent.
 #   * reqwest — only croc_update_size uses it, and the updater's rustls feature drags
 #     in `ring`, whose build script needs a C compiler for the Android target.
@@ -54,7 +54,6 @@ rand = "0.8"
 #     unchanged.)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 portable-pty = "0.9"
-mdns-sd = "0.20.2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 reqwest = { version = "0.13", default-features = false }
