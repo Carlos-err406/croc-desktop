@@ -1,0 +1,12 @@
+# Commits that only moved whitespace around. `git blame` skips them so it keeps
+# pointing at whoever actually wrote a line.
+#
+# Locally:  git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub picks this file up on its own.
+#
+# Only add a commit here if it changed formatting and nothing else.
+
+# Lint and format the whole tree, and gate both in CI
+# (Prettier + rustfmt over 42 files. The two real changes in it — a sort_by_key and
+# the rust-version bump — are small enough to lose from blame.)
+ab1d490910cc146fe4a1618b430ca3a98d649e3f
