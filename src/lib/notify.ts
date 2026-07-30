@@ -5,6 +5,7 @@ import {
   sendNotification,
 } from '@tauri-apps/plugin-notification';
 import { getPrefs } from './prefs';
+import { IS_ANDROID } from './platform';
 
 const IN_TAURI = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -29,7 +30,10 @@ export async function notify(title: string, body: string): Promise<void> {
   if (!IN_TAURI || !getPrefs().notify) return;
   if (!(await ensurePermission())) return;
   try {
-    sendNotification({ title, body });
+    // Android resolves `icon` as a drawable name; without it the plugin falls back to
+    // android.R.drawable.ic_dialog_info, which is why notifications showed a generic (i).
+    // Desktop treats it as a file path, so it only goes on Android.
+    sendNotification(IS_ANDROID ? { title, body, icon: 'ic_croc_notification' } : { title, body });
   } catch {
     /* ignore */
   }

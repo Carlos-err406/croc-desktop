@@ -473,17 +473,25 @@ import android.os.PowerManager
  */
 class TransferService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
+    private var clearedStale = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
-        // IMPORTANCE_LOW: it has to be visible, but it shouldn't make a sound every time
-        // someone sends a file. minSdk is 26, so the channel is never optional.
-        getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL, "Transfers", NotificationManager.IMPORTANCE_LOW).apply {
+        val manager = getSystemService(NotificationManager::class.java)
+        // IMPORTANCE_DEFAULT with the sound explicitly nulled, NOT IMPORTANCE_LOW. Low
+        // marks the notification silent, and Android hides silent notifications' status-bar
+        // icons and files them under "more notifications" — so the one indication that a
+        // transfer is still running was invisible unless you pulled the shade down. Default
+        // keeps the icon; sound and vibration are off, so it still doesn't announce itself.
+        manager.deleteNotificationChannel(OLD_CHANNEL)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL, "Transfers", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Progress while a transfer is running"
                 setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
             },
         )
     }
@@ -498,6 +506,15 @@ class TransferService : Service() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        // Clear leftovers from a finished transfer, once per run, BEFORE posting ours.
+        // With two notifications Android groups them and files the ongoing one under
+        // "1 more notification" — burying the one whose entire job is to say it's still
+        // running. Only on the first start, or every progress update would re-do it.
+        if (!clearedStale) {
+            clearedStale = true
+            getSystemService(NotificationManager::class.java).cancelAll()
         }
 
         // Rust re-starts the service to push each progress update; -1 means it had nothing
@@ -557,9 +574,10 @@ class TransferService : Service() {
             )
 
         return Notification.Builder(this, CHANNEL)
-            // A platform icon: an adaptive launcher icon renders as a white blob in the
-            // status bar, and this needs no app resource to exist.
-            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            // The croc silhouette, copied into res/drawable-* by android-configure.mjs.
+            // A status-bar icon must be a flat alpha mask — the adaptive launcher icon
+            // would render as a white blob.
+            .setSmallIcon(R.drawable.ic_croc_notification)
             .setContentTitle(if (percent in 0..100) "Transferring — \$percent%" else "Transferring")
             .setContentText(file ?: "Keeping the transfer running in the background")
             // Indeterminate until croc reports a percentage, so the notification never
@@ -574,7 +592,9 @@ class TransferService : Service() {
     }
 
     private companion object {
-        const val CHANNEL = "croc_transfer"
+        const val CHANNEL = "croc_transfer_progress"
+        // The IMPORTANCE_LOW channel this replaces; deleted so it stops cluttering settings.
+        const val OLD_CHANNEL = "croc_transfer"
         const val ID = 1
         const val EXTRA_PERCENT = "percent"
         const val EXTRA_FILE = "file"
@@ -677,6 +697,42 @@ object CrocUpdater {
     writeFileSync(updaterPath, source);
     console.log(`[android-configure] CrocUpdater.kt: ${existing ? 'patched' : 'written'}`);
     changed += 1;
+  }
+}
+
+// ── 3d. res/drawable-*/ic_croc_notification.png ──────────────────────────────
+//
+// Android status-bar icons are alpha masks: the system tints them, so anything with its own
+// colours renders as a white blob. Without one, tauri-plugin-notification falls back to
+// android.R.drawable.ic_dialog_info — the generic (i) that shipped up to 2.9.0.
+//
+// Committed rather than generated at build time (same as the launcher icons): a filled
+// silhouette derived from src/assets/croc-icon.png, whose croc is a white stroke on green —
+// so it was flood-filled into a solid body, with the artwork's own eye and jaw lines punched
+// back out so it still reads as a crocodile at 24dp.
+{
+  const src = join(ROOT, 'src-tauri', 'icons', 'notification');
+  if (!existsSync(src)) {
+    throw new Error(`[android-configure] ${src} missing — the notification icon is committed`);
+  }
+  let copied = 0;
+  for (const density of readdirSync(src)) {
+    const from = join(src, density, 'ic_croc_notification.png');
+    if (!existsSync(from)) continue;
+    const toDir = join(APP, 'src', 'main', 'res', density);
+    mkdirSync(toDir, { recursive: true });
+    const to = join(toDir, 'ic_croc_notification.png');
+    const bytes = readFileSync(from);
+    if (!existsSync(to) || !readFileSync(to).equals(bytes)) {
+      writeFileSync(to, bytes);
+      copied += 1;
+    }
+  }
+  if (copied) {
+    console.log(`[android-configure] notification icon: copied ${copied} density/densities`);
+    changed += 1;
+  } else {
+    console.log('[android-configure] notification icon: already applied');
   }
 }
 
