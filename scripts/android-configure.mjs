@@ -480,12 +480,12 @@ class TransferService : Service() {
     override fun onCreate() {
         super.onCreate()
         val manager = getSystemService(NotificationManager::class.java)
-        // IMPORTANCE_DEFAULT with the sound explicitly nulled, NOT IMPORTANCE_LOW. Low
-        // marks the notification silent, and Android hides silent notifications' status-bar
-        // icons and files them under "more notifications" — so the one indication that a
-        // transfer is still running was invisible unless you pulled the shade down. Default
-        // keeps the icon; sound and vibration are off, so it still doesn't announce itself.
-        manager.deleteNotificationChannel(OLD_CHANNEL)
+        // IMPORTANCE_DEFAULT with sound and vibration off. On One UI this does NOT win a
+        // status-bar icon — see docs/android.md: a FOREGROUND_SERVICE notification is
+        // minimised there whatever its importance, noisiness or category. It's kept at
+        // DEFAULT because on stock Android a silent (LOW) notification does have its
+        // status-bar icon hidden, so DEFAULT is the better of the two elsewhere.
+        OLD_CHANNELS.forEach { manager.deleteNotificationChannel(it) }
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, "Transfers", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Progress while a transfer is running"
@@ -597,9 +597,10 @@ class TransferService : Service() {
     }
 
     private companion object {
-        const val CHANNEL = "croc_transfer_progress"
+        const val CHANNEL = "croc_transfer_ongoing"
         // The IMPORTANCE_LOW channel this replaces; deleted so it stops cluttering settings.
-        const val OLD_CHANNEL = "croc_transfer"
+        val OLD_CHANNELS =
+            listOf("croc_transfer", "croc_transfer_progress", "croc_transfer_progress_v2")
         const val ID = 1
         const val EXTRA_PERCENT = "percent"
         const val EXTRA_FILE = "file"

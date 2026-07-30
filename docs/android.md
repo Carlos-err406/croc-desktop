@@ -60,6 +60,44 @@ Two things it must not do, both of which cost a device test to learn:
 And `log::warn!` is invisible here — `tauri-plugin-log` is desktop-only, so nothing installs
 a logger. `android_fgs.rs` writes failures straight to logcat via `android.util.Log`.
 
+### The progress notification has no status-bar icon on One UI, and can't
+
+Parked as not fixable from inside the app. Worth recording, because three plausible fixes
+all fail and each one costs a build and a device check.
+
+One UI files the transfer notification under **"More notifications"** and gives it no
+status-bar icon. The cause is that it is a **foreground-service** notification. Every live
+notification on a test device, sampled at once:
+
+| App | flags | Samsung `semFlags` | status-bar icon |
+| --- | --- | --- | --- |
+| Chrome (download in progress) | `ONGOING_EVENT｜LOCAL_ONLY` | `0x0` | yes |
+| SystemUI (charging) | `ONGOING_EVENT｜ONLY_ALERT_ONCE` | `0x0` | yes |
+| Telegram (silent channel, `isNoisy=false`) | `AUTO_CANCEL` | `0x0` | yes |
+| **Croc (transfer)** | `ONGOING_EVENT｜NO_CLEAR｜FOREGROUND_SERVICE` | **`0x100000`** | **no** |
+
+`semFlags=0x100000` tracks the FGS flag (WhatsApp's service notification carries it too).
+What does **not** move it:
+
+- **Importance.** `IMPORTANCE_DEFAULT` instead of `LOW` — still minimised.
+- **Noisiness.** Enabling vibration flips the ranker to `isNoisy=true` — still minimised. And
+  Telegram disproves the theory anyway: silent, yet it keeps its icon.
+- **Category.** `CATEGORY_PROGRESS` — still minimised.
+
+Chrome gets away with an ordinary ongoing notification because the bytes move in the
+**system's** DownloadManager process, so Chrome needs no foreground service at all. croc is
+our own child process, so ours is not optional.
+
+The only untried route is splitting them: a bare FGS notification plus a *separate*
+non-FGS ongoing one carrying the progress. That should rank like Chrome's, at the cost of
+the app posting two notifications per transfer. Not attempted — the second one is minimised
+noise, and the app's own UI already shows progress.
+
+Note when experimenting: a channel's importance, sound and vibration are **immutable once
+created**, and recreating a *deleted* id restores its old settings — so every attempt needs a
+brand-new channel id or it silently tests nothing. Hence `croc_transfer_ongoing` and the
+`OLD_CHANNELS` list that cleans up its predecessors.
+
 Two limits worth knowing: the `dataSync` service type is capped at 6 hours per 24 on
 Android 15+, and the partial wake lock the service takes has a 60-minute safety timeout —
 past that the process still isn't frozen, it just isn't held awake.
