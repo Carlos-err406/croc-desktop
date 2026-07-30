@@ -585,6 +585,11 @@ class TransferService : Service() {
             .setProgress(100, percent.coerceAtLeast(0), percent !in 0..100)
             .setContentIntent(reopen)
             .setOngoing(true)
+            // Declare what this is. Without a category One UI files it under "More
+            // notifications" — its minimised bucket — and minimised notifications get no
+            // status-bar icon, so the one notification whose job is "still running" is the
+            // one you can't see. CATEGORY_PROGRESS is what a determinate transfer is.
+            .setCategory(Notification.CATEGORY_PROGRESS)
             // The result is announced separately by the app's own finish notification, so
             // this one carries no timestamp to argue with.
             .setShowWhen(false)
